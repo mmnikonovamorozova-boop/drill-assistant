@@ -46,31 +46,23 @@ res_k = "УСПЕШНО ДОПУЩЕНО" if (k1 and k2 and k3 and k4 and k5 and
 res_v = "УСПЕШНО ДОПУЩЕНО" if (v1 and v2 and v3 and v4 and v5) else "ВЫЯВЛЕНЫ ЗАМЕЧАНИЯ"
 res_d = "УСПЕШНО ДОПУЩЕНО" if (d1 and d2 and d3 and d4) else "ВЫЯВЛЕНЫ ЗАМЕЧАНИЯ"
 
-# Определение цветов текста заранее без использования фигурных скобок внутри стилей
 color_k = "green" if res_k == "УСПЕШНО ДОПУЩЕНО" else "red"
 color_v = "green" if res_v == "УСПЕШНО ДОПУЩЕНО" else "red"
 color_d = "green" if res_d == "УСПЕШНО ДОПУЩЕНО" else "red"
 
-# Сборка финального HTML бланка
-html_form = f"""
-<div style="border: 3px solid #1E3A8A; padding: 25px; border-radius: 10px; background-color: #FAFAFA; font-family: Arial, sans-serif; color: #333333;">
-    <h2 style="text-align: center; color: #1E3A8A; margin-top: 0;">ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>
-    <h3 style="text-align: center; color: #4B5563; margin-top: -10px;">ОФИЦИАЛЬНЫЙ АКТ ВХОДНОГО КОНТРОЛЯ КНБК</h3>
-    <hr style="border: 1px solid #1E3A8A; margin-bottom: 20px;">
-    
-    <p><b>Дата/Время:</b> {current_time} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> {field_name}</p>
-    <p><b>Объект / Скважина:</b> {well_number} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Инженер ННБ:</b> {engineer_name}</p>
-    
-    <h4 style="color: #1E3A8A; margin-top: 25px; border-bottom: 1px solid #D1D5DB; padding-bottom: 5px;">РЕЗУЛЬТАТЫ ВЕРИФИКАЦИИ УЗЛОВ КНБК:</h4>
-    <p style="font-size: 15px;"><b>1. Общий контроль элементов КНБК и УМК:</b> <span style="color: {color_k};"><b>{res_k}</b></span></p>
-    <p style="font-size: 15px;"><b>2. Проверка забойного двигателя (ВЗД):</b> <span style="color: {color_v};"><b>{res_v}</b></span></p>
-    <p style="font-size: 15px;"><b>3. Входной контроль бурового долота:</b> <span style="color: {color_d};"><b>{res_d}</b></span></p>
-    
-    <p style="font-size: 12px; color: #6B7280; text-align: center; margin-top: 35px; border-top: 1px dashed #D1D5DB; padding-top: 10px;">
-        Сгенерировано в модуле 'Цифровой аудит КНБК' • Версия 2026 г. • Для печати в PDF нажмите Ctrl + P
-    </p>
-</div>
-"""
+# Сборка HTML в одну чистую строчку через сложение
+html_form = "<div style='border:3px solid #1E3A8A; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>"
+html_form += "<h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>"
+html_form += "<h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>ОФИЦИАЛЬНЫЙ АКТ ВХОДНОГО КОНТРОЛЯ КНБК</h3>"
+html_form += "<hr style='border:1px solid #1E3A8A; margin-bottom:20px;'>"
+html_form += "<p><b>Дата/Время:</b> " + current_time + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> " + field_name + "</p>"
+html_form += "<p><b>Объект / Скважина:</b> " + well_number + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Инженер ННБ:</b> " + engineer_name + "</p>"
+html_form += "<h4 style='color:#1E3A8A; margin-top:25px; border-bottom:1px solid #D1D5DB; padding-bottom:5px;'>РЕЗУЛЬТАТЫ ВЕРИФИКАЦИИ УЗЛОВ КНБК:</h4>"
+html_form += "<p style='font-size:15px;'><b>1. Общий контроль элементов КНБК и УМК:</b> <span style='color:" + color_k + ";'><b>" + res_k + "</b></span></p>"
+html_form += "<p style='font-size:15px;'><b>2. Проверка забойного двигателя (ВЗД):</b> <span style='color:" + color_v + ";'><b>" + res_v + "</b></span></p>"
+html_form += "<p style='font-size:15px;'><b>3. Входной контроль бурового долота:</b> <span style='color:" + color_d + ";'><b>" + res_d + "</b></span></p>"
+html_form += "<p style='font-size:12px; color:#6B7280; text-align:center; margin-top:35px; border-top:1px dashed #D1D5DB; padding-top:10px;'>Сгенерировано в модуле 'Цифровой аудит КНБК' • Версия 2026 г. • Для печати в PDF нажмите Ctrl + P</p>"
+html_form += "</div>"
 
 st.markdown("---")
 st.subheader("📥 Официальный бланк Акта приемки:")
