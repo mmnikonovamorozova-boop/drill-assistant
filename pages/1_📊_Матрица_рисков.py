@@ -4,12 +4,24 @@ from datetime import datetime
 st.set_page_config(page_title="Матрица рисков", layout="wide")
 
 st.title("📊 Сводная инженерная матрица решений")
-st.caption("КАРТА ПРИНЯТИЯ ИНЖЕНЕРНЫХ РЕШЕНИЙ")
+st.caption("КАРТА ПРИНЯТИЯ ИНЖЕНЕРНЫХ РЕШЕНИЙ С ИНТЕГРИРОВАННЫМ РАСЧЕТОМ ЛЮФТА ВЗД")
 st.markdown("---")
 
+# Данные для отчета в боковой панели
+st.sidebar.header("📝 Данные для отчета")
 well_number = st.sidebar.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
 engineer_name = st.sidebar.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
 field_name = st.sidebar.text_input("Месторождение:", value="Приобское")
+
+# База данных по двигателям (Бренды и Диаметры)
+vzd_database = {
+    "98 мм": {"limit": 4.5, "info": "Малый габарит. Паспортный люфт нового: 1.0 - 2.0 мм."},
+    "106 мм": {"limit": 4.5, "info": "Малый габарит. Паспортный люфт нового: 1.0 - 2.0 мм."},
+    "120 мм": {"limit": 4.5, "info": "Малый габарит. Паспортный люфт нового: 1.0 - 2.0 мм."},
+    "172 мм": {"limit": 5.0, "info": "Средний габарит. Паспортный люфт нового: 1.0 - 3.0 мм."},
+    "240 мм": {"limit": 6.0, "info": "Большой габарит. Паспортный люфт нового: 1.5 - 3.5 мм."
+    }
+}
 
 tab1, tab2 = st.tabs(["🔧 Входной контроль КНБК", "🚨 Осложнения"])
 
@@ -17,17 +29,52 @@ with tab1:
     st.subheader("Ликвидация осложнений при входном контроле")
     p_type = st.selectbox(
         "Выберите симптом:",
-        ["Не выбрано", "Превышение люфта", "Резьба заклинила", "Оценка задиров", "Обнаружена течь"],
+        ["Не выбрано", "Превышение люфта (Замер осевого люфта шпинделя ВЗД)", "Резьба заклинила", "Оценка задиров", "Обнаружена течь"],
         key="p_type_key"
     )
     
-    if p_type == "Превышение люфта":
-        st.warning("Действие: Выполнить замер: Люфт = А (весу) - Б (столе).")
-        ans = st.radio("Люфт выше лимита?", ["Не выбрано", "Да", "Нет"], key="t1_r1")
-        if ans == "Да":
-            st.error("🚨 ИЗНОС ОПОР ВЗД. СПУСК ЗАПРЕЩЕН!")
-        if ans == "Нет":
-            st.success("✔️ ЛЮФТ В НОРМЕ. ДОПУЩЕН К СПУСКУ.")
+    if "Превышение люфта" in p_type:
+        st.info("📝 МЕТОДИКА ЗАМЕРА ТРАЕКТОРИЯ-СЕРВИС: Люфт Δh = А (Растянуто) - Б (Сжато)")
+        
+        # Интерактивный выбор оборудования
+        col_vzd1, col_vzd2 = st.columns(2)
+        with col_vzd1:
+            selected_brand = st.selectbox("Производитель ВЗД:", ["Радиус-Сервис", "ВНИИБТ", "Гидробур", "НГТ", "NOV"])
+        with col_vzd2:
+            selected_diameter = st.selectbox("Диаметр (типоразмер) двигателя:", list(vzd_database.keys()))
+            
+        # Автоматическое определение лимитов из базы
+        limit_wear = vzd_database[selected_diameter]["limit"]
+        st.caption(f"ℹ️ Справка по ГОСТ/Паспорту для {selected_brand} {selected_diameter}: {vzd_database[selected_diameter]['info']}")
+        
+        st.markdown("---")
+        
+        # Интерактивный калькулятор люфта
+        col_calc1, col_calc2 = st.columns(2)
+        with col_calc1:
+            size_a = st.number_input("Размер 'А' (Растянуто под своим весом), мм:", min_value=0.0, value=10.0, step=0.1)
+        with col_calc2:
+            size_b = st.number_input("Размер 'Б' (Сжато при разгрузке на ротор), мм:", min_value=0.0, value=5.5, step=0.1)
+        
+        # Расчет
+        calculated_delta = size_a - size_b
+        
+        # Отображение результатов
+        st.markdown("### Результаты анализа шпинделя:")
+        col_res1, col_res2 = st.columns(2)
+        with col_res1:
+            st.metric(label="Фактический осевой люфт (Δh):", value=f"{calculated_delta:.1f} мм")
+        with col_res2:
+            st.metric(label="Предел износа для данного габарита:", value=f"{limit_wear:.1f} мм")
+        
+        # Проверка по регламенту Траектория-Сервис
+        if calculated_delta > limit_wear:
+            st.error(f"🚨 КРИТИЧЕСКИЙ ИЗНОС ОПОР! Люфт {calculated_delta:.1f} мм превышает лимит {limit_wear} мм для двигателя {selected_brand} ({selected_diameter}).")
+            st.critical("❌ СПУСК В СКВАЖИНУ КАТЕГОРИЧЕСКИ ЗАПРЕЩЕН! Оформить Акт дефектовки ВЗД, вызвать резерв.")
+        elif calculated_delta <= 0:
+            st.warning("⚠️ Ошибка измерений: Размер 'А' должен быть строго больше размера 'Б'. Перепроверьте шкалу ИЧ.")
+        else:
+            st.success(f"✔️ ЛЮФТ В НОРМЕ. Фактическое значение {calculated_delta:.1f} мм не превышает лимит износа {limit_wear} мм. {selected_brand} {selected_diameter} ДОПУЩЕН К СПУСКУ.")
             
     if p_type == "Резьба заклинила":
         st.warning("Действие: СТОП вращение! Открутить назад, смыть смазку.")
@@ -86,4 +133,4 @@ with tab2:
         if ans == "Да":
             st.success("✔️ Продолжить сборку.")
         if ans == "Нет":
-            st.error("🚨 СТРАХОВКА, замена долота.")
+            st.error("🚨 СТРАХОВКА, замена переводника или элементов КНБК.")
