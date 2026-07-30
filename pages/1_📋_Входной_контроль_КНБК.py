@@ -1,6 +1,5 @@
 import streamlit as st
 from datetime import datetime
-from fpdf import FPDF
 
 st.set_page_config(page_title="Входной контроль", layout="wide")
 
@@ -13,9 +12,8 @@ engineer_name = st.sidebar.text_input("ФИО Инженера по ННБ:", va
 field_name = st.sidebar.text_input("Месторождение:", value="Приобское")
 
 current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
-report_text = ""
 
-st.info("Отметьте параметры, проверенные на устье. Все несоответствия будут занесены в Акт внизу экрана!")
+st.info("Отметьте параметры, проверенные на устье. Официальный печатный Акт сформируется внизу экрана!")
 
 st.markdown("### 🔹 БЛОК 1: ОБЩИЙ КОНТРОЛЬ КНБК И ИНСТРУМЕНТА")
 k1 = st.checkbox("Соответствует количество поступившего оборудования указанному в ТТН?", value=False, key="nk1")
@@ -44,49 +42,39 @@ d2 = st.checkbox("Корпус долота цел, отсутствуют ми�
 d3 = st.checkbox("Все насадки (гидромониторные) установлены, зафиксированы и соответствуют программе?", value=False, key="nd3")
 d4 = st.checkbox("Твердосплавные режущие элементы/матрица без сколов, шарошки вращаются плавно?", value=False, key="nd4")
 
-res_k = "USPESHNO" if (k1 and k2 and k3 and k4 and k5 and k6 and k7 and k8 and k9 and k10) else "ZAMECHANIYA"
-res_v = "USPESHNO" if (v1 and v2 and v3 and v4 and v5) else "ZAMECHANIYA"
-res_d = "USPESHNO" if (d1 and d2 and d3 and d4) else "ZAMECHANIYA"
+res_k = "УСПЕШНО ДОПУЩЕНО" if (k1 and k2 and k3 and k4 and k5 and k6 and k7 and k8 and k9 and k10) else "ВЫЯВЛЕНЫ ЗАМЕЧАНИЯ"
+res_v = "УСПЕШНО ДОПУЩЕНО" if (v1 and v2 and v3 and v4 and v5) else "ВЫЯВЛЕНЫ ЗАМЕЧАНИЯ"
+res_d = "УСПЕШНО ДОПУЩЕНО" if (d1 and d2 and d3 and d4) else "ВЫЯВЛЕНЫ ЗАМЕЧАНИЯ"
 
-def create_pdf():
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(40, 10, "AKT ПRIEMKI OBORUDOVANIYA KNBK")
-    pdf.ln(12)
+# Красивая верстка печатного Акта на HTML (поддерживает любой язык)
+html_form = f"""
+<div style="border: 3px solid #1E3A8A; padding: 25px; border-radius: 10px; background-color: #FAFAFA; font-family: Arial, sans-serif; color: #333333;">
+    <h2 style="text-align: center; color: #1E3A8A; margin-top: 0;">ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>
+    <h3 style="text-align: center; color: #4B5563; margin-top: -10px;">ОФИЦИАЛЬНЫЙ АКТ ВХОДНОГО КОНТРОЛЯ КНБК</h3>
+    <hr style="border: 1px solid #1E3A8A; margin-bottom: 20px;">
     
-    pdf.set_font("Helvetica", "", 12)
-    pdf.cell(40, 10, f"Data / Vremya: {current_time}")
-    pdf.ln(8)
-    pdf.cell(40, 10, f"Mestorozhdenie: {field_name}")
-    pdf.ln(8)
-    pdf.cell(40, 10, f"Obyekt: {well_number}")
-    pdf.ln(8)
-    pdf.cell(40, 10, f"Inzhener NNB: {engineer_name}")
-    pdf.ln(14)
+    <table style="width: 100%; font-size: 14px; margin-bottom: 20px;">
+        <tr><td><b>Дата/Время:</b> {current_time}</td><td><b>Месторождение:</b> {field_name}</td></tr>
+        <tr><td><b>Объект / Скважина:</b> {well_number}</td><td><b>Инженер ННБ:</b> {engineer_name}</td></tr>
+    </table>
     
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(40, 10, "REZULTATY INSPEKCII:")
-    pdf.ln(8)
-    pdf.set_font("Helvetica", "", 12)
-    pdf.cell(40, 10, f"1. Obshchiy kontrol KNBK i UMK: {res_k}")
-    pdf.ln(8)
-    pdf.cell(40, 10, f"2. Proverka dvigatelya (VZD): {res_v}")
-    pdf.ln(8)
-    pdf.cell(40, 10, f"3. Vhodnoy kontrol dolota: {res_d}")
-    pdf.ln(15)
+    <h4 style="color: #1E3A8A; border-bottom: 1px solid #D1D5DB; padding-bottom: 5px;">РЕЗУЛЬТАТЫ ВЕРИФИКАЦИИ УЗЛОВ КНБК:</h4>
+    <ul style="font-size: 15px; line-height: 1.8;">
+        <li><b>1. Общий контроль элементов КНБК и УМК:</b> <span style="color: {'green' if res_k == 'УСПЕШНО ДОПУЩЕНО' else 'red'};"><b>{res_k}</b></span></li>
+        <li><b>2. Проверка забойного двигателя (ВЗД):</b> <span style="color: {'green' if res_v == 'УСПЕШНО ДОПУЩЕНО' else 'red'};"><b>{res_v}</b></span></li>
+        <li><b>3. Входной контроль бурового долота:</b> <span style="color: {'green' if res_d == 'УСПЕШНО ДОПУЩЕНО' else 'red'};"><b>{res_d}</b></span></li>
+    </ul>
     
-    pdf.set_font("Helvetica", "I", 10)
-    pdf.cell(40, 10, "TSifrovoy pomoshchnik inzhenera 'Traektoriya-Servis'")
-    return pdf.output()
-
-pdf_data = create_pdf()
+    <p style="font-size: 12px; color: #6B7280; text-align: center; margin-top: 30px; border-top: 1px dashed #D1D5DB; padding-top: 10px;">
+        Сгенерировано в модуле 'Цифровой аудит КНБК' • Версия 2026 г. • Для печати в PDF нажмите Ctrl + P
+    </p>
+</div>
+"""
 
 st.markdown("---")
-st.subheader("📥 Экспорт результатов проверки")
-st.download_button(
-    label="📄 Сформировать и скачать официальный отчет (PDF)",
-    data=bytes(pdf_data),
-    file_name=f"Akt_vhodnogo_kontrolya_{well_number.replace(' ', '_')}.pdf",
-    mime="application/pdf"
-)
+st.subheader("📥 Официальный бланк Акта приемки:")
+# Выводим красивый документ на экран
+st.markdown(html_form, unsafe_allow_html=True)
+
+st.markdown(" ")
+st.info("💡 **Как распечатать или сохранить в PDF:** Нажмите комбинацию клавиш **`Ctrl + P`** (или три точки браузера ➡️ Печать), выберите принтер «Сохранить как PDF» и заберите готовый документ!")
