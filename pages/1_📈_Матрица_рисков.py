@@ -4,7 +4,7 @@ from datetime import datetime
 st.set_page_config(page_title="Матрица рисков", layout="wide")
 
 st.title("🧭 Цифровой помощник инженера «Траектория-Сервис»")
-st.caption("ОБЪЕДИНЕННАЯ ЭКСПЕРТНАЯ СИСТЕМА ПРИЕМКИ И ЛИКВИДАЦИИ ОСЛОЖНЕНИЙ КНБК")
+st.caption("ОБЪЕДИНЕННАЯ ЭКСПЕРТНАЯ СИСТЕМА ПРИЕМКИ И ЛЛИКВИДАЦИИ ОСЛОЖНЕНИЙ КНБК")
 st.markdown("---")
 
 well_number = st.sidebar.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
@@ -23,7 +23,6 @@ if section == "1. ЕДИНЫЙ ЧЕК-ЛИСТ ПРИЕМКИ ОБОРУДОВА
     st.subheader("📋 Сводный чек-лист верификации параметров элементов КНБК, ВЗД и Долот")
     st.info("Отметьте пункты проверки. Система автоматически сформирует печатный Акт приемки внизу страницы!")
     
-    # Списки параметров из всех инструкций и PDF
     knbk_items = [
         "Соответствует количество поступившего оборудования указанному в ТТН?",
         "В наличии заводские паспорта и акты дефектоскопии (не старше 12 месяцев)?",
@@ -54,22 +53,23 @@ if section == "1. ЕДИНЫЙ ЧЕК-ЛИСТ ПРИЕМКИ ОБОРУДОВА
     
     st.markdown("### 🔹 БЛОК 1: ОБЩИЙ КОНТРОЛЬ КНБК И ИНСТРУМЕНТА")
     knbk_results = []
-    for item in knbk_items:
-        res = st.checkbox(item, value=True, key="k_" + str(hash(item)))
+    # Убрали предустановку флажков (value=False) и зафиксировали ключи
+    for i, item in enumerate(knbk_items):
+        res = st.checkbox(item, value=False, key=f"k_check_{i}")
         knbk_results.append(res)
         
     st.markdown("---")
     st.markdown("### 🔹 БЛОК 2: ПРИЕМКА ЗАБОЙНОГО ДВИГАТЕЛЯ (ВЗД)")
     vzd_results = []
-    for item in vzd_items:
-        res = st.checkbox(item, value=True, key="v_" + str(hash(item)))
+    for i, item in enumerate(vzd_items):
+        res = st.checkbox(item, value=False, key=f"v_check_{i}")
         vzd_results.append(res)
         
     st.markdown("---")
     st.markdown("### 🔹 БЛОК 3: ВХОДНОЙ КОНТРОЛЬ ДОЛОТА")
     doloto_results = []
-    for item in doloto_items:
-        res = st.checkbox(item, value=True, key="d_" + str(hash(item)))
+    for i, item in enumerate(doloto_items):
+        res = st.checkbox(item, value=False, key=f"d_check_{i}")
         doloto_results.append(res)
 
     status_k = "УСПЕШНО" if all(knbk_results) else "ВЫЯВЛЕНЫ ЗАМЕЧАНИЯ"
@@ -88,7 +88,7 @@ if section == "1. ЕДИНЫЙ ЧЕК-ЛИСТ ПРИЕМКИ ОБОРУДОВА
     report_text += "3. Входной контроль бурового долота: " + status_d + "\n"
     report_text += "--------------------------------------------------\n"
     report_text += "Рекомендации: При наличии статуса 'ВЫЯВЛЕНЫ ЗАМЕЧАНИЯ' инженер обязан произвести фотофиксацию дефекта и немедленно уведомить руководителя проекта бурения!\n"
-    report_text += "================================================--"
+    report_text += "=================================================="
 
 if section == "2. Экспертный анализ скрытых дефектов сборки":
     st.subheader("Предотвращение брака и аварийных ситуаций по физике процессов")
@@ -167,4 +167,3 @@ if section == "3. Технологические осложнения на ус�
         
         ans_l = st.radio("Исключена ли ошибка измерений? Люфт по-прежнему выше лимита?", ["Не выбрано", "Да", "Нет (Погрешность замера -> На шаг 1)"], key="l_r_3")
         if ans_l == "Да":
-            res_text = "🚨 СПУСК ЗАПРЕЩЕН! Критический износ подшипников шпинделя ВЗД " + selected_brand + ". Экстренный вызов резерва."
