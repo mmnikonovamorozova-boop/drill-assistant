@@ -7,20 +7,18 @@ st.title("📏 Расчет осевого люфта шпинделя ВЗД")
 st.caption("МЕТОДИКА КОНТРОЛЯ ИЗНОСА ОПОР ШПИНДЕЛЯ ПО РЕГЛАМЕНТАМ ПОСТАВЩИКОВ")
 st.markdown("---")
 
-# Данные скважины из бокового меню
-st.sidebar.header("📝 Данные для рапорта")
 well_number = st.sidebar.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
 engineer_name = st.sidebar.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
 field_name = st.sidebar.text_input("Месторождение:", value="Приобское")
+vzd_passport_number = st.sidebar.text_input("Серийный номер ВЗД по паспорту:", value="№ 6677")
 
 current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
 report_text = ""
 
-# Инициализация динамической базы данных в памяти сессии
 if "custom_vzd" not in st.session_state:
     st.session_state.custom_vzd = {}
 
-# Официальная встроенная база данных ВЗД из присланных таблиц
+# Официальная встроенная база данных ВЗД
 base_vzd = {
     "Радиус-Сервис": {
         "43 мм": 6.0, "54 мм": 6.0, "73 мм": 6.0, "75 мм": 6.0, 
@@ -31,7 +29,11 @@ base_vzd = {
         "95 мм": 1.0, "106 мм": 1.0, "120 мм": 1.0, "178 мм": 1.0, "210 мм": 1.0, "240 мм": 1.0
     },
     "NOV": {
-        "5''": 8.0, "6-1/2''": 11.0, "7''": 11.0, "8''": 12.0, "9-5/8''": 17.0
+        "5'' (Лимит: 5/16'')": 7.94, 
+        "6-1/2'' (Лимит: 7/16'')": 11.11, 
+        "7'' (Лимит: 7/16'')": 11.11, 
+        "8'' (Лимит: 1/2'')": 12.70, 
+        "9-5/8'' (Лимит: 11/16'')": 17.46
     },
     "НГТ": {
         "ДР-120.NGT.7/8.43.20.M2": 8.0, "ДР-120.NGT.7/8.59.M2 ТС": 8.0,
@@ -48,44 +50,39 @@ base_vzd = {
     }
 }
 
-# Добавляем в общий список производителей кастомный вариант
 brands_list = list(base_vzd.keys()) + ["➕ НОВЫЙ ПОСТАВЩИК / МОДЕЛЬ"]
 selected_brand = st.selectbox("1. Выберите производителя оборудования ВЗД:", brands_list)
 
-# Переменные для лимита и названий
 limit_wear = 0.0
 vzd_model_name = ""
-vzd_passport_number = st.sidebar.text_input("Серийный номер ВЗД по паспорту:", value="№ 6677")
+
+# Интеграция американского дюймового конвертера для NOV
+if selected_brand == "NOV":
+    st.warning("🇺🇸 ВЗД Американского производства (NOV). Паспортные лимиты пересчитаны из дюймов в метрическую систему (1 дюйм = 25.4 мм)")
+    
+    # Экспресс-конвертер в реальном времени
+    st.markdown("**🔄 Взаимный промысловый конвертер (Дюймы ⇄ Миллиметры):**")
+    c_inch = st.number_input("Ввести значение из паспорта в дюймах (Inch):", value=0.4375, step=0.0625, format="%.4f")
+    st.caption(f"📐 Результат конвертации в метрическую систему: **{round(c_inch * 25.4, 2)} мм**")
+    st.markdown("---")
 
 if selected_brand == "➕ НОВЫЙ ПОСТАВЩИК / МОДЕЛЬ":
     st.success("🛠️ Окно добавления нового оборудования в локальную базу данных:")
-    
-    # Ручной ввод параметров инженером
     custom_brand = st.text_input("Введите название завода/поставщика:", value="Буринтех")
     custom_model = st.text_input("Введите габарит или шифр серии двигателя (например, 172ТС):", value="172 мм")
     custom_limit = st.number_input("Укажите паспортный предел осевого люфта, мм:", value=5.0, step=0.1)
     
-    # Кнопка фиксации в базу сессии
     if st.button("💾 Сохранить и внести двигатель в реестр"):
         if custom_brand and custom_model:
-            # Сохраняем в session_state
             if custom_brand not in st.session_state.custom_vzd:
                 st.session_state.custom_vzd[custom_brand] = {}
             st.session_state.custom_vzd[custom_brand][custom_model] = custom_limit
             st.toast(f"Двигатель {custom_brand} {custom_model} успешно добавлен в списки!", icon="✔️")
             
-    # Отображаем добавленные кастомные варианты, если они есть
-    if st.session_state.custom_vzd:
-        st.markdown("**Добавленные вами за смену модели:**")
-        for b, models in st.session_state.custom_vzd.items():
-            for m, l in models.items():
-                st.caption(f"• {b} {m} (Лимит: {l} мм)")
-                
     vzd_model_name = custom_brand + " " + custom_model
     limit_wear = custom_limit
 
 else:
-    # Объединяем встроенную базу и добавленные пользователем данные
     current_brand_models = base_vzd[selected_brand].copy()
     if selected_brand in st.session_state.custom_vzd:
         current_brand_models.update(st.session_state.custom_vzd[selected_brand])
@@ -97,7 +94,7 @@ else:
 
 st.markdown("---")
 
-# Ввод фактических замеров с мостков
+# Ввод замеров
 size_a = st.number_input("Размер 'А' (Вал полностью выдвинут вниз под своим весом), мм:", value=10.0, step=0.1)
 size_b = st.number_input("Размер 'Б' (Двигатель опущен на стол ротора и разгружен), мм:", value=5.5, step=0.1)
 
