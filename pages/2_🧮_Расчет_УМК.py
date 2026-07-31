@@ -26,7 +26,7 @@ with col_t1:
 with col_t2:
     angle = st.slider("Фактический угол натяжения троса ключа (альфа), градусов:", min_value=10, max_value=90, value=70, step=1)
 
-# Математический пересчет по формуле с учетом фактического плеча
+# Математический пересчет по формуле
 # 1. Переводим толщину троса из мм в метры для дельты радиуса
 delta_r = (thickness_mm / 2.0) / 1000.0
 length_fact = length_nom + delta_r
@@ -35,12 +35,11 @@ length_fact = length_nom + delta_r
 angle_rad = np.radians(angle)
 sin_alpha = np.sin(angle_rad)
 
-# 3. Рассчитываем необходимую силу тяги лебедки
-# F_тяги = M_паспорт / (L_факт * sin_alpha)
+# 3. Рассчитываем необходимую силу тяги лебедки по фактическому плечу
 f_tyagi = m_pasport / (length_fact * sin_alpha)
 
-# 4. Рассчитываем уставку моментомера по фактическому плечу L_факт
-m_ustavka = f_tyagi * length_fact
+# 4. Рассчитываем уставку для шкалы моментомера (работает по паспортному L_ном)
+m_ustavka = f_tyagi * length_nom
 
 # 5. Общая совмещенная погрешность системы в %
 pogreshnost = abs(1.0 - (length_nom / length_fact) * sin_alpha) * 100
@@ -48,31 +47,32 @@ pogreshnost = abs(1.0 - (length_nom / length_fact) * sin_alpha) * 100
 st.markdown("---")
 st.subheader("📋 РЕЗУЛЬТАТЫ КОРРЕКТИРОВКИ:")
 
-st.write(f"**Фактическое плечо с учетом намотки троса (L_факт):** {length_fact:.4f} м")
-st.write(f"**Совмещенная погрешность системы ключа:** {pogreshnost:.1f} %")
+st.write(f"**Номинальное плечо ключа (L_ном по паспорту):** {length_nom:.2f} м")
+st.write(f"**Фактическое плечо с учетом радиуса намотки троса (L_факт):** {length_fact:.4f} м (Увеличение на {delta_r*1000:.1f} мм)")
+st.write(f"**Необходимое усилие натяжения лебедки (F_тяги):** {f_tyagi:.2f} кН")
+st.write(f"**Совмещенная погрешность (Трос + Угол):** {pogreshnost:.1f} %")
 
-st.success(f"🔧 ЗНАЧЕНИЕ ДЛЯ УСТАНОВКИ НА МОМЕНТОМЕРЕ: {m_ustavka:.2f} кН*м")
+st.success(f"🔧 ЗНАЧЕНИЕ ДЛЯ УСТАНОВКИ НА ШКАЛЕ МОМЕНТОМЕРА: {m_ustavka:.2f} кН*м")
 
 if angle < 60:
-    st.error("🚨 КРИТИЧЕСКИЙ УГОЛ! По регламенту, если угол менее 60°, запрещено дотягивать резьбу экстремальным давлением! Переставьте натяжную лебедку под правильный угол.")
+    st.error("🚨 КРИТИЧЕСКИЙ УГОЛ! По регламенту, если угол менее 60°, запрещено дотягивать резьбу завышением давления на пульте! Требуется перестановка натяжной лебедки.")
 elif pogreshnost > 10.0:
     st.warning("⚠️ ВНИМАНИЕ: Совмещенная погрешность превышает 10%. Убедитесь в жесткой фиксации пальца ключа.")
 else:
-    st.success("✔️ Корректировка момента находится в безопасном технологическом диапазоне.")
+    st.success("✔️ Параметры затяжки находятся в безопасном технологическом диапазоне.")
 
 # Сборка красивого HTML-бланка для рапорта
-html_umk = "<div style='border:3px solid #1E3A8A; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>"
+html_umk = "<div style='border:3px solid #1E3A8A; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'> "
 html_umk += "<h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>"
 html_umk += "<h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>РАСПОРЯЖЕНИЕ НА ЗА ТЯЖКУ КНБК КЛЮЧОМ УМК</h3>"
 html_umk += "<hr style='border:1px solid #1E3A8A; margin-bottom:20px;'>"
-html_v_p = "<p><b>Дата/Время расчета:</b> " + current_time + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> " + field_name + "</p>"
-html_umk += html_v_p
+html_umk += "<p><b>Дата/Время расчета:</b> " + current_time + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> " + field_name + "</p>"
 html_umk += "<p><b>Объект / Скважина:</b> " + well_number + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Инженер ННБ:</b> " + engineer_name + "</p>"
-html_umk += f"<p><b>Целевой паспортный момент:</b> {m_pasport:.1f} кН*м &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Номинальное плечо:</b> {length_nom:.2f} м</p>"
-html_umk += f"<p><b>Параметры замера на устье:</b> Толщина троса = {thickness_mm:.0f} мм | Угол натяжения = {angle}°</p>"
-html_umk += "<h4 style='color:#1E3A8A; margin-top:20px; border-bottom:1px solid #D1D5DB; padding-bottom:5px;'>ТЕХНОЛОГИЧЕСКОЕ РЕШЕНИЕ:</h4>"
-html_umk += f"<p style='font-size:15px;'>С учетом совмещенной погрешности троса и угла (<b>{pogreshnost:.1f}%</b>), эффективное плечо увеличилось до <b>{length_fact:.4f} м</b>.</p>"
-html_umk += f"<p style='font-size:18px; color:green;'><b>🔧 УСТАНОВИТЬ НА МОМЕНТОМЕРЕ КЛЮЧА: {m_ustavka:.2f} кН*м</b></p>"
+html_umk += f"<p><b>Целевой паспортный момент резьбы:</b> {m_pasport:.1f} кН*м</p>"
+html_umk += f"<p><b>Геометрия на устье:</b> L_ном = {length_nom:.2f} м | L_факт = {length_fact:.4f} м | Диаметр троса = {thickness_mm:.0f} мм | Угол натяжения = {angle}°</p>"
+html_umk += "<h4 style='color:#1E3A8A; margin-top:20px; border-bottom:1px solid #D1D5DB; padding-bottom:5px;'>ТЕХНОЛОГИЧЕСКОЕ РЕШЕНИЕ ДЛЯ БУРОВОЙ БРИГАДЫ:</h4>"
+html_umk += f"<p style='font-size:15px;'>Для компенсации совмещенной погрешности (<b>{pogreshnost:.1f}%</b>) и создания требуемого момента сил:</p>"
+html_umk += f"<p style='font-size:18px; color:green;'><b>🔧 ВЫСТАВИТЬ УСТАВКУ НА ПОКАТЕЛЕ МОМЕНТОМЕРА: {m_ustavka:.2f} кН*м</b></p>"
 html_umk += "<p style='font-size:12px; color:#6B7280; text-align:center; margin-top:35px; border-top:1px dashed #D1D5DB; padding-top:10px;'>Сгенерировано в цифровом модуле расчетов УМК • Для печати распоряжения нажмите Ctrl + P</p>"
 html_umk += "</div>"
 
