@@ -39,7 +39,7 @@ sin_alpha = np.sin(angle_rad)
 # F_тяги = M_паспорт / (L_факт * sin_alpha)
 f_tyagi = m_pasport / (length_fact * sin_alpha)
 
-# 4. ИСПРАВЛЕНО: Рассчитываем уставку моментомера по фактическому плечу L_факт
+# 4. Рассчитываем уставку моментомера по фактическому плечу L_факт
 m_ustavka = f_tyagi * length_fact
 
 # 5. Общая совмещенная погрешность системы в %
@@ -65,12 +65,13 @@ html_umk = "<div style='border:3px solid #1E3A8A; padding:25px; border-radius:10
 html_umk += "<h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>"
 html_umk += "<h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>РАСПОРЯЖЕНИЕ НА ЗА ТЯЖКУ КНБК КЛЮЧОМ УМК</h3>"
 html_umk += "<hr style='border:1px solid #1E3A8A; margin-bottom:20px;'>"
-html_umk += "<p><b>Дата/Время расчета:</b> " + current_time + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> " + field_name + "</p>"
+html_v_p = "<p><b>Дата/Время расчета:</b> " + current_time + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> " + field_name + "</p>"
+html_umk += html_v_p
 html_umk += "<p><b>Объект / Скважина:</b> " + well_number + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Инженер ННБ:</b> " + engineer_name + "</p>"
 html_umk += f"<p><b>Целевой паспортный момент:</b> {m_pasport:.1f} кН*м &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Номинальное плечо:</b> {length_nom:.2f} м</p>"
 html_umk += f"<p><b>Параметры замера на устье:</b> Толщина троса = {thickness_mm:.0f} мм | Угол натяжения = {angle}°</p>"
 html_umk += "<h4 style='color:#1E3A8A; margin-top:20px; border-bottom:1px solid #D1D5DB; padding-bottom:5px;'>ТЕХНОЛОГИЧЕСКОЕ РЕШЕНИЕ:</h4>"
-html_umk += f"<p style='font-size:15px;'>С учетом совмещенной погрешности троса и угла (<b>{pogreshnost:.1f}%</b>), эффективное плечо увеличилось до <b>{length_fact Club:.4f} м</b>.</p>"
+html_umk += f"<p style='font-size:15px;'>С учетом совмещенной погрешности троса и угла (<b>{pogreshnost:.1f}%</b>), эффективное плечо увеличилось до <b>{length_fact:.4f} м</b>.</p>"
 html_umk += f"<p style='font-size:18px; color:green;'><b>🔧 УСТАНОВИТЬ НА МОМЕНТОМЕРЕ КЛЮЧА: {m_ustavka:.2f} кН*м</b></p>"
 html_umk += "<p style='font-size:12px; color:#6B7280; text-align:center; margin-top:35px; border-top:1px dashed #D1D5DB; padding-top:10px;'>Сгенерировано в цифровом модуле расчетов УМК • Для печати распоряжения нажмите Ctrl + P</p>"
 html_umk += "</div>"
