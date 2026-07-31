@@ -26,7 +26,7 @@ with col_t1:
 with col_t2:
     angle = st.slider("Фактический угол натяжения троса ключа (альфа), градусов:", min_value=10, max_value=90, value=70, step=1)
 
-# Математический пересчет по формуле
+# Математический пересчет по формуле с учетом фактического плеча
 # 1. Переводим толщину троса из мм в метры для дельты радиуса
 delta_r = (thickness_mm / 2.0) / 1000.0
 length_fact = length_nom + delta_r
@@ -39,11 +39,10 @@ sin_alpha = np.sin(angle_rad)
 # F_тяги = M_паспорт / (L_факт * sin_alpha)
 f_tyagi = m_pasport / (length_fact * sin_alpha)
 
-# 4. Рассчитываем, какую уставку должен показать моментомер, настроенный по номинальному плечу L_ном
-# M_уставка = F_тяги * L_ном
-m_ustavka = f_tyagi * length_nom
+# 4. ИСПРАВЛЕНО: Рассчитываем уставку моментомера по фактическому плечу L_факт
+m_ustavka = f_tyagi * length_fact
 
-# 5. Общая совмещенная погрешность в %
+# 5. Общая совмещенная погрешность системы в %
 pogreshnost = abs(1.0 - (length_nom / length_fact) * sin_alpha) * 100
 
 st.markdown("---")
@@ -71,7 +70,7 @@ html_umk += "<p><b>Объект / Скважина:</b> " + well_number + " &nbs
 html_umk += f"<p><b>Целевой паспортный момент:</b> {m_pasport:.1f} кН*м &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Номинальное плечо:</b> {length_nom:.2f} м</p>"
 html_umk += f"<p><b>Параметры замера на устье:</b> Толщина троса = {thickness_mm:.0f} мм | Угол натяжения = {angle}°</p>"
 html_umk += "<h4 style='color:#1E3A8A; margin-top:20px; border-bottom:1px solid #D1D5DB; padding-bottom:5px;'>ТЕХНОЛОГИЧЕСКОЕ РЕШЕНИЕ:</h4>"
-html_umk += f"<p style='font-size:15px;'>С учетом совмещенной погрешности троса и угла (<b>{pogreshnost:.1f}%</b>), эффективное плечо увеличилось до <b>{length_fact:.4f} м</b>.</p>"
+html_umk += f"<p style='font-size:15px;'>С учетом совмещенной погрешности троса и угла (<b>{pogreshnost:.1f}%</b>), эффективное плечо увеличилось до <b>{length_fact Club:.4f} м</b>.</p>"
 html_umk += f"<p style='font-size:18px; color:green;'><b>🔧 УСТАНОВИТЬ НА МОМЕНТОМЕРЕ КЛЮЧА: {m_ustavka:.2f} кН*м</b></p>"
 html_umk += "<p style='font-size:12px; color:#6B7280; text-align:center; margin-top:35px; border-top:1px dashed #D1D5DB; padding-top:10px;'>Сгенерировано в цифровом модуле расчетов УМК • Для печати распоряжения нажмите Ctrl + P</p>"
 html_umk += "</div>"
