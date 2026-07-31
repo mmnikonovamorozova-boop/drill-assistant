@@ -18,7 +18,7 @@ report_text = ""
 if "custom_vzd" not in st.session_state:
     st.session_state.custom_vzd = {}
 
-# Официальная встроенная база данных ВЗД
+# Официальная встроенная база данных ВЗД с точным переводом лимитов NOV до сотых
 base_vzd = {
     "Радиус-Сервис": {
         "43 мм": 6.0, "54 мм": 6.0, "73 мм": 6.0, "75 мм": 6.0, 
@@ -56,14 +56,22 @@ selected_brand = st.selectbox("1. Выберите производителя о
 limit_wear = 0.0
 vzd_model_name = ""
 
-# Интеграция американского дюймового конвертера для NOV
+# Удобный дробный конвертер для NOV
 if selected_brand == "NOV":
-    st.warning("🇺🇸 ВЗД Американского производства (NOV). Паспортные лимиты пересчитаны из дюймов в метрическую систему (1 дюйм = 25.4 мм)")
+    st.warning("🇺🇸 ВЗД Американского производства (NOV). Паспортные лимиты автоматически пересчитаны в метрическую систему до сотых долей.")
     
-    # Экспресс-конвертер в реальном времени
-    st.markdown("**🔄 Взаимный промысловый конвертер (Дюймы ⇄ Миллиметры):**")
-    c_inch = st.number_input("Ввести значение из паспорта в дюймах (Inch):", value=0.4375, step=0.0625, format="%.4f")
-    st.caption(f"📐 Результат конвертации в метрическую систему: **{round(c_inch * 25.4, 2)} мм**")
+    st.markdown("**🔄 Промысловый конвертер долей дюйма (выберите значения из паспорта):**")
+    
+    # Два простых списка для сборки дроби
+    col_num, col_den = st.columns(2)
+    with col_num:
+        numerator = st.selectbox("Числитель дроби:", [1, 3, 5, 7, 9, 11, 13, 15], index=3) # По умолчанию 7
+    with col_den:
+        denominator = st.selectbox("Знаменатель дроби:", [2, 4, 8, 16], index=3) # По умолчанию 16
+        
+    # Считаем точное значение в мм
+    mm_result = (numerator / denominator) * 25.4
+    st.success(f"📐 Результат перевода доли **{numerator}/{denominator}''** в метрическую систему: **{mm_result:.2f} мм**")
     st.markdown("---")
 
 if selected_brand == "➕ НОВЫЙ ПОСТАВЩИК / МОДЕЛЬ":
@@ -90,19 +98,19 @@ else:
     selected_diameter = st.selectbox("2. Выберите габарит или серию двигателя:", list(current_brand_models.keys()))
     limit_wear = current_brand_models[selected_diameter]
     vzd_model_name = selected_brand + " " + selected_diameter
-    st.caption("ℹ️ Пороговый критерий износа шпинделя: " + str(limit_wear) + " мм")
+    st.caption(f"ℹ️ Пороговый критерий износа шпинделя: {limit_wear:.2f} мм")
 
 st.markdown("---")
 
-# Ввод замеров
+# Ввод замеров с мостков
 size_a = st.number_input("Размер 'А' (Вал полностью выдвинут вниз под своим весом), мм:", value=10.0, step=0.1)
 size_b = st.number_input("Размер 'Б' (Двигатель опущен на стол ротора и разгружен), мм:", value=5.5, step=0.1)
 
 calculated_delta = size_a - size_b
 
 st.markdown("### РЕЗУЛЬТАТЫ РАСЧЕТА:")
-st.write("**Фактический осевой люфт (Δh):** " + str(round(calculated_delta, 1)) + " мм")
-st.write("**Допустимый предел по паспорту:** " + str(limit_wear) + " мм")
+st.write(f"**Фактический осевой люфт (Δh):** {calculated_delta:.2f} мм")
+st.write(f"**Допустимый предел по паспорту:** {limit_wear:.2f} мм")
 
 if calculated_delta > limit_wear:
     res_text = "🚨 КРИТИЧЕСКИЙ ИЗНОС ОПОР ШПИНДЕЛЯ! СПУСК В СКВАЖИНУ КАТЕГОРИЧЕСКИ ЗАПРЕЩЕН!"
@@ -122,9 +130,9 @@ html_vzd += "<hr style='border:1px solid #1E3A8A; margin-bottom:20px;'>"
 html_vzd += "<p><b>Дата/Время:</b> " + current_time + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> " + field_name + "</p>"
 html_vzd += "<p><b>Объект / Скважина:</b> " + well_number + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Инженер ННБ:</b> " + engineer_name + "</p>"
 html_vzd += "<p><b>Оборудование:</b> ВЗД " + vzd_model_name + " (Паспорт: " + vzd_passport_number + ")</p>"
-html_vzd += "<p><b>Параметры замера шпинделя:</b> Размер А = " + str(size_a) + " мм | Размер Б = " + str(size_b) + " мм</p>"
+html_vzd += f"<p><b>Параметры замера шпинделя:</b> Размер А = {size_a:.2f} мм | Размер Б = {size_b:.2f} мм</p>"
 html_vzd += "<h4 style='color:#1E3A8A; margin-top:20px; border-bottom:1px solid #D1D5DB; padding-bottom:5px;'>ЗАКЛЮЧЕНИЕ ПРОВЕРКИ:</h4>"
-html_vzd += "<p style='font-size:15px;'>Фактический осевой люфт шпинделя составляет <b>" + str(round(calculated_delta, 1)) + " мм</b> при паспортном лимите износа <b>" + str(limit_wear) + " мм</b>.</p>"
+html_vzd += f"<p style='font-size:15px;'>Фактический осевой люфт шпинделя составляет <b>{calculated_delta:.2f} мм</b> при паспортном лимите износа <b>{limit_wear:.2f} мм</b>.</p>"
 html_vzd += "<p style='font-size:16px; color:" + ("red" if calculated_delta > limit_wear else "green") + ";'><b>СТАТУС: " + res_text + "</b></p>"
 html_vzd += "<p style='font-size:12px; color:#6B7280; text-align:center; margin-top:35px; border-top:1px dashed #D1D5DB; padding-top:10px;'>Сгенерировано в цифровом модуле • Для печати нажмите Ctrl + P</p>"
 html_vzd += "</div>"
