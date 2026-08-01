@@ -1,54 +1,36 @@
 import streamlit as st
 
-# 1. Настройка страницы (ДОЛЖНА БЫТЬ ПЕРВОЙ Командой)
-st.set_page_config(
-    page_title="Помощник инженера «Траектория-Сервис»",
-    page_icon="🧭",
-    layout="wide"
-)
+# 1. НАСТРОЙКА СТРАНИЦЫ
+st.set_page_config(page_title="Помощник инженера «Траектория-Сервис»", page_icon="🧭", layout="wide")
 
-# 2. Функция авторизации персонала через Secrets
+# 2. ФУНКЦИЯ АВТОРИЗАЦИИ (из secrets)
 def check_password():
-    if "authenticated" not in st.session_state:
-        st.session_state["authenticated"] = False
-    if st.session_state["authenticated"]:
-        return True
+    if "authenticated" not in st.session_state: st.session_state["authenticated"] = False
+    if st.session_state["authenticated"]: return True
 
     st.title("🔐 Авторизация в системе ННБ")
-    st.caption("ООО «Траектория-Сервис» • Защищенный корпоративный доступ")
-    
     input_user = st.text_input("Username:")
     input_pass = st.text_input("Password:", type="password")
-    
     if st.button("Войти"):
-        # Проверка логина/пароля через st.secrets
-        if input_user in st.secrets["credentials"]["usernames"] and \
-           input_pass == st.secrets["credentials"]["passwords"][st.secrets["credentials"]["usernames"].index(input_user)]:
+        # Получение секретов из st.secrets
+        allowed_users = st.secrets["credentials"]["usernames"]
+        allowed_passwords = st.secrets["credentials"]["passwords"]
+        if input_user in allowed_users and input_pass == allowed_passwords[allowed_users.index(input_user)]:
             st.session_state["authenticated"] = True
             st.rerun()
-        else:
-            st.error("❌ Неверный логин или пароль.")
+        st.error("❌ Неверный логин или пароль.")
     return False
 
-# 3. Навигация
+# 3. КОНТЕНТ (только если авторизован)
 if check_password():
-    # Объявляем страницы (убедитесь, что файлы существуют)
-    pages = [
-        st.Page("app.py", title="Главная", icon="🧭"),
-        st.Page("pages/1_vhodnoy_kontrol.py", title="Входной контроль", icon="📋"),
-        # ... остальные страницы ...
-    ]
-    
-    pg = st.navigation(pages)
-    pg.run() # Ключевой метод
-
-    # Размещаем кнопку выхода в сайдбаре БЕЗ конфликтов
-    st.sidebar.markdown("---")
-    if st.sidebar.button("🔒 Выйти", key="logout"):
+    if st.sidebar.button("🔒 Выйти"):
         st.session_state["authenticated"] = False
         st.rerun()
 
-    # 4. Содержимое главной страницы
-    if pg.title == "Главная":
-        st.title("🧭 Цифровой помощник")
-        # ... ваш контент ...
+    # Стилизация меню (скрытие имен файлов)
+    st.markdown("<style>[data-testid='stSidebarNav'] a span { font-size: 0 !important; }</style>", unsafe_allow_html=True)
+    
+    st.title("🧭 Цифровой помощник инженера")
+    st.write("Добро пожаловать в систему. Используйте меню слева.")
+    
+    # ... (код разметки страниц, например, st.columns, с описанием)
