@@ -1,27 +1,54 @@
 import streamlit as st
 
-# 1. Настройка страницы
-st.set_page_config(page_title="Помощник инженера «Траектория-Сервис»", page_icon="🧭", layout="wide")
+# 1. Настройка конфигурации
+st.set_page_config(page_title="Помощник ННБ", page_icon="🧭", layout="wide")
 
-# 2. ИСПРАВЛЕНИЕ МЕНЮ (CSS)
+# 2. Стилизация бокового меню
 st.markdown("""
 <style>
-/* Скрываем латинский текст, подставляем русский с эмодзи */
-a[href="/"] span::before { content: "🧭 Главная"; font-size: 14px !important; font-weight: bold; }
-a[href*="vhodnoy_kontrol"] span::before { content: "📋 1. Входной контроль"; font-size: 14px !important; }
-/* ... (остальные пункты) ... */
+[data-testid="stSidebarNav"] a span { font-size: 0 !important; }
+[data-testid="stSidebarNav"] a[href="/"] span::before { content: "🧭 Главная"; font-size: 14px !important; font-weight: bold; }
+/* Добавьте аналогичные блоки для других модулей при необходимости */
 </style>
 """, unsafe_allow_html=True)
 
-# 3. ФУНКЦИЯ АВТОРИЗАЦИИ
+# 3. Функция авторизации
 def check_password():
     if "authenticated" not in st.session_state: st.session_state["authenticated"] = False
     if st.session_state["authenticated"]: return True
-    st.title("🔐 Авторизация")
-    # ... (логика ввода пароля через st.secrets)
+    
+    st.title("🔐 Авторизация: Траектория-Сервис")
+    input_user = st.text_input("Username:")
+    input_pass = st.text_input("Password:", type="password")
+    if st.button("Войти"):
+        # Замените логику проверки на использование st.secrets
+        if input_user == "admin" and input_pass == "123":
+            st.session_state["authenticated"] = True
+            st.rerun()
+        else: st.error("❌ Ошибка доступа")
     return False
 
-# 4. КОНТЕНТ
+# 4. Основной контент
 if check_password():
-    st.title("🧭 Цифровой помощник")
-    # ... (остальной контент)
+    if st.sidebar.button("🔒 Выйти"): st.session_state["authenticated"] = False; st.rerun()
+    st.title("🧭 Цифровой помощник инженера")
+    st.markdown("---")
+    
+    # 6 модулей (отображение сеткой)
+    cols = st.columns(3)
+    modules = [
+        ("📋 1. Входной контроль", "Приемка долот, ВЗД"),
+        ("🧮 2. Расчет УМК", "Моменты свинчивания"),
+        ("🔨 3. Техкарты", "Дефекты КНБК"),
+        ("📏 4. Люфт ВЗД", "Износ опор ВЗД"),
+        ("🧪 5. Контроль раствора", "Параметры раствора"),
+        ("📚 6. База знаний", "Документация")
+    ]
+    for i, (title, desc) in enumerate(modules):
+        with cols[i % 3]:
+            st.subheader(title)
+            st.write(desc)
+
+    st.markdown("---")
+    st.info("👉 Выберите модуль в боковом меню.")
+    st.markdown("<div style='text-align:center; color:gray; font-size:11px;'>Траектория-Сервис © 2026</div>", unsafe_allow_html=True)
