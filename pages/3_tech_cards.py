@@ -20,9 +20,6 @@ st.markdown("<div style='color: #4B5563; font-size: 13px; background-color: #F3F
 
 st.markdown("---")
 
-# --- БЛОК ВВОДА И ВЫБОРА КОНТЕКСТА ---
-st.markdown("---")
-
 # --- 3. СБОР МЕТАДАННЫХ (SIDEBAR) ---
 st.sidebar.header("📋 Метаданные рапорта")
 well_number = st.sidebar.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
