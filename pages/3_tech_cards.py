@@ -1,3 +1,4 @@
+# streamlit: ignore
 import streamlit as st
 
 # 1. Настройка страницы (Формирует красивое отображение в боковом меню)
