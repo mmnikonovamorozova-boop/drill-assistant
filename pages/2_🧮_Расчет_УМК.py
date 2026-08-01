@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import math
 from datetime import datetime
 
@@ -37,7 +38,7 @@ keys_db = {
 selected_key = st.selectbox("1. Выберите модель гидравлического ключа УМК:", list(keys_db.keys()))
 passport_length = keys_db[selected_key]
 
-# --- 4. ВХОДНЫЕ ТЕХНОЛОГИЧЕСКИЕ ПАРАМЕТРЫ (ВЕРТИКАЛЬНО) ---
+# --- 4. ВХОДНЫЕ ТЕХНОЛОГИЧЕСКИЕ ПАРАМЕТРЫ ---
 st.markdown("### ⚙️ Параметры замера резьбового соединения КНБК")
 
 p_moment = st.number_input(
@@ -61,11 +62,9 @@ angle_alpha = st.number_input(
 rad_alpha = math.radians(angle_alpha)
 sin_alpha = math.sin(rad_alpha)
 
-# Расчет смещения оси за счет половины толщины троса (в метрах)
 delta_r = (tros_d / 2.0) / 1000.0
 effective_l = fact_l + delta_r
 
-# Расчет целевой уставки момента для пульта бурильщика
 if sin_alpha > 0 and effective_l > 0:
     target_setting = p_moment / (effective_l * sin_alpha)
     loss_percent = (1.0 - sin_alpha) * 100.0
@@ -85,9 +84,8 @@ with col1:
 with col2:
     st.metric(label="📉 Потери крутящего момента из-за угла натяжения:", value=f"{loss_percent:.1f} %")
 
-# Технологические ограничения СТО ИНТИ и логика бланка
 if loss_percent > 10.0:
-    st.error("🚨 КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО пытаться 'дотянуть' резьбу завышением давления на гидравлическом пульте! Потери превышают критический лимит СТО ИНТИ 10%. Остановите работы и потребуйте от бурового подрядчика переставить натяжную лебедку буровой установки под угол 90°.")
+    st.error("🚨 КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО пытаться 'дотянуть' резьбу завышением давления! Потери превышают лимит СТО ИНТИ 10%.")
     border_style = "3px solid #DC2626"
     verdict_display = (
         '<div style="background-color:#FEE2E2; border:1px solid #EF4444; padding:15px; border-radius:6px; margin:15px 0;">'
@@ -95,17 +93,15 @@ if loss_percent > 10.0:
         '</div>'
     )
     status_note = "🛑 СТАТУС: БРАК ЛИНИИ НАТЯЖЕНИЯ. Распоряжение на затяжку не выдано."
-    res_text = "КРИТИЧЕСКИЙ ИЗНОС / БРАК УГЛА"
 else:
-    st.success("✔️ Величина погрешности находится в пределах допустимого технологического диапазона ИНТИ. Момент свинчивания признан контролируемым.")
+    st.success("✔️ Величина погрешности находится в пределах допустимого технологического диапазона ИНТИ.")
     border_style = "3px solid #1E3A8A"
     verdict_display = (
         f'<div style="background-color:#EFF6FF; border:1px solid #3B82F6; padding:15px; border-radius:6px; margin:15px 0;">'
         f'<h3 style="color:#1E3A8A; text-align:center; margin:0;">👉 РЕКОМЕНДУЕМАЯ УСТАВКА НА ПУЛЬТЕ: {target_setting:.2f} кН·м</h3>'
         f'</div>'
     )
-    status_note = "<b>СТАТУС: Допущено.</b> Значение крутящего момента передается буровому мастеру для настройки гидроключей."
-    res_text = f"Допущено. Рекомендовано {target_setting:.2f} кН*м"
+    status_note = "<b>СТАТУС: Допущено.</b> Значение крутящего момента передается буровому мастеру."
 
 # --- 6. ГЕНЕРАЦИЯ КОРПОРАТИВНОГО HTML-АКТА ---
 html_print = f"""
@@ -136,23 +132,20 @@ html_print = f"""
 
 st.markdown("---")
 st.subheader("📥 Официальный бланк распоряжения для буровой бригады:")
-st.markdown(html_print, unsafe_allow_html=True)
+
+# ИСПОЛЬЗУЕМ ОБЛАЧНЫЙ СЕЙФ-РЕНДЕРЕР КОМПОНЕНТОВ С ФИКСИРОВАННОЙ ВЫСОТОЙ КОНТЕЙНЕРА (500 пикселей)
+components.html(html_print, height=520, scrolling=True)
 
 # --- 7. ИНТЕРАКТИВНЫЙ БЛОК ВЕРИФИКАЦИИ ДЛЯ СУПЕРВАЙЗЕРА ---
 st.markdown(" ")
 with st.expander("🔐 Реестр легитимности и Интерактивная верификация ПО"):
     st.markdown("### 🛡️ МОДУЛЬ НЕЗАВИСИМОЙ ЭКСПРЕСС-ВЕРИФИКАЦИИ ПО")
-    st.markdown("Если у контролирующих органов возникают сомнения в точности автоматического расчета, вы можете провести независимую перепроверку математического ядра «на лету».")
     
     v_col1, v_col2, v_col3, v_col4 = st.columns(4)
-    with v_col1:
-        v_m_pasyp = st.number_input("Тестовый момент (Мпасп), кНм:", value=25.0, step=1.0, key="v_m_test")
-    with v_col2:
-        v_l_fact = st.number_input("Тестовое плечо (Lфакт), м:", value=0.715, step=0.01, key="v_l_test")
-    with v_col3:
-        v_t_d = st.number_input("Тестовый трос, мм:", value=16.0, step=1.0, key="v_t_test")
-    with v_col4:
-        v_angle = st.number_input("Тестовый угол (α), град:", value=75.0, min_value=1.0, max_value=90.0, step=1.0, key="v_a_test")
+    with v_col1: v_m_pasyp = st.number_input("Тестовый момент (Мпасп), кНм:", value=25.0, step=1.0, key="v_m_test")
+    with v_col2: v_l_fact = st.number_input("Тестовое плечо (Lфакт), м:", value=0.715, step=0.01, key="v_l_test")
+    with v_col3: v_t_d = st.number_input("Тестовый трос, мм:", value=16.0, step=1.0, key="v_t_test")
+    with v_col4: v_angle = st.number_input("Тестовый угол (α), град:", value=75.0, min_value=1.0, max_value=90.0, step=1.0, key="v_a_test")
         
     v_rad = math.radians(v_angle)
     v_eff = v_l_fact + ((v_t_d / 2.0) / 1000.0)
@@ -169,14 +162,11 @@ with st.expander("🔐 Реестр легитимности и Интеракт
     c_res3.metric("Погрешность вычислений", f"{rel_error:.4f}%", delta="0.00% (Идеал)")
     
     if rel_error < 0.0001:
-        st.success("🎯 **ВЕРИФИКАЦИЯ УСПЕШНА:** Программный код выполнил расчет со стопроцентной точностью. Отклонения от аналитической модели отсутствуют.")
-    
-    st.markdown("""
-    ---
-    **Официальный статус ПО:**  
-    Протокол верификации № ПВП-УМК-2026/04 от 01.08.2026 г. утвержден ОСМК ООО «Траектория-Сервис».  
-    Алгоритм признан легитимным для использования на основании соответствия **СТО ИНТИ S.QS.7 (п. 7.4.2)** и **СТО ИНТИ S.QS.8 (п. 5.3.1)**.
-    """)
+        st.success("🎯 **ВЕРИФИКАЦИЯ УСПЕШНА:** Программный код выполнил расчет со стопроцентной точностью.")
 
 # --- 8. ФУТЕРЫ СТРАНИЦЫ И ПЕЧАТЬ ---
 st.markdown(" ")
+st.info("💡 **Как распечатать или сохранить в PDF:** Нажмите комбинацию клавиш **`Ctrl + P`** (или три точки браузера ➡️ Печать), выберите принтер «Сохранить как PDF» и заберите готовый документ!")
+
+st.markdown("---")
+st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший инженер по качеству ОСМК Никонова-Морозова М.М. • Верифицировано по стандартам СТО ИНТИ • Цифровая экосистема ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
