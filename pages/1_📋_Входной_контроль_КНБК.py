@@ -23,7 +23,6 @@ current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
 @st.cache_data(ttl=600)
 def load_local_nomenclature():
     try:
-        # Читаем файл Excel прямо из корня нашего приложения
         df = pd.read_excel("Inventory.xlsx")
         return df
     except Exception as e:
@@ -39,7 +38,6 @@ col_id1, col_id2 = st.columns(2)
 if nomenclature_df is not None and len(nomenclature_df.columns) > 0:
     st.success("✔️ Перечень элементов КНБК успешно подгружен из локального репозитория проекта.")
     with col_id1:
-        # Автоматически берем первый столбец таблицы
         unique_elements = nomenclature_df.iloc[:, 0].dropna().unique().tolist()
         element_name = st.selectbox("Выберите наименование элемента КНБК:", unique_elements)
 else:
@@ -53,10 +51,14 @@ else:
 with col_id2:
     element_serial = st.text_input("Внесите фактический серийный номер элемента (с корпуса):", value="", placeholder="Например: № 6542")
 
-# =========================================================================
-# БЛОКИ ОПЕРАЦИЙ КОНТРОЛЯ И HTML ФОРМА С ПОДПИСЬЮ
-# =========================================================================
 st.markdown("---")
+st.info("Отметьте параметры, проверенные на устье. Официальный печатный Акт сформируется внизу экрана!")
+
+# =========================================================================
+# ДИНАМИЧЕСКИЙ ВЫВОД БЛОКОВ КОНТРОЛЯ В ЗАВИСИМОСТИ ОТ ЭЛЕМЕНТА
+# =========================================================================
+
+# БЛОК 1: ОТОБРАЖАЕТСЯ ВСЕГДА
 st.markdown("### 🔹 БЛОК 1: ОБЩИЙ КОНТРОЛЬ КНБК И ИНСТРУМЕНТА")
 k1 = st.checkbox("Соответствует количество поступившего оборудования указанному в ТТН?", value=False, key="nk1")
 k2 = st.checkbox("В наличии заводские паспорта и акты дефектоскопии (не старше 12 месяцев)?", value=False, key="nk2")
@@ -69,31 +71,43 @@ k8 = st.checkbox("Предохранительный хомут (ХП) уком�
 k9 = st.checkbox("Проведена калибровка мерительного инструмента (металлическая рулетка, штангенциркуль)?", value=False, key="nk9")
 k10 = st.checkbox("На корпус кожуха резистивиметра нанесена маркером надпись «ВВЕРХ» и замерены окна?", value=False, key="nk10")
 
-st.markdown("---")
-st.markdown("### 🔹 БЛОК 2: ПРИЕМКА ЗАБОЙНОГО ДВИГАТЕЛЯ (ВЗД)")
-v1 = st.checkbox("Данные о наработке в паспорте ВЗД внесены своевременно и в полном объеме?", value=False, key="nv1")
-v2 = st.checkbox("Выставленные углы перекоса регулятора ВЗД строго соответствуют заявленным в паспорте?", value=False, key="nv2")
-v3 = st.checkbox("Визуально подтверждено полное отсутствие повреждений резьб муфты и ниппеля ВЗД?", value=False, key="nv3")
-v4 = st.checkbox("Буровая бригада проверила исправность и ход обратного клапана ВЗД нажатием?", value=False, key="nv4")
-v5 = st.checkbox("На корпусе шпинделя и статора отсутствует красная отметка дефектоскопии (брак)?", value=False, key="nv5")
+# Переменные по умолчанию для скрытых блоков
+res_v = "НЕ ПРИМЕНИМО"
+res_d = "НЕ ПРИМЕНИМО"
+v1 = v2 = v3 = v4 = v5 = True
+d1 = d2 = d3 = d4 = True
 
-st.markdown("---")
-st.markdown("### 🔹 БЛОК 3: ВХОДНОЙ КОНТРОЛЬ ДОЛОТА")
-d1 = st.checkbox("В наличии паспорт долота, акт дефектоскопии и свидетельство о поверке колец?", value=False, key="nd1")
-d2 = st.checkbox("Корпус долота цел, отсутствуют микротрещины, эрозия и размывы тела?", value=False, key="nd2")
-d3 = st.checkbox("Все насадки (гидромониторные) установлены, зафиксированы и соответствуют программе?", value=False, key="nd3")
-d4 = st.checkbox("Твердосплавные режущие элементы/матрица без сколов, шарошки вращаются плавно?", value=False, key="nd4")
+# БЛОК 2: ТОЛЬКО ДЛЯ ВЗД
+if "ВЗД" in str(element_name).upper():
+    st.markdown("---")
+    st.markdown("### 🔹 БЛОК 2: ПРИЕМКА ЗАБОЙНОГО ДВИГАТЕЛЯ (ВЗД)")
+    v1 = st.checkbox("Данные о наработке в паспорте ВЗД внесены своевременно и в полном объеме?", value=False, key="nv1")
+    v2 = st.checkbox("Выставленные углы перекоса регулятора ВЗД строго соответствуют заявленным в паспорте?", value=False, key="nv2")
+    v3 = st.checkbox("Визуально подтверждено полное отсутствие повреждений резьб муфты и ниппеля ВЗД?", value=False, key="nv3")
+    v4 = st.checkbox("Буровая бригада проверила исправность и ход обратного клапана ВЗД нажатием?", value=False, key="nv4")
+    v5 = st.checkbox("На корпусе шпинделя и статора отсутствует красная отметка дефектоскопии (брак)?", value=False, key="nv5")
+    res_v = "УСПЕШНО ДОПУЩЕНО" if (v1 and v2 and v3 and v4 and v5) else "ВЫЯВЛЕНЫ ЗАМЕЧАНИЯ"
 
+# БЛОК 3: ТОЛЬКО ДЛЯ ДОЛОТА
+if "ДОЛОТО" in str(element_name).upper():
+    st.markdown("---")
+    st.markdown("### 🔹 БЛОК 3: ВХОДНОЙ КОНТРОЛЬ ДОЛОТА")
+    d1 = st.checkbox("В наличии паспорт долота, акт дефектоскопии и свидетельство о поверке колец?", value=False, key="nd1")
+    d2 = st.checkbox("Корпус долота цел, отсутствуют микротрещины, эрозия и размывы тела?", value=False, key="nd2")
+    d3 = st.checkbox("Все насадки (гидромониторные) установлены, зафиксированы и соответствуют программе?", value=False, key="nd3")
+    d4 = st.checkbox("Твердосплавные режущие элементы/матрица без сколов, шарошки вращаются плавно?", value=False, key="nd4")
+    res_d = "УСПЕШНО ДОПУЩЕНО" if (d1 and d2 and d3 and d4) else "ВЫЯВЛЕНЫ ЗАМЕЧАНИЯ"
+
+# Вычисление общего результата для Блока 1
 res_k = "УСПЕШНО ДОПУЩЕНО" if (k1 and k2 and k3 and k4 and k5 and k6 and k7 and k8 and k9 and k10) else "ВЫЯВЛЕНЫ ЗАМЕЧАНИЯ"
-res_v = "УСПЕШНО ДОПУЩЕНО" if (v1 and v2 and v3 and v4 and v5) else "ВЫЯВЛЕНЫ ЗАМЕЧАНИЯ"
-res_d = "УСПЕШНО ДОПУЩЕНО" if (d1 and d2 and d3 and d4) else "ВЫЯВЛЕНЫ ЗАМЕЧАНИЯ"
 
 color_k = "green" if res_k == "УСПЕШНО ДОПУЩЕНО" else "red"
-color_v = "green" if res_v == "УСПЕШНО ДОПУЩЕНО" else "red"
-color_d = "green" if res_d == "УСПЕШНО ДОПУЩЕНО" else "red"
+color_v = "gray" if res_v == "НЕ ПРИМЕНИМО" else ("green" if res_v == "УСПЕШНО ДОПУЩЕНО" else "red")
+color_d = "gray" if res_d == "НЕ ПРИМЕНИМО" else ("green" if res_d == "УСПЕШНО ДОПУЩЕНО" else "red")
 
+# Сборка динамического HTML бланка
 html_form = "<div style='border:3px solid #1E3A8A; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>"
-html_form += "<h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>"
+html_form += "<h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>"
 html_form += "<h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>ОФИЦИАЛЬНЫЙ АКТ ВХОДНОГО КОНТРОЛЯ ОБОРУДОВАНИЯ</h3>"
 html_form += "<p style='text-align:center; font-size:11px; color:#6B7280; margin-top:-5px;'>Проверка проведена в соответствии с СТО ИНТИ S.QS.7 (п. 7.4.1) и СТО ИНТИ S.QS.8 (п. 5.1.2)</p>"
 html_form += "<hr style='border:1px solid #1E3A8A; margin-bottom:20px;'>"
@@ -106,8 +120,13 @@ html_form += "<p style='font-size:15px;'><b>Заводской серийный 
 html_form += "<hr style='border:1px dashed #D1D5DB; margin:15px 0;'>"
 html_form += "<h4 style='color:#1E3A8A; margin-top:10px; padding-bottom:5px;'>РЕЗУЛЬТАТЫ ВЕРИФИКАЦИИ УЗЛОВ КНБК:</h4>"
 html_form += "<p style='font-size:14px;'><b>1. Общий контроль элементов КНБК и УМК:</b> <span style='color:" + color_k + ";'><b>" + res_k + "</b></span></p>"
-html_form += "<p style='font-size:14px;'><b>2. Проверка забойного двигателя (ВЗД):</b> <span style='color:" + color_v + ";'><b>" + res_v + "</b></span></p>"
-html_form += "<p style='font-size:14px;'><b>3. Входной контроль бурового долота:</b> <span style='color:" + color_d + ";'><b>" + res_d + "</b></span></p>"
+
+# Вшиваем результаты блоков в Акт только если они активировались
+if "ВЗД" in str(element_name).upper():
+    html_form += "<p style='font-size:14px;'><b>2. Специальная проверка забойного двигателя (ВЗД):</b> <span style='color:" + color_v + ";'><b>" + res_v + "</b></span></p>"
+if "ДОЛОТО" in str(element_name).upper():
+    html_form += "<p style='font-size:14px;'><b>3. Специальный входной контроль бурового долота:</b> <span style='color:" + color_d + ";'><b>" + res_d + "</b></span></p>"
+
 html_form += "<p style='font-size:11px; color:#4B5563; text-align:center; margin-top:35px; border-top:1px solid #E5E7EB; padding-top:10px;'><b>Разработчик:</b> Старший инженер-технолог по ННБ • Экосистема цифровых сервисов ООО «Траектория-Сервис»</p>"
 html_form += "</div>"
 
@@ -119,4 +138,4 @@ st.markdown(" ")
 st.info("💡 **Как распечатать или сохранить в PDF:** Нажмите комбинацию клавиш **`Ctrl + P`** (или три точки браузера ➡️ Печать), выберите принтер «Сохранить как PDF» и заберите готовый документ!")
 
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший по качеству Никонова-Морозова М.М. • Верифицировано по стандартам СТО ИНТИ • Цифровая экосистема ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший инженер-технолог по ННБ • Верифицировано по стандартам СТО ИНТИ • Цифровая экосистема ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
