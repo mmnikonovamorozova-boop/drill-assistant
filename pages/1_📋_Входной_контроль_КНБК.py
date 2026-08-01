@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import requests
 from datetime import datetime
 
 st.set_page_config(page_title="Входной контроль", layout="wide")
@@ -17,36 +18,40 @@ field_name = st.sidebar.text_input("Месторождение:", value="При�
 current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
 
 # =========================================================================
-# БЛОК ПРЯМОГО СКАЧИВАНИЯ С ЯНДЕКС.ДИСКА (БЕЗ ИСПОЛЬЗОВАНИЯ API)
+# БЛОК АВТОМАТИЧЕСКОГО КОНВЕРТИРОВАНИЯ ССЫЛКИ ЯНДЕКСА В СКАЧИВАЕМЫЙ ПОТОК
 # =========================================================================
-# Используем прямую веб-ссылку Яндекса, которая гарантированно пробивает любые защиты
-YANDEX_DIRECT_URL = "https://yandex.ru"
+YANDEX_DISK_PUBLIC_URL = "https://yandex.ru"
 
 @st.cache_data(ttl=600)
-def load_nomenclature_direct(direct_url):
+def load_nomenclature_via_api(public_url):
     try:
-        # Читаем Excel файл напрямую по веб-ссылке со склада Яндекса
-        df = pd.read_excel(direct_url)
-        return df
+        # Официальный публичный API Яндекса для получения ссылки на скачивание файла
+        api_endpoint = "https://yandex.net" + public_url
+        req = requests.get(api_endpoint)
+        if req.status_code == 200:
+            download_link = req.json().get("href")
+            # Читаем полученную чистую ссылку в Pandas
+            df = pd.read_excel(download_link)
+            return df
+        return None
     except Exception as e:
         return None
 
 # Загрузка номенклатуры
-nomenclature_df = load_nomenclature_direct(YANDEX_DIRECT_URL)
+nomenclature_df = load_nomenclature_via_api(YANDEX_DISK_PUBLIC_URL)
 
 st.subheader("🔍 Синхронизация номенклатуры КНБК (Яндекс.Диск)")
 
 col_id1, col_id2 = st.columns(2)
 
-# Проверяем, что файл успешно прочитался и содержит данные
 if nomenclature_df is not None and len(nomenclature_df.columns) > 0:
     st.success("✔️ Перечень элементов КНБК успешно синхронизирован с вашим Яндекс.Диском.")
     with col_id1:
-        # Забираем самый первый столбец вашей таблицы (где написаны SUB, НУБТ, ВЗД и т.д.)
+        # Получаем значения из самого первого столбца таблицы Excel
         unique_elements = nomenclature_df.iloc[:, 0].dropna().unique().tolist()
         element_name = st.selectbox("Выберите наименование элемента КНБК:", unique_elements)
 else:
-    st.warning("⚠️ Прямой доступ к Яндекс.Диску заблокирован сетью. Переключено на аварийный список элементов.")
+    st.warning("⚠️ Облачный перечень на Яндекс.Диске недоступен. Переключено на аварийный список элементов.")
     with col_id1:
         element_name = st.selectbox(
             "Выберите наименование элемента КНБК:",
@@ -63,7 +68,7 @@ st.markdown("---")
 st.markdown("### 🔹 БЛОК 1: ОБЩИЙ КОНТРОЛЬ КНБК И ИНСТРУМЕНТА")
 k1 = st.checkbox("Соответствует количество поступившего оборудования указанному в ТТН?", value=False, key="nk1")
 k2 = st.checkbox("В наличии заводские паспорта и акты дефектоскопии (не старше 12 месяцев)?", value=False, key="nk2")
-k3 = st.checkbox("Данные в паспортах полностью соответствуют выбитым номерам на оборудовании?", value=False, key="nk3")
+k3 = st.checkbox("Данные in паспортах полностью соответствуют выбитым номерам на оборудовании?", value=False, key="nk3")
 k4 = st.checkbox("В наличии декларация о соответствии и сертификаты качества на материал?", value=False, key="nk4")
 k5 = st.checkbox("УСПЕШНО выполнен замер комплекта шаров циркуляционного переводника на проходимость?", value=False, key="nk5")
 k6 = st.checkbox("Защитные колпаки присутствуют на всех без исключения резьбовых соединениях?", value=False, key="nk6")
