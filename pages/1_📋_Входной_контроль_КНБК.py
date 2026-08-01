@@ -19,7 +19,7 @@ st.markdown("### 🔹 БЛОК 1: ОБЩИЙ КОНТРОЛЬ КНБК И ИНС
 k1 = st.checkbox("Соответствует количество поступившего оборудования указанному в ТТН?", value=False, key="nk1")
 k2 = st.checkbox("В наличии заводские паспорта и акты дефектоскопии (не старше 12 месяцев)?", value=False, key="nk2")
 k3 = st.checkbox("Данные в паспортах полностью соответствуют выбитым номерам на оборудовании?", value=False, key="nk3")
-k4 = st.checkbox("В наличии декларация о соответствии и сертификаты качества на материал?", value=False, key="nk4")
+k4 = st.checkbox("В наличии декларация о соответствии и сертификаты качества на material?", value=False, key="nk4")
 k5 = st.checkbox("УСПЕШНО выполнен замер комплекта шаров циркуляционного переводника на проходимость?", value=False, key="nk5")
 k6 = st.checkbox("Защитные колпаки присутствуют на всех без исключения резьбовых соединениях?", value=False, key="nk6")
 k7 = st.checkbox("В наличии поверенный эксплуатационный паспорт на моментомер ключа УМК?", value=False, key="nk7")
@@ -50,7 +50,6 @@ color_k = "green" if res_k == "УСПЕШНО ДОПУЩЕНО" else "red"
 color_v = "green" if res_v == "УСПЕШНО ДОПУЩЕНО" else "red"
 color_d = "green" if res_d == "УСПЕШНО ДОПУЩЕНО" else "red"
 
-# Сборка HTML в одну чистую строчку через сложение
 html_form = "<div style='border:3px solid #1E3A8A; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>"
 html_form += "<h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>"
 html_form += "<h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>ОФИЦИАЛЬНЫЙ АКТ ВХОДНОГО КОНТРОЛЯ КНБК</h3>"
@@ -70,3 +69,6 @@ st.markdown(html_form, unsafe_allow_html=True)
 
 st.markdown(" ")
 st.info("💡 **Как распечатать или сохранить в PDF:** Нажмите комбинацию клавиш **`Ctrl + P`** (или три точки браузера ➡️ Печать), выберите принтер «Сохранить как PDF» и заберите готовый документ!")
+
+st.markdown("---")
+st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший инженер-технолог по ННБ • Верифицировано по стандартам СТО ИНТИ • Цифровая экосистема ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
