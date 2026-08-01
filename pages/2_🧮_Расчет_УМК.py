@@ -20,18 +20,21 @@ current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
 
 st.subheader("🛠️ Входные параметры для пересчета момента")
 
-# Официальная база данных ключей УМК (заводы-изготовители РФ)
+# Официальная база данных ключей УМК с указанием рабочих диаметров (ГОСТ / ТУ РФ)
 vzd_key_type = st.selectbox(
-    "Выберите верифицированную модель ключа УМК (база ГОСТ / ТУ РФ):",
+    "Выберите модель ключа УМК (Плечо / Рабочий диаметр зажима):",
     [
-        "УМК-10/1 (Эталонное плечо L = 0.715 м)", 
-        "УМК-35 (Эталонное плечо L = 1.000 м)", 
-        "УМК-48 (Эталонное плечо L = 1.200 м)", 
-        "УМК-75 (Эталонное плечо L = 1.500 м)",
-        "УМК-90 (Эталонное плечо L = 1.500 м)",
+        "УМК-10/1 (L = 0.715 м | зажим Ø 89-114 мм)", 
+        "УМК-35 (L = 1.000 м | зажим Ø 114-168 мм)", 
+        "УМК-48 (L = 1.200 м | зажим Ø 146-245 мм)", 
+        "УМК-75 (L = 1.500 м | зажим Ø 168-324 мм)",
+        "УМК-90 (L = 1.500 м | зажим Ø 168-324 мм)",
         "Фактический замер рулеткой на устье (вручную)"
     ]
 )
+
+# Официальное нормативное обоснование параметров ключей
+st.markdown("<div style='color: #6B7280; font-size: 12px; margin-top: -10px; margin-bottom: 15px;'>ℹ️ <b>Нормативное обоснование:</b> Геометрические параметры и диаметры зажима соответствуют стандартам <b>ГОСТ 28835-90</b> (Ключи машинные для бурильных труб), а также техническим условиям заводов-изготовителей нефтепромыслового оборудования РФ: <b>ТУ 26-02-763-79</b> (для серии УМК-35/48) и <b>ТУ 3668-005-00220302-2001</b> (для серии УМК-75/90).</div>", unsafe_allow_html=True)
 
 # Жесткое определение плеча на основе официальных паспортов
 base_l = 1.000
@@ -59,7 +62,7 @@ angle_alpha = st.number_input("4. Измеренный угол натяжени
 rad_alpha = math.radians(angle_alpha)
 sin_alpha = math.sin(rad_alpha)
 
-# Расчет смещения оси за счет толщины натяжного каната (в метрах)
+# Расчет смещения оси за счет половины толщины троса (в метрах)
 delta_r = (tros_d / 2.0) / 1000.0
 effective_l = fact_l + delta_r
 
@@ -89,15 +92,16 @@ else:
 # Сборка HTML бланка распоряжения (поддерживает печать через Ctrl + P)
 html_print = "<div style='border:2px solid #1E3A8A; padding:20px; border-radius:8px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>"
 html_print += "<h3 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h3>"
-html_print += "<h4 style='text-align:center; color:#4B5563; margin-top:-10px;'>РЕКОМЕНТАЦИ ТЕХНОЛОГА ННБ НА СВИНЧИВАНИЕ РЕЗЬБЫ КНБК</h4>"
+html_print += "<h4 style='text-align:center; color:#4B5563; margin-top:-10px;'>РЕКОМЕНДАЦИИ ТЕХНОЛОГА ННБ НА СВИНЧИВАНИЕ РЕЗЬБЫ КНБК</h4>"
 html_print += "<p style='font-size:11px; text-align:center; color:#6B7280; margin-top:-5px;'>Расчет выполнен согласно СТО ИНТИ S.QS.7 (п. 7.4.2) и СТО ИНТИ S.QS.8 (п. 5.3.1)</p>"
 html_print += "<hr style='border:1px solid #1E3A8A; margin-bottom:15px;'>"
 html_print += "<p><b>Дата/Время:</b> " + current_time + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> " + field_name + "</p>"
 html_print += "<p><b>Скважина / Куст:</b> " + well_number + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Инженер по бурению (ННБ):</b> " + engineer_name + "</p>"
 html_print += "<hr style='border:1px dashed #D1D5DB; margin:15px 0;'>"
-html_print += "<p style='font-size:15px;'><b>Используемый инструмент:</b> " + str(vzd_key_type.split(' (')[0]) + " (Эффективное плечо с учетом троса: " + f"{effective_l:.3f}" + " м)</p>"
-html_print += "<p style='font-size:15px;'><b>Паспортный требуемый момент затяжки соединения:</b> " + f"{p_moment:.2f}" + " кН*м</p>"
-html_print += "<p style='font-size:15px;'><b>Фактические параметры линии:</b> Плечо ключа = " + f"{fact_l:.3f}" + " м, Толщина троса = " + f"{tros_d:.1f}" + " мм, Угол натяжения = " + f"{angle_alpha:.1f}" + "°</p>"
+html_print += "<p style='font-size:14px;'><b>Используемый инструмент:</b> " + str(vzd_key_type.split(' (')[0]) + " (ГОСТ 28835-90 / ТУ завода-изготовителя РФ)</p>"
+html_print += "<p style='font-size:14px;'><b>Эффективное плечо рычага с учетом троса:</b> " + f"{effective_l:.3f}" + " м</p>"
+html_print += "<p style='font-size:14px;'><b>Паспортный требуемый момент затяжки соединения:</b> " + f"{p_moment:.2f}" + " кН*м</p>"
+html_print += "<p style='font-size:14px;'><b>Фактические параметры линии:</b> Плечо ключа = " + f"{fact_l:.3f}" + " м, Толщина троса = " + f"{tros_d:.1f}" + " мм, Угол натяжения = " + f"{angle_alpha:.1f}" + "°</p>"
 html_print += "<p style='font-size:16px; color:#1E3A8A;'><b>👉 РЕКОМЕНДУЕМАЯ УСТАВКА МОМЕНТА ДЛЯ КЛЮЧА УМК: " + f"{target_setting:.2f}" + " кН*м</b></p>"
 html_print += "<p style='font-size:13px; color:#4B5563;'><i>Примечание: Данное значение передается буровому мастеру для контроля уставки гидравлического манометра машинного ключа.</i></p>"
 html_print += "<p style='font-size:11px; color:#4B5563; text-align:center; margin-top:25px; border-top:1px solid #E5E7EB; padding-top:10px;'><b>Разработчик:</b> Старший инженер по качеству ОСМК • Экосистема цифровых сервисов ООО «Траектория-Сервис»</p>"
