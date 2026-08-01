@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
-import requests
 from datetime import datetime
+import urllib.parse
 
 st.set_page_config(page_title="Входной контроль", layout="wide")
 
@@ -9,6 +9,7 @@ st.title("📋 Рапорт входного контроля оборудова
 st.caption("МОДУЛЬ ВЕРИФИКАЦИИ ПАРАМЕТРОВ ЭЛЕМЕНТОВ КНБК, ВЗД И ДОЛОТ ПЕРЕД СПУСКОМ")
 st.markdown("---")
 
+# Сдержанная техническая отметка о соответствии стандартам ИНТИ
 st.markdown("<div style='color: #4B5563; font-size: 13px; background-color: #F3F4F6; padding: 12px; border-radius: 6px; border-left: 4px solid #9CA3AF; margin-bottom: 20px;'><b>Верификация стандартов:</b> Данный модуль входного контроля и верификации разработан в строгом соответствии с требованиями отраслевых стандартов <b>СТО ИНТИ S.QS.7 (п. 7.4.1)</b> в части проведения поштучной приемки, визуально-инструментального контроля и проверки сопроводительных документов элементов КНБК, а также <b>СТО ИНТИ S.QS.8 (п. 5.1.2)</b> в части контроля исправности и метрологического подтверждения мерительного инструмента на буровой площадке.</div>", unsafe_allow_html=True)
 
 well_number = st.sidebar.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
@@ -18,27 +19,24 @@ field_name = st.sidebar.text_input("Месторождение:", value="При�
 current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
 
 # =========================================================================
-# БЛОК АВТОМАТИЧЕСКОГО КОНВЕРТИРОВАНИЯ ССЫЛКИ ЯНДЕКСА В СКАЧИВАЕМЫЙ ПОТОК
+# БЛОК СКАЧИВАНИЯ БЕЗ API (ТРАНСФОРМАЦИЯ ССЫЛКИ В ПРЯМОЙ ЭКСПОРТ ЯНДЕКСА)
 # =========================================================================
-YANDEX_DISK_PUBLIC_URL = "https://yandex.ru"
+YANDEX_PUBLIC_URL = "https://yandex.ru"
 
 @st.cache_data(ttl=600)
-def load_nomenclature_via_api(public_url):
+def load_nomenclature_via_direct_link(public_url):
     try:
-        # Официальный публичный API Яндекса для получения ссылки на скачивание файла
-        api_endpoint = "https://yandex.net" + public_url
-        req = requests.get(api_endpoint)
-        if req.status_code == 200:
-            download_link = req.json().get("href")
-            # Читаем полученную чистую ссылку в Pandas
-            df = pd.read_excel(download_link)
-            return df
-        return None
+        # Безопасное кодирование ссылки для встраивания в URL скачивания
+        encoded_key = urllib.parse.quote(public_url, safe='')
+        # Конструируем ссылку прямой загрузки, которая обходит прокси-фильтры Streamlit Cloud
+        direct_link = f"https://yandex.ru{encoded_key}"
+        df = pd.read_excel(direct_link)
+        return df
     except Exception as e:
         return None
 
 # Загрузка номенклатуры
-nomenclature_df = load_nomenclature_via_api(YANDEX_DISK_PUBLIC_URL)
+nomenclature_df = load_nomenclature_via_direct_link(YANDEX_PUBLIC_URL)
 
 st.subheader("🔍 Синхронизация номенклатуры КНБК (Яндекс.Диск)")
 
@@ -47,7 +45,7 @@ col_id1, col_id2 = st.columns(2)
 if nomenclature_df is not None and len(nomenclature_df.columns) > 0:
     st.success("✔️ Перечень элементов КНБК успешно синхронизирован с вашим Яндекс.Диском.")
     with col_id1:
-        # Получаем значения из самого первого столбца таблицы Excel
+        # Берем самый первый столбец независимо от его имени
         unique_elements = nomenclature_df.iloc[:, 0].dropna().unique().tolist()
         element_name = st.selectbox("Выберите наименование элемента КНБК:", unique_elements)
 else:
@@ -68,7 +66,7 @@ st.markdown("---")
 st.markdown("### 🔹 БЛОК 1: ОБЩИЙ КОНТРОЛЬ КНБК И ИНСТРУМЕНТА")
 k1 = st.checkbox("Соответствует количество поступившего оборудования указанному в ТТН?", value=False, key="nk1")
 k2 = st.checkbox("В наличии заводские паспорта и акты дефектоскопии (не старше 12 месяцев)?", value=False, key="nk2")
-k3 = st.checkbox("Данные in паспортах полностью соответствуют выбитым номерам на оборудовании?", value=False, key="nk3")
+k3 = st.checkbox("Данные в паспортах полностью соответствуют выбитым номерам на оборудовании?", value=False, key="nk3")
 k4 = st.checkbox("В наличии декларация о соответствии и сертификаты качества на материал?", value=False, key="nk4")
 k5 = st.checkbox("УСПЕШНО выполнен замер комплекта шаров циркуляционного переводника на проходимость?", value=False, key="nk5")
 k6 = st.checkbox("Защитные колпаки присутствуют на всех без исключения резьбовых соединениях?", value=False, key="nk6")
