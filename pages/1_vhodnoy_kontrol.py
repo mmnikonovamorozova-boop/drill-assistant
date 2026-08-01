@@ -2,6 +2,13 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
+import streamlit as st
+
+# ПРОВЕРКА: Если инженер не залогинился на главной странице — выкидываем его назад
+if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
+    st.error("🚨 Доступ заблокирован! Пожалуйста, перейдите на Главную страницу приложения и введите пароль.")
+    st.stop() # Полностью останавливаем выполнение кода этой страницы КНБК
+
 st.set_page_config(page_title="1. Входной контроль", page_icon="📋", layout="wide")
 
 st.title("📋 Рапорт входного контроля оборудования")
