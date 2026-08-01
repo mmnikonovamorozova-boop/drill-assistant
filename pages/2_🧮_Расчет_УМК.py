@@ -89,7 +89,7 @@ if loss_percent > 10.0:
     border_style = "3px solid #DC2626"
     verdict_display = (
         '<div style="background-color:#FEE2E2; border:1px solid #EF4444; padding:15px; border-radius:6px; margin:15px 0;">'
-        '<h3 style="color:#DC2626; text-align:center; margin:0;">❌ РАСЧЕТ УСТАВКИ ЗАБЛОКИРОВАН!</h3>'
+        '<h3 style="color:#DC2626; text-align:center; margin:0;">❌ РАСЧЕТ УСТАНОВКИ ЗАБЛОКИРОВАН!</h3>'
         '</div>'
     )
     status_note = "🛑 СТАТУС: БРАК ЛИНИИ НАТЯЖЕНИЯ. Распоряжение на затяжку не выдано."
