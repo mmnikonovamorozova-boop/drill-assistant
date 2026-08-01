@@ -107,7 +107,7 @@ color_d = "gray" if res_d == "НЕ ПРИМЕНИМО" else ("green" if res_d ==
 
 # Сборка динамического HTML бланка
 html_form = "<div style='border:3px solid #1E3A8A; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>"
-html_form += "<h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>"
+html_form += "<h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>"
 html_form += "<h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>ОФИЦИАЛЬНЫЙ АКТ ВХОДНОГО КОНТРОЛЯ ОБОРУДОВАНИЯ</h3>"
 html_form += "<p style='text-align:center; font-size:11px; color:#6B7280; margin-top:-5px;'>Проверка проведена в соответствии с СТО ИНТИ S.QS.7 (п. 7.4.1) и СТО ИНТИ S.QS.8 (п. 5.1.2)</p>"
 html_form += "<hr style='border:1px solid #1E3A8A; margin-bottom:20px;'>"
@@ -138,4 +138,4 @@ st.markdown(" ")
 st.info("💡 **Как распечатать или сохранить в PDF:** Нажмите комбинацию клавиш **`Ctrl + P`** (или три точки браузера ➡️ Печать), выберите принтер «Сохранить как PDF» и заберите готовый документ!")
 
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший инженер-технолог по ННБ • Верифицировано по стандартам СТО ИНТИ • Цифровая экосистема ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший инженер по качеству ОСМК Никонова-Морозова М.М. • Верифицировано по стандартам СТО ИНТИ • Цифровая экосистема ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
