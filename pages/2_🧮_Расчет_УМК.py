@@ -117,7 +117,7 @@ else:
 # --- 6. ГЕНЕРАЦИЯ КОРПОРАТИВНОГО HTML-АКТА ---
 html_print = f"""
 <div style='border:{border_style}; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>
-    <h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>
+    <h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>
     <h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>АКТ СКОРРЕКТИРОВАННОГО КРУТЯЩЕГО МОМЕНТА СВИНЧИВАНИЯ</h3>
     <hr style='border:1px solid #1E3A8A; margin-bottom:20px;'>
     <p><b>Дата/Время:</b> {current_time} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> {field_name}</p>
