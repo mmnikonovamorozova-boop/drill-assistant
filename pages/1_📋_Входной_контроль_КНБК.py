@@ -1,4 +1,6 @@
 import streamlit as st
+import pandas as pd
+import requests
 from datetime import datetime
 
 st.set_page_config(page_title="Входной контроль", layout="wide")
@@ -7,19 +9,68 @@ st.title("📋 Рапорт входного контроля оборудова
 st.caption("МОДУЛЬ ВЕРИФИКАЦИИ ПАРАМЕТРОВ ЭЛЕМЕНТОВ КНБК, ВЗД И ДОЛОТ ПЕРЕД СПУСКОМ")
 st.markdown("---")
 
+st.markdown("<div style='color: #4B5563; font-size: 13px; background-color: #F3F4F6; padding: 12px; border-radius: 6px; border-left: 4px solid #9CA3AF; margin-bottom: 20px;'><b>Верификация стандартов:</b> Данный модуль входного контроля и верификации разработан в строгом соответствии с требованиями отраслевых стандартов <b>СТО ИНТИ S.QS.7 (п. 7.4.1)</b> в части проведения поштучной приемки, визуально-инструментального контроля и проверки сопроводительных документов элементов КНБК, а также <b>СТО ИНТИ S.QS.8 (п. 5.1.2)</b> в части контроля исправности и метрологического подтверждения мерительного инструмента на буровой площадке.</div>", unsafe_allow_html=True)
+
 well_number = st.sidebar.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
 engineer_name = st.sidebar.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
 field_name = st.sidebar.text_input("Месторождение:", value="Приобское")
 
 current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
 
-st.info("Отметьте параметры, проверенные на устье. Официальный печатный Акт сформируется внизу экрана!")
+# =========================================================================
+# БЛОК РАБОТЫ С ЯНДЕКС.ДИСКОМ (ОБЛАЧНАЯ НОМЕНКЛАТУРА ЭЛЕМЕНТОВ)
+# =========================================================================
+# Вставь сюда СВОЮ публичную ссылку на файл Excel с Яндекс.Диска
+YANDEX_DISK_URL = "https://disk.yandex.ru/i/cwDhSFqmHSOrXg"
 
+@st.cache_data(ttl=600)
+def load_nomenclature_from_yandex(public_url):
+    try:
+        base_url = "https://yandex.net"
+        response = requests.get(base_url + public_url)
+        if response.status_code == 200:
+            download_url = response.json().get("href")
+            df = pd.read_excel(download_url)
+            return df
+        return None
+    except Exception as e:
+        return None
+
+# Загрузка номенклатуры
+nomenclature_df = load_nomenclature_from_yandex(YANDEX_DISK_URL)
+
+st.subheader("🔍 Синхронизация номенклатуры КНБК (Яндекс.Диск)")
+
+col_id1, col_id2 = st.columns(2)
+
+# Если Excel успешно скачался из облака
+if nomenclature_df is not None and "Наименование" in nomenclature_df.columns:
+    st.success("✔️ Перечень элементов КНБК успешно синхронизирован с Яндекс.Диском.")
+    with col_id1:
+        unique_elements = nomenclature_df["Наименование"].dropna().unique().tolist()
+        element_name = st.selectbox("Выберите наименование элемента КНБК:", unique_elements)
+# Резервный список, если нет связи с Диском
+else:
+    st.warning("⚠️ Облачный перечень недоступен. Переключено на стандартный список элементов.")
+    with col_id1:
+        element_name = st.selectbox(
+            "Выберите наименование элемента КНБК:",
+            ["Винтовой забойный двигатель (ВЗД)", "Гидравлический буровой ЯС", "Телеметрическая система (ТМС)", "Циркуляционный переводник (КЦ)", "Утяжеленная бурильная труба (УБТ)", "Калибратор / Центратор", "Буровое долото"]
+        )
+
+# Поле ручного ввода серийного номера (всегда пустое на старте для заполнения инженером)
+with col_id2:
+    element_serial = st.text_input("Внесите фактический серийный номер элемента (с корпуса):", value="", placeholder="Например: № 6542")
+
+# =========================================================================
+# БЛОКИ ОПЕРАЦИЙ КОНТРОЛЯ И HTML ФОРМА
+# =========================================================================
+st.markdown("---")
 st.markdown("### 🔹 БЛОК 1: ОБЩИЙ КОНТРОЛЬ КНБК И ИНСТРУМЕНТА")
 k1 = st.checkbox("Соответствует количество поступившего оборудования указанному в ТТН?", value=False, key="nk1")
 k2 = st.checkbox("В наличии заводские паспорта и акты дефектоскопии (не старше 12 месяцев)?", value=False, key="nk2")
 k3 = st.checkbox("Данные в паспортах полностью соответствуют выбитым номерам на оборудовании?", value=False, key="nk3")
-k4 = st.checkbox("В наличии декларация о соответствии и сертификаты качества на material?", value=False, key="nk4")
+k4 = st.checkbox("В наличии декларация о соответствии и сертификаты качества на материал?", value=False, key="nk4")
 k5 = st.checkbox("УСПЕШНО выполнен замер комплекта шаров циркуляционного переводника на проходимость?", value=False, key="nk5")
 k6 = st.checkbox("Защитные колпаки присутствуют на всех без исключения резьбовых соединениях?", value=False, key="nk6")
 k7 = st.checkbox("В наличии поверенный эксплуатационный паспорт на моментомер ключа УМК?", value=False, key="nk7")
@@ -52,15 +103,21 @@ color_d = "green" if res_d == "УСПЕШНО ДОПУЩЕНО" else "red"
 
 html_form = "<div style='border:3px solid #1E3A8A; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>"
 html_form += "<h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>"
-html_form += "<h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>ОФИЦИАЛЬНЫЙ АКТ ВХОДНОГО КОНТРОЛЯ КНБК</h3>"
+html_form += "<h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>ОФИЦИАЛЬНЫЙ АКТ ВХОДНОГО КОНТРОЛЯ ОБОРУДОВАНИЯ</h3>"
+html_form += "<p style='text-align:center; font-size:11px; color:#6B7280; margin-top:-5px;'>Проверка проведена в соответствии с СТО ИНТИ S.QS.7 (п. 7.4.1) и СТО ИНТИ S.QS.8 (п. 5.1.2)</p>"
 html_form += "<hr style='border:1px solid #1E3A8A; margin-bottom:20px;'>"
 html_form += "<p><b>Дата/Время:</b> " + current_time + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> " + field_name + "</p>"
 html_form += "<p><b>Объект / Скважина:</b> " + well_number + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Инженер ННБ:</b> " + engineer_name + "</p>"
-html_form += "<h4 style='color:#1E3A8A; margin-top:25px; border-bottom:1px solid #D1D5DB; padding-bottom:5px;'>РЕЗУЛЬТАТЫ ВЕРИФИКАЦИИ УЗЛОВ КНБК:</h4>"
-html_form += "<p style='font-size:15px;'><b>1. Общий контроль элементов КНБК и УМК:</b> <span style='color:" + color_k + ";'><b>" + res_k + "</b></span></p>"
-html_form += "<p style='font-size:15px;'><b>2. Проверка забойного двигателя (ВЗД):</b> <span style='color:" + color_v + ";'><b>" + res_v + "</b></span></p>"
-html_form += "<p style='font-size:15px;'><b>3. Входной контроль бурового долота:</b> <span style='color:" + color_d + ";'><b>" + res_d + "</b></span></p>"
-html_form += "<p style='font-size:12px; color:#6B7280; text-align:center; margin-top:35px; border-top:1px dashed #D1D5DB; padding-top:10px;'>Сгенерировано в модуле 'Цифровой аудит КНБК' • Версия 2026 г. • Для печати в PDF нажмите Ctrl + P</p>"
+html_form += "<hr style='border:1px dashed #D1D5DB; margin:15px 0;'>"
+html_form += "<p style='font-size:15px; color:#1E3A8A;'><b>🔎 СВЕДЕНИЯ ОБ ИСПЫТУЕМОМ ЭЛЕМЕНТЕ:</b></p>"
+html_form += "<p style='font-size:15px;'><b>Наименование оборудования (из базы Диска):</b> " + str(element_name) + "</p>"
+html_form += "<p style='font-size:15px;'><b>Заводской серийный номер (ввод вручную):</b> " + (str(element_serial) if element_serial else "<span style='color:red;'>НЕ ВВЕДЕН</span>") + "</p>"
+html_form += "<hr style='border:1px dashed #D1D5DB; margin:15px 0;'>"
+html_form += "<h4 style='color:#1E3A8A; margin-top:10px; padding-bottom:5px;'>РЕЗУЛЬТАТЫ ВЕРИФИКАЦИИ УЗЛОВ КНБК:</h4>"
+html_form += "<p style='font-size:14px;'><b>1. Общий контроль элементов КНБК и УМК:</b> <span style='color:" + color_k + ";'><b>" + res_k + "</b></span></p>"
+html_form += "<p style='font-size:14px;'><b>2. Проверка забойного двигателя (ВЗД):</b> <span style='color:" + color_v + ";'><b>" + res_v + "</b></span></p>"
+html_form += "<p style='font-size:14px;'><b>3. Входной контроль бурового долота:</b> <span style='color:" + color_d + ";'><b>" + res_d + "</b></span></p>"
+html_form += "<p style='font-size:11px; color:#4B5563; text-align:center; margin-top:35px; border-top:1px solid #E5E7EB; padding-top:10px;'><b>Разработчик:</b> Старший инженер-технолог по ННБ • Экосистема цифровых сервисов ООО «Траектория-Сервис»</p>"
 html_form += "</div>"
 
 st.markdown("---")
