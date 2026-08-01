@@ -118,7 +118,7 @@ rec_html_lines = "".join([f"<li style='margin: 4px 0;'>{r}</li>" for r in recomm
 
 html_risk_act = f"""
 <div style="border:3px solid {risk_color}; padding:20px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#111827; line-height:1.5;">
-    <h2 style="text-align:center; color:#1E3A8A; margin-top:0; font-size:20px;">ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>
+    <h2 style="text-align:center; color:#1E3A8A; margin-top:0; font-size:20px;">ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>
     <h3 style="text-align:center; color:#4B5563; margin-top:-10px; font-size:16px;">КАРТА ПРЕВЕНТИВНОГО МОНИТОРИНГА РИСКОВ НА УСТЬЕ</h3>
     <hr style="border:1px solid #1E3A8A; margin-bottom:15px;">
     
