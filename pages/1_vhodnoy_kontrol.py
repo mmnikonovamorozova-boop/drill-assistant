@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
-st.set_page_config(page_title="Входной контроль", layout="wide")
+st.set_page_config(page_title="Входной контроль элементов КНБК", layout="wide")
 
 st.title("📋 Рапорт входного контроля оборудования")
 st.caption("МОДУЛЬ ВЕРИФИКАЦИИ ПАРАМЕТРОВ ЭЛЕМЕНТОВ КНБК, ВЗД И ДОЛОТ ПЕРЕД СПУСКОМ")
