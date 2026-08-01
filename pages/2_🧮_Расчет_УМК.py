@@ -88,8 +88,8 @@ else:
 
 # Сборка HTML бланка распоряжения (поддерживает печать через Ctrl + P)
 html_print = "<div style='border:2px solid #1E3A8A; padding:20px; border-radius:8px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>"
-html_print += "<h3 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h3>"
-html_print += "<h4 style='text-align:center; color:#4B5563; margin-top:-10px;'>ТЕХНОЛОГИЧЕСКОЕ РАСПОРЯЖЕНИЕ НА СВИНЧИВАНИЕ РЕЗЬБЫ КНБК</h4>"
+html_print += "<h3 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h3>"
+html_print += "<h4 style='text-align:center; color:#4B5563; margin-top:-10px;'>РЕКОМЕНТАЦИ ТЕХНОЛОГА ННБ НА СВИНЧИВАНИЕ РЕЗЬБЫ КНБК</h4>"
 html_print += "<p style='font-size:11px; text-align:center; color:#6B7280; margin-top:-5px;'>Расчет выполнен согласно СТО ИНТИ S.QS.7 (п. 7.4.2) и СТО ИНТИ S.QS.8 (п. 5.3.1)</p>"
 html_print += "<hr style='border:1px solid #1E3A8A; margin-bottom:15px;'>"
 html_print += "<p><b>Дата/Время:</b> " + current_time + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> " + field_name + "</p>"
@@ -98,9 +98,9 @@ html_print += "<hr style='border:1px dashed #D1D5DB; margin:15px 0;'>"
 html_print += "<p style='font-size:15px;'><b>Используемый инструмент:</b> " + str(vzd_key_type.split(' (')[0]) + " (Эффективное плечо с учетом троса: " + f"{effective_l:.3f}" + " м)</p>"
 html_print += "<p style='font-size:15px;'><b>Паспортный требуемый момент затяжки соединения:</b> " + f"{p_moment:.2f}" + " кН*м</p>"
 html_print += "<p style='font-size:15px;'><b>Фактические параметры линии:</b> Плечо ключа = " + f"{fact_l:.3f}" + " м, Толщина троса = " + f"{tros_d:.1f}" + " мм, Угол натяжения = " + f"{angle_alpha:.1f}" + "°</p>"
-html_print += "<p style='font-size:16px; color:#1E3A8A;'><b>👉 РЕКОМЕНДУЕМАЯ УСТАВКА МОМЕНТА ДЛЯ БУРИЛЬЩИКА: " + f"{target_setting:.2f}" + " кН*м</b></p>"
+html_print += "<p style='font-size:16px; color:#1E3A8A;'><b>👉 РЕКОМЕНДУЕМАЯ УСТАВКА МОМЕНТА ДЛЯ КЛЮЧА УМК: " + f"{target_setting:.2f}" + " кН*м</b></p>"
 html_print += "<p style='font-size:13px; color:#4B5563;'><i>Примечание: Данное значение передается буровому мастеру для контроля уставки гидравлического манометра машинного ключа.</i></p>"
-html_print += "<p style='font-size:11px; color:#4B5563; text-align:center; margin-top:25px; border-top:1px solid #E5E7EB; padding-top:10px;'><b>Разработчик:</b> Старший инженер-технолог по ННБ • Экосистема цифровых сервисов ООО «Траектория-Сервис»</p>"
+html_print += "<p style='font-size:11px; color:#4B5563; text-align:center; margin-top:25px; border-top:1px solid #E5E7EB; padding-top:10px;'><b>Разработчик:</b> Старший инженер по качеству ОСМК • Экосистема цифровых сервисов ООО «Траектория-Сервис»</p>"
 html_print += "</div>"
 
 st.markdown("---")
@@ -111,4 +111,4 @@ st.markdown(" ")
 st.info("💡 **Инструкция для печати:** Нажмите комбинацию клавиш **`Ctrl + P`**, выберите принтер «Сохранить как PDF» и прикрепите готовое распоряжение к суточному рапорту инженера.")
 
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший инженер-технолог по ННБ • Верифицировано по стандартам СТО ИНТИ • Цифровая экосистема ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший инженер по качеству ОСМК Никонова-Морозова М.М. • Верифицировано по стандартам СТО ИНТИ • Цифровая экосистема ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
