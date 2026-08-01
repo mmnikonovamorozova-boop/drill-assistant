@@ -183,11 +183,41 @@ else:
     res_text = "✔️ ЛЮФТ В НОРМЕ. Двигатель ДОПУЩЕН к спуску в скважину."
     st.success(res_text)
 
-# --- 10. ВСТАВКА ВАШЕГО ОРИГИНАЛЬНОГО ФРАГМЕНТА ВЫВОДА И ФУТЕРОВ ---
+# --- 10. БЕЗОПАСНАЯ ГЕНЕРАЦИЯ КОРПОРАТИВНОГО HTML-АКТА ЧЕРЕЗ F-СТРОКИ ---
+act_status_color = "red" if calculated_delta > effective_max_axial else "green"
 
-# Генерация красивой печатной формы Акта
-html_vzd = "<div style='border:3px solid #1E3A8A; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>"
-html_vzd += "<h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>"
-html_vzd += "<h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>АКТ ТЕХНИЧЕСКОГО КОНТРОЛЯ ШПИНДЕЛЯ ВЗД</h3>"
-html_vzd += "<hr style='border:1px solid #1E3A8A; margin-bottom:20px;'>"
-html_vzd += "<p><b>Дата/Время:</b> " + current_time + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> " + field_name + "</p>"
+# Переводим переменные в безопасный строковый формат на случай, если они пустые
+c_time = str(current_time) if 'current_time' in locals() else ""
+f_name = str(field_name) if 'field_name' in locals() else ""
+w_num = str(well_number) if 'well_number' in locals() else ""
+e_name = str(engineer_name) if 'engineer_name' in locals() else ""
+m_name = str(vzd_model_name) if 'vzd_model_name' in locals() else ""
+p_num = str(vzd_passport_number) if 'vzd_passport_number' in locals() else ""
+
+html_vzd = f"""
+<div style='border:3px solid #1E3A8A; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>
+    <h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>
+    <h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>АКТ ТЕХНИЧЕСКОГО КОНТРОЛЯ ШПИНДЕЛЯ ВЗД</h3>
+    <hr style='border:1px solid #1E3A8A; margin-bottom:20px;'>
+    <p><b>Дата/Время:</b> {c_time} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> {f_name}</p>
+    <p><b>Объект / Скважина:</b> {w_num} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Инженер ННБ:</b> {e_name}</p>
+    <p><b>Оборудование:</b> ВЗД {m_name} (Паспорт: {p_num})</p>
+    <p><b>Параметры замера шпинделя:</b> Размер А = {size_a:.2f} мм | Размер Б = {size_b:.2f} мм</p>
+    <h4 style='color:#1E3A8A; margin-top:20px; border-bottom:1px solid #D1D5DB; padding-bottom:5px;'>ЗАКЛЮЧЕНИЕ ПРОВЕРКИ:</h4>
+    <p style='font-size:15px;'>Фактический осевой люфт шпинделя составляет <b>{calculated_delta:.2f} мм</b> при паспортном лимите износа <b>{limit_wear:.2f} мм</b>.</p>
+    <p style='font-size:16px; color:{act_status_color};'><b>СТАТУС: {res_text}</b></p>
+    <p style='font-size:12px; color:#6B7280; text-align:center; margin-top:35px; border-top:1px dashed #D1D5DB; padding-top:10px;'>Сгенерировано в цифровом модуле • Для печати нажмите Ctrl + P</p>
+</div>
+"""
+
+# Жесткий вывод без каких-либо условий проверки строки report_text
+st.markdown("---")
+st.subheader("📥 Официальный бланк замера для рапорта:")
+st.markdown(html_vzd, unsafe_allow_html=True)
+
+# --- 11. ФУТЕРЫ СТРАНИЦЫ И ИНСТРУКЦИЯ ПО ПЕЧАТИ ---
+st.markdown(" ")
+st.info("💡 **Как распечатать или сохранить в PDF:** Нажмите комбинацию клавиш **`Ctrl + P`** (или три точки браузера ➡️ Печать), выберите принтер «Сохранить как PDF» и заберите готовый документ!")
+
+st.markdown("---")
+st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший инженер по качеству ОСМК Никонова-Морозова М.М. • Верифицировано по стандартам СТО ИНТИ • Цифровая экосистема ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
