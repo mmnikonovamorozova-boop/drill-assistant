@@ -8,9 +8,9 @@ st.title("📏 Комплексный расчет износа и люфтов 
 st.caption("МЕТОДИКА КОНТРОЛЯ ИЗНОСА ОПОР ШПИНДЕЛЯ ПО РЕГЛАМЕНТАМ ПОСТАВЩИКОВ И ЗАКАЗЧИКОВ")
 st.markdown("---")
 
-# Сдержанная техническая отметка о соответствии стандартам ИНТИ (адаптированная под ВЗД)
+# Сдержанная техническая отметка о соответствии стандартам ИНТИ
 st.markdown(
-    "<div style='color: #4B5563; font-size: 13px; background-color: #F3F4F6; padding: 12px; border-radius: 6px; border-left: 4px solid #1E3A8A; margin-bottom: 20px; line-height: 1.5; font-family: Arial, sans-serif;'>"
+    "<div style='color: #4B5563; font-size: 13px; background-color: #F3F4F6; padding: 12px; border-radius: 6px; border-left: 4px solid #1E3A8A; margin-bottom: 20px; line-height: 1.5; font-family: Arial, sans-serif;'> "
     "<b>Верификация стандартами:</b> Данный модуль контроля осевого износа шпиндельной секции ВЗД разработан в строгом соответствии с требованиями отраслевых стандартов "
     "<b>СТО ИНТИ S.QS.7 (п. 7.4.3 «Верификация закупаемой продукции», п. 7.5.1 «Управление производством и предоставлением услуг»)</b> в части проведения обязательной входной инспекции, проверки критических параметров и оценки соответствия забойных двигателей критериям безопасной эксплуатации на устье, "
     "а также <b>СТО ИНТИ S.QS.8 (п. 5.7.2 «Управление оборудованием для мониторинга и измерений»)</b> в части обязательного контроля исправности и метрологического подтверждения применяемого мерительного инструмента на буровой площадке."
@@ -18,13 +18,19 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- 2. СБОР МЕТАДАННЫХ (SIDEBAR) ---
+# --- НОВЫЙ БЛОК: Выбор заказчика перемещен из sidebar под плашку ИНТИ ---
+selected_client = st.selectbox(
+    "1. Выберите Заказчика (Недропользователя) для применения ограничений:", 
+    ["ПАО Роснефть", "ПАО Газпром", "ПАО Лукойл", "🔄 Без учета ограничений Заказчика"]
+)
+st.markdown("---")
+
+# --- 2. СБОР МЕТАДАННЫХ (SIDEBAR - ОСТАЛИСЬ ТОЛЬКО ТЕКСТОВЫЕ ПОЛЯ) ---
 st.sidebar.header("📋 Метаданные рапорта")
 well_number = st.sidebar.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
 engineer_name = st.sidebar.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
 field_name = st.sidebar.text_input("Месторождение:", value="Приобское")
 vzd_passport_number = st.sidebar.text_input("Серийный номер ВЗД по паспорту:", value="№ 6677")
-selected_client = st.sidebar.selectbox("Заказчик (Недропользователь):", ["ПАО Роснефть", "ПАО Газпром", "ПАО Лукойл", "🔄 Без учета ограничений Заказчика"])
 
 current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
 report_text = ""
@@ -34,14 +40,12 @@ if "custom_vzd" not in st.session_state:
     st.session_state.custom_vzd = {}
 
 # --- 3. НОРМАТИВНЫЕ БАЗЫ ДАННЫХ ---
-# Внутренние лимиты крупных Заказчиков по осевому люфту
 client_limits_db = {
     "ПАО Роснефть": {"малый": 3.5, "средний": 4.0, "большой": 5.0},
     "ПАО Газпром": {"малый": 4.0, "средний": 4.5, "большой": 5.0},
     "ПАО Лукойл": {"малый": 4.0, "средний": 5.0, "большой": 5.5}
 }
 
-# Оригинальная встроенная база данных ВЗД
 base_vzd = {
     "Радиус-Сервис": {
         "43 мм": 6.0, "54 мм": 6.0, "73 мм": 6.0, "75 мм": 6.0, 
@@ -74,7 +78,7 @@ base_vzd = {
 }
 
 brands_list = list(base_vzd.keys()) + ["➕ НОВЫЙ ПОСТАВЩИК / МОДЕЛЬ"]
-selected_brand = st.selectbox("1. Выберите производителя оборудования ВЗД:", brands_list)
+selected_brand = st.selectbox("2. Выберите производителя оборудования ВЗД:", brands_list)
 
 limit_wear = 0.0
 vzd_model_name = ""
@@ -122,7 +126,7 @@ else:
     if selected_brand in st.session_state.custom_vzd:
         current_brand_models.update(st.session_state.custom_vzd[selected_brand])
         
-    selected_diameter = st.selectbox("2. Выберите габарит / шифр модели:", list(current_brand_models.keys()))
+    selected_diameter = st.selectbox("3. Выберите габарит / шифр модели:", list(current_brand_models.keys()))
     vzd_model_name = selected_brand + " " + selected_diameter
     
     if isinstance(current_brand_models[selected_diameter], dict):
@@ -130,7 +134,6 @@ else:
         size_group = current_brand_models[selected_diameter]["group"]
     else:
         limit_wear = current_brand_models[selected_diameter]
-        # Автоматическое определение группы из текста
         small_markers = ["43", "54", "73", "75", "88", "95", "98", "106", "120", "127", "5''"]
         large_markers = ["195", "210", "240", "8''", "9-5/8''"]
         if any(m in selected_diameter for m in small_markers):
@@ -140,11 +143,11 @@ else:
         else:
             size_group = "средний"
 
-# Расчет номинала (граница зоны предупреждения)
+# Расчет номинала 
 limit_nominal = limit_wear * 0.50
 
 # --- 6. АЛГОРИТМ СРАВНЕНИЯ И СВЕРКИ С ЗАКАЗЧИКАМИ ---
-if selected_client in client_limits_db:
+if selected_client != "🔄 Без учета ограничений Заказчика":
     client_rule_axial = client_limits_db[selected_client][size_group]
     effective_max_axial = min(limit_wear, client_rule_axial)
     st.info(f"🔷 **Нормы контроля:** Паспорт завода = {limit_wear:.2f} мм | Ограничение {selected_client} = {client_rule_axial:.2f} мм")
@@ -155,7 +158,7 @@ else:
 
 # --- 7. ВВОД ФАКТИЧЕСКИХ ЗАМЕРОВ ---
 st.markdown("---")
-st.subheader("📥 3. Фактические замеры на устье скважины")
+st.subheader("📥 4. Фактические замеры на устье скважины")
 col_input1, col_input2 = st.columns(2)
 
 with col_input1:
