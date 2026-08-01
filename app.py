@@ -7,17 +7,58 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. ФУНКЦИЯ АВТОРИЗАЦИИ Персонала
+# 2. УЛЬТИМАТИВНОЕ ИСПРАВЛЕНИЕ МЕНЮ (ВЫНЕСЕНО В КОРЕНЬ)
+# Этот блок работает ВСЕГДА, даже до ввода логина и пароля инженером
+st.markdown("""
+<style>
+/* Скрываем исходный латинский текст пунктов меню */
+a[href*="vhodnoy_kontrol"] span,
+a[href*="raschet_umk"] span,
+a[href*="tech_cards"] span,
+a[href*="lyuft_vzd"] span,
+a[href*="kontrol_rastvora"] span,
+a[href="/"] span {
+    font-size: 0 !important;
+}
+
+/* Подставляем красивый русский текст с эмодзи через свойство content */
+a[href="/"] span::before {
+    content: "🧭 Главная страница";
+    font-size: 14px !important;
+    font-weight: bold;
+}
+a[href*="vhodnoy_kontrol"] span::before {
+    content: "📋 1. Входной контроль";
+    font-size: 14px !important;
+}
+a[href*="raschet_umk"] span::before {
+    content: "🧮 2. Расчет УМК";
+    font-size: 14px !important;
+}
+a[href*="tech_cards"] span::before {
+    content: "🔨 3. Технологические карты";
+    font-size: 14px !important;
+}
+a[href*="lyuft_vzd"] span::before {
+    content: "📏 4. Люфт ВЗД";
+    font-size: 14px !important;
+}
+a[href*="kontrol_rastvora"] span::before {
+    content: "🧪 5. Контроль раствора";
+    font-size: 14px !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# 3. ФУНКЦИЯ АВТОРИЗАЦИИ ПЕРСОНАЛА
 def check_password():
     """Возвращает True, если пользователь ввел правильный логин и пароль."""
     if "authenticated" not in st.session_state:
         st.session_state["authenticated"] = False
 
-    # Если уже авторизован, просто пропускаем
     if st.session_state["authenticated"]:
         return True
 
-    # Форма ввода логина и пароля на экране
     st.title("🔐 Авторизация в системе ННБ")
     st.caption("ООО «Траектория-Сервис» • Защищенный корпоративный доступ")
     
@@ -25,46 +66,29 @@ def check_password():
     input_pass = st.text_input("Введите пароль (Password):", type="password")
     
     if st.button("Войти в систему"):
-        # Извлекаем списки разрешенных пользователей из Secrets
         allowed_users = st.secrets["credentials"]["usernames"]
         allowed_passwords = st.secrets["credentials"]["passwords"]
         
-        # Проверяем, есть ли такой логин и соответствует ли ему пароль
         if input_user in allowed_users:
             user_index = allowed_users.index(input_user)
             if input_pass == allowed_passwords[user_index]:
                 st.session_state["authenticated"] = True
                 st.success("🎉 Авторизация успешна! Перенаправление...")
-                st.rerun() # Мгновенно перезагружаем страницу бурового ассистента
+                st.rerun()
                 return True
                 
         st.error("❌ Неверный логин или пароль. Доступ заблокирован.")
         return False
 
-# 3. ПРОВЕРКА ДОСТУПА
-# Если функция возвращает False, код ниже (меню и контент) вообще не запустится
+# 4. ПРОВЕРКА ДОСТУПА И ВЫВОД КОНТЕНТА ГЛАВНОЙ СТРАНИЦЫ
 if check_password():
 
-    # Кнопка "Выйти из системы" в самом низу бокового меню
+    # Кнопка выхода из системы
     if st.sidebar.button("🔒 Выйти из аккаунта"):
         st.session_state["authenticated"] = False
         st.rerun()
 
-    # --- ЗДЕСЬ ИДЕТ ВЕСЬ ВАШ ОСТАЛЬНОЙ РАБОЧИЙ КОД ИЗ APP.PY ---
-    # CSS для меню
-    st.markdown("""
-    <style>
-    a[href*="vhodnoy_kontrol"] span, a[href*="raschet_umk"] span, a[href*="tech_cards"] span,
-    a[href*="lyuft_vzd"] span, a[href*="kontrol_rastvora"] span, a[href="/"] span { font-size: 0 !important; }
-    a[href="/"] span::before { content: "🧭 Главная страница"; font-size: 14px !important; font-weight: bold; }
-    a[href*="vhodnoy_kontrol"] span::before { content: "📋 1. Входной контроль"; font-size: 14px !important; }
-    a[href*="raschet_umk"] span::before { content: "🧮 2. Расчет УМК"; font-size: 14px !important; }
-    a[href*="tech_cards"] span::before { content: "🔨 3. Технологические карты"; font-size: 14px !important; }
-    a[href*="lyuft_vzd"] span::before { content: "📏 4. Люфт ВЗД"; font-size: 14px !important; }
-    a[href*="kontrol_rastvora"] span::before { content: "🧪 5. Контроль раствора"; font-size: 14px !important; }
-    </style>
-    """, unsafe_allow_html=True)
-
+    # Контент главной страницы
     st.title("🧭 Цифровой помощник инженера по ННБ")
     st.write("Добро пожаловать в единую экосистему для верификации оборудования, входного контроля и технологических расчетов.")
     st.markdown("---")
