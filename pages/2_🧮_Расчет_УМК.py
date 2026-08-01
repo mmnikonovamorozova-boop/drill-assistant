@@ -11,11 +11,11 @@ st.markdown("---")
 
 # Сдержанная техническая отметка о соответствии стандартам ИНТИ
 st.markdown(
-    "<div style='color: #4B5563; font-size: 13px; background-color: #F3F4F6; padding: 12px; border-radius: 6px; border-left: 4px solid #1E3A8A; margin-bottom: 20px; line-height: 1.5; font-family: Arial, sans-serif;'>"
-    "<b>Верификация стандартами:</b> Данный программный модуль автоматической корректировки крутящего момента свинчивания разработан в строгом соответствии с требованиями отраслевых регламентов "
-    "<b>СТО ИНТИ S.QS.7 (п. 7.4.2)</b> в части технологического контроля параметров сборки резьбовых соединений элементов КНБК "
-    "и <b>СТО ИНТИ S.QS.8 (п. 5.3.1)</b> в части контроля калибровки и тарировки применяемых моментомеров на буровой площадке."
-    "</div>", 
+    '<div style="color: #4B5563; font-size: 13px; background-color: #F3F4F6; padding: 12px; border-radius: 6px; border-left: 4px solid #1E3A8A; margin-bottom: 20px; line-height: 1.5; font-family: Arial, sans-serif;">'
+    '<b>Верификация стандартами:</b> Данный программный модуль автоматической корректировки крутящего момента свинчивания разработан в строгом соответствии с требованиями отраслевых регламентов '
+    '<b>СТО ИНТИ S.QS.7 (п. 7.4.2)</b> в части технологического контроля параметров сборки резьбовых соединений элементов КНБК '
+    'и <b>СТО ИНТИ S.QS.8 (п. 5.3.1)</b> в части контроля калибровки и тарировки применяемых моментомеров на буровой площадке.'
+    '</div>', 
     unsafe_allow_html=True
 )
 
@@ -37,29 +37,25 @@ keys_db = {
 selected_key = st.selectbox("1. Выберите модель гидравлического ключа УМК:", list(keys_db.keys()))
 passport_length = keys_db[selected_key]
 
-# --- 4. ВХОДНЫЕ ТЕХНОЛОГИЧЕСКИЕ ПАРАМЕТРЫ (ВЕРТИКАЛЬНОЕ РАСПОЛОЖЕНИЕ) ---
+# --- 4. ВХОДНЫЕ ТЕХНОЛОГИЧЕСКИЕ ПАРАМЕТРЫ (ВЕРТИКАЛЬНО) ---
 st.markdown("### ⚙️ Параметры замера резьбового соединения КНБК")
 
 p_moment = st.number_input(
     "1️⃣ Требуемый паспортный момент резьбы КНБК, кН·м:", 
     min_value=0.0, max_value=150.0, value=25.0, step=0.5
 )
-
 fact_l = st.number_input(
     "2️⃣ Фактическая длина плеча ключа при замере на устье, м:", 
     min_value=0.1, max_value=3.0, value=passport_length, step=0.005
 )
-
 tros_d = st.number_input(
     "3️⃣ Толщина (диаметр) применяемого натяжного троса, мм:", 
     min_value=0.0, max_value=50.0, value=16.0, step=1.0
 )
-
 angle_alpha = st.number_input(
     "4️⃣ Измеренный угол натяжения троса лебедки относительно рычага ключа (α), град:", 
     min_value=10.0, max_value=90.0, value=90.0, step=1.0
 )
-
 
 # --- 5. ФИЗИКА ПРОЦЕССА И МАТЕМАТИЧЕСКАЯ КОРРЕКЦИЯ ---
 rad_alpha = math.radians(angle_alpha)
@@ -92,32 +88,29 @@ with col2:
 # Технологические ограничения СТО ИНТИ и логика бланка
 if loss_percent > 10.0:
     st.error("🚨 КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО пытаться 'дотянуть' резьбу завышением давления на гидравлическом пульте! Потери превышают критический лимит СТО ИНТИ 10%. Остановите работы и потребуйте от бурового подрядчика переставить натяжную лебедку буровой установки под угол 90°.")
-    
     border_style = "3px solid #DC2626"
-    header_title = "🚨 ООО «ТРАЕКТОРЬЯ-СЕРВИС» — УВЕДОМЛЕНИЕ О ЗАПРЕТЕ СВИНЧИВАНИЯ РЕЗЬБЫ"
     verdict_display = (
-        "<div style='background-color:#FEE2E2; border:1px solid #EF4444; padding:15px; border-radius:6px; margin:15px 0;'>"
-        "<h3 style='color:#DC2626; text-align:center; margin:0;'>❌ РАСЧЕТ УСТАВКИ ЗАБЛОКИРОВАН!</h3>"
-        f"<p style='color:#991B1B; font-size:14px; text-align:center; margin:5px 0 0 0;'>Потери момента составляют {loss_percent:.1f}% (Предел ИНТИ: 10%). Свинчивание запрещено.</p>"
-        "</div>"
+        '<div style="background-color:#FEE2E2; border:1px solid #EF4444; padding:15px; border-radius:6px; margin:15px 0;">'
+        '<h3 style="color:#DC2626; text-align:center; margin:0;">❌ РАСЧЕТ УСТАВКИ ЗАБЛОКИРОВАН!</h3>'
+        '</div>'
     )
     status_note = "🛑 СТАТУС: БРАК ЛИНИИ НАТЯЖЕНИЯ. Распоряжение на затяжку не выдано."
+    res_text = "КРИТИЧЕСКИЙ ИЗНОС / БРАК УГЛА"
 else:
     st.success("✔️ Величина погрешности находится в пределах допустимого технологического диапазона ИНТИ. Момент свинчивания признан контролируемым.")
-    
     border_style = "3px solid #1E3A8A"
-    header_title = "ООО «ТРАЕКТОРЬЯ-СЕРВИС» — РЕКОМЕНДАЦИОННЫЙ АКТ СВИНЧИВАНИЯ КНБК"
     verdict_display = (
-        f"<div style='background-color:#EFF6FF; border:1px solid #3B82F6; padding:15px; border-radius:6px; margin:15px 0;'>"
-        f"<h3 style='color:#1E3A8A; text-align:center; margin:0;'>👉 РЕКОМЕНДУЕМАЯ УСТАВКА НА ПУЛЬТЕ: {target_setting:.2f} кН·м</h3>"
-        f"</div>"
+        f'<div style="background-color:#EFF6FF; border:1px solid #3B82F6; padding:15px; border-radius:6px; margin:15px 0;">'
+        f'<h3 style="color:#1E3A8A; text-align:center; margin:0;">👉 РЕКОМЕНДУЕМАЯ УСТАВКА НА ПУЛЬТЕ: {target_setting:.2f} кН·м</h3>'
+        f'</div>'
     )
     status_note = "<b>СТАТУС: Допущено.</b> Значение крутящего момента передается буровому мастеру для настройки гидроключей."
+    res_text = f"Допущено. Рекомендовано {target_setting:.2f} кН*м"
 
-# --- 6. ГЕНЕРАЦИЯ КОРПОРАТИВНОГО HTML-АКТА (ИСПРАВЛЕННЫЙ СИНТАКСИС) ---
+# --- 6. ГЕНЕРАЦИЯ КОРПОРАТИВНОГО HTML-АКТА ---
 html_print = f"""
 <div style="border:{border_style}; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;">
-    <h2 style="text-align:center; color:#1E3A8A; margin-top:0;">ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>
+    <h2 style="text-align:center; color:#1E3A8A; margin-top:0;">ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>
     <h3 style="text-align:center; color:#4B5563; margin-top:-10px;">АКТ СКОРРЕКТИРОВАННОГО КРУТЯЩЕГО МОМЕНТА СВИНЧИВАНИЯ</h3>
     <hr style="border:1px solid #1E3A8A; margin-bottom:20px;">
     <p><b>Дата/Время:</b> {current_time} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> {field_name}</p>
@@ -161,7 +154,6 @@ with st.expander("🔐 Реестр легитимности и Интеракт
     with v_col4:
         v_angle = st.number_input("Тестовый угол (α), град:", value=75.0, min_value=1.0, max_value=90.0, step=1.0, key="v_a_test")
         
-    # Чистый эталонный расчет
     v_rad = math.radians(v_angle)
     v_eff = v_l_fact + ((v_t_d / 2.0) / 1000.0)
     analytical_result = v_m_pasyp / (v_eff * math.sin(v_rad))
@@ -188,7 +180,3 @@ with st.expander("🔐 Реестр легитимности и Интеракт
 
 # --- 8. ФУТЕРЫ СТРАНИЦЫ И ПЕЧАТЬ ---
 st.markdown(" ")
-st.info("💡 **Как распечатать или сохранить в PDF:** Нажмите комбинацию клавиш **`Ctrl + P`** (или три точки браузера ➡️ Печать), выберите принтер «Сохранить как PDF» и заберите готовый документ!")
-
-st.markdown("---")
-st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший инженер по качеству ОСМК Никонова-Морозова М.М. • Верифицировано по стандартам СТО ИНТИ • Цифровая экосистема ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
