@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import urllib.parse
 
 st.set_page_config(page_title="Входной контроль", layout="wide")
 
@@ -19,40 +18,35 @@ field_name = st.sidebar.text_input("Месторождение:", value="При�
 current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
 
 # =========================================================================
-# БЛОК СКАЧИВАНИЯ БЕЗ API (ТРАНСФОРМАЦИЯ ССЫЛКИ В ПРЯМОЙ ЭКСПОРТ ЯНДЕКСА)
+# БЛОК МГНОВЕННОГО ЛОКАЛЬНОГО ЧТЕНИЯ ИЗ РЕПОЗИТОРИЯ GITHUB
 # =========================================================================
-YANDEX_PUBLIC_URL = "https://yandex.ru"
-
 @st.cache_data(ttl=600)
-def load_nomenclature_via_direct_link(public_url):
+def load_local_nomenclature():
     try:
-        # Безопасное кодирование ссылки для встраивания в URL скачивания
-        encoded_key = urllib.parse.quote(public_url, safe='')
-        # Конструируем ссылку прямой загрузки, которая обходит прокси-фильтры Streamlit Cloud
-        direct_link = f"https://yandex.ru{encoded_key}"
-        df = pd.read_excel(direct_link)
+        # Читаем файл Excel прямо из корня нашего приложения
+        df = pd.read_excel("Inventory.xlsx")
         return df
     except Exception as e:
         return None
 
 # Загрузка номенклатуры
-nomenclature_df = load_nomenclature_via_direct_link(YANDEX_PUBLIC_URL)
+nomenclature_df = load_local_nomenclature()
 
-st.subheader("🔍 Синхронизация номенклатуры КНБК (Яндекс.Диск)")
+st.subheader("🔍 Локальная номенклатура КНБК (Синхронизация через GitHub)")
 
 col_id1, col_id2 = st.columns(2)
 
 if nomenclature_df is not None and len(nomenclature_df.columns) > 0:
-    st.success("✔️ Перечень элементов КНБК успешно синхронизирован с вашим Яндекс.Диском.")
+    st.success("✔️ Перечень элементов КНБК успешно подгружен из локального репозитория проекта.")
     with col_id1:
-        # Берем самый первый столбец независимо от его имени
+        # Автоматически берем первый столбец таблицы
         unique_elements = nomenclature_df.iloc[:, 0].dropna().unique().tolist()
         element_name = st.selectbox("Выберите наименование элемента КНБК:", unique_elements)
 else:
-    st.warning("⚠️ Облачный перечень на Яндекс.Диске недоступен. Переключено на аварийный список элементов.")
+    st.error("🚨 Файл 'Inventory.xlsx' не найден в корне вашего GitHub! Пожалуйста, загрузите его.")
     with col_id1:
         element_name = st.selectbox(
-            "Выберите наименование элемента КНБК:",
+            "Выберите наименование элемента КНБК (Аварийный список):",
             ["Винтовой забойный двигатель (ВЗД)", "Гидравлический буровой ЯС", "Телеметрическая система (ТМС)", "Циркуляционный переводник (КЦ)", "Утяжеленная бурильная труба (УБТ)", "Калибратор / Центратор", "Буровое долото"]
         )
 
@@ -107,7 +101,7 @@ html_form += "<p><b>Дата/Время:</b> " + current_time + " &nbsp;&nbsp;&n
 html_form += "<p><b>Объект / Скважина:</b> " + well_number + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Инженер ННБ:</b> " + engineer_name + "</p>"
 html_form += "<hr style='border:1px dashed #D1D5DB; margin:15px 0;'>"
 html_form += "<p style='font-size:15px; color:#1E3A8A;'><b>🔎 СВЕДЕНИЯ ОБ ИСПЫТУЕМОМ ЭЛЕМЕНТЕ:</b></p>"
-html_form += "<p style='font-size:15px;'><b>Наименование оборудования (из базы Диска):</b> " + str(element_name) + "</p>"
+html_form += "<p style='font-size:15px;'><b>Наименование оборудования (из базы проекта):</b> " + str(element_name) + "</p>"
 html_form += "<p style='font-size:15px;'><b>Заводской серийный номер (ввод вручную):</b> " + (str(element_serial) if element_serial else "<span style='color:red;'>НЕ ВВЕДЕН</span>") + "</p>"
 html_form += "<hr style='border:1px dashed #D1D5DB; margin:15px 0;'>"
 html_form += "<h4 style='color:#1E3A8A; margin-top:10px; padding-bottom:5px;'>РЕЗУЛЬТАТЫ ВЕРИФИКАЦИИ УЗЛОВ КНБК:</h4>"
