@@ -39,49 +39,61 @@ passport_length = keys_db[selected_key]
 
 # --- 4. ВХОДНЫЕ ТЕХНОЛОГИЧЕСКИЕ ПАРАМЕТРЫ ---
 st.markdown("### ⚙️ Параметры замера резьбового соединения КНБК")
-col_p1, col_p2, col_p3 = st.columns(3)
+col_p1, col_p2, col_p3, col_p4 = st.columns(4)
 
 with col_p1:
-    required_torque = st.number_input("Требуемый паспортный момент резьбы, кН·м:", min_value=0.0, max_value=150.0, value=25.0, step=0.5)
+    p_moment = st.number_input("Требуемый паспортный момент резьбы, кН·м:", min_value=0.0, max_value=150.0, value=25.0, step=0.5)
 with col_p2:
-    actual_length = st.number_input("Фактическая длина плеча ключа при замере, м:", min_value=0.1, max_value=3.0, value=passport_length, step=0.005)
+    fact_l = st.number_input("Фактическая длина плеча ключа при замере, м:", min_value=0.1, max_value=3.0, value=passport_length, step=0.005)
 with col_p3:
+    tros_d = st.number_input("Толщина (диаметр) натяжного троса, мм:", min_value=0.0, max_value=50.0, value=16.0, step=1.0)
+with col_p4:
     angle_alpha = st.number_input("Измеренный угол натяжения троса лебедки (α), град:", min_value=10.0, max_value=90.0, value=90.0, step=1.0)
 
-# --- 5. МАТЕМАТИЧЕСКОЕ ЯДРО РАСЧЕТА ---
-# Поправка на толщину троса (8 мм) согласно внутреннему регламенту
-effective_length = actual_length + 0.008
+# --- 5. ФИЗИКА ПРОЦЕССА И МАТЕМАТИЧЕСКАЯ КОРРЕКЦИЯ ---
+rad_alpha = math.radians(angle_alpha)
+sin_alpha = math.sin(rad_alpha)
 
-# Перевод угла в радианы и расчет синуса линии натяжения
-alpha_rad = math.radians(angle_alpha)
-sin_alpha = math.sin(alpha_rad)
+# Расчет смещения оси за счет половины толщины троса (в метрах)
+delta_r = (tros_d / 2.0) / 1000.0
+effective_l = fact_l + delta_r
 
-# Формула корректировки момента УМК (Теормех / Рычаг)
-target_setting = required_torque * (passport_length / (effective_length * sin_alpha))
+# Расчет целевой уставки момента для пульта бурильщика
+if sin_alpha > 0 and effective_l > 0:
+    target_setting = p_moment / (effective_l * sin_alpha)
+    loss_percent = (1.0 - sin_alpha) * 100.0
+else:
+    target_setting = p_moment
+    loss_percent = 0.0
 
-# Расчет процента потерь передаваемого крутящего момента
-loss_percent = (1.0 - sin_alpha) * 100
-
-# --- 6. ПОЛНАЯ СТРОГАЯ ИНЖЕНЕРНАЯ ОЦЕНКА И ИНДИКАЦИЯ ---
 st.markdown("---")
-st.markdown("### 📊 РЕЗУЛЬТАТЫ АНАЛИЗА:")
+st.subheader("📊 РЕЗУЛЬТАТЫ РАСЧЕТА ДЛЯ БУРОВОЙ БРИГАДЫ:")
 
-# Определение статуса, заголовков и цветового решения бланка ДО формирования HTML
+col1, col2 = st.columns(2)
+with col1:
+    if loss_percent > 10.0:
+        st.metric(label="🎯 НЕОБХОДИМАЯ УСТАВКА НА ПУЛЬТЕ (Показания моментомера):", value="БЛОКИРОВАНО")
+    else:
+        st.metric(label="🎯 НЕОБХОДИМАЯ УСТАВКА НА ПУЛЬТЕ (Показания моментомера):", value=f"{target_setting:.2f} кН*м")
+with col2:
+    st.metric(label="📉 Потери крутящего момента из-за угла натяжения:", value=f"{loss_percent:.1f} %")
+
+# Технологические ограничения СТО ИНТИ и логика бланка
 if loss_percent > 10.0:
-    res_text = "🚨 КРИТИЧЕСКИЕ ПОТЕРИ МОМЕНТА! СВИНЧИВАНИЕ КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО!"
+    st.error("🚨 КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО пытаться 'дотянуть' резьбу завышением давления на гидравлическом пульте! Потери превышают критический лимит СТО ИНТИ 10%. Остановите работы и потребуйте от бурового подрядчика переставить натяжную лебедку буровой установки под угол 90°.")
+    
     border_style = "3px solid #DC2626"
     header_title = "🚨 ООО «ТРАЕКТОРЬЯ-СЕРВИС» — УВЕДОМЛЕНИЕ О ЗАПРЕТЕ СВИНЧИВАНИЯ РЕЗЬБЫ"
     verdict_display = (
         "<div style='background-color:#FEE2E2; border:1px solid #EF4444; padding:15px; border-radius:6px; margin:15px 0;'>"
         "<h3 style='color:#DC2626; text-align:center; margin:0;'>❌ РАСЧЕТ УСТАВКИ ЗАБЛОКИРОВАН!</h3>"
-        "<p style='color:#991B1B; font-size:14px; text-align:center; margin:5px 0 0 0;'>"
-        f"Потери момента составляют {loss_percent:.1f}% (Предел по СТО ИНТИ: 10.0%). Требуется переставить натяжную лебедку под прямым углом."
-        "</p>"
+        f"<p style='color:#991B1B; font-size:14px; text-align:center; margin:5px 0 0 0;'>Потери момента составляют {loss_percent:.1f}% (Предел ИНТИ: 10%). Свинчивание запрещено.</p>"
+        "</div>"
     )
     status_note = "🛑 СТАТУС: БРАК ЛИНИИ НАТЯЖЕНИЯ. Распоряжение на затяжку не выдано."
-    st.error(res_text)
 else:
-    res_text = "✔️ ПАРАМЕТРЫ ЛИНИИ В НОРМЕ. Свинчивание разрешено."
+    st.success("✔️ Величина погрешности находится в пределах допустимого технологического диапазона ИНТИ. Момент свинчивания признан контролируемым.")
+    
     border_style = "3px solid #1E3A8A"
     header_title = "ООО «ТРАЕКТОРЬЯ-СЕРВИС» — РЕКОМЕНДАЦИОННЫЙ АКТ СВИНЧИВАНИЯ КНБК"
     verdict_display = (
@@ -90,11 +102,8 @@ else:
         f"</div>"
     )
     status_note = "<b>СТАТУС: Допущено.</b> Значение крутящего момента передается буровому мастеру для настройки гидроключей."
-    st.success(res_text)
 
-st.write(f"**Текущие технологические потери крутящего момента:** {loss_percent:.2f}% (Максимальный допуск СТО ИНТИ: 10.0%)")
-
-# --- 7. ГЕНЕРАЦИЯ КОРПОРАТИВНОГО HTML-АКТА ---
+# --- 6. ГЕНЕРАЦИЯ КОРПОРАТИВНОГО HTML-АКТА ---
 html_print = f"""
 <div style='border:{border_style}; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>
     <h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>
@@ -103,8 +112,8 @@ html_print = f"""
     <p><b>Дата/Время:</b> {current_time} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> {field_name}</p>
     <p><b>Объект / Скважина:</b> {well_number} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Инженер ННБ:</b> {engineer_name}</p>
     <p><b>Используемое оборудование:</b> {selected_key}</p>
-    <p><b>Геометрия натяжения:</b> Паспортное плечо = {passport_length:.3f} м | Измеренное плечо = {actual_length:.3f} м | Угол α = {angle_alpha:.1f}°</p>
-    <p><b>Требуемый момент по паспорту КНБК:</b> {required_torque:.2f} кН·м</p>
+    <p><b>Геометрия натяжения:</b> Паспортное плечо = {passport_length:.3f} м | Измеренное плечо = {fact_l:.3f} м | Трос = {tros_d} мм (Δr = {delta_r:.4f} м) | <b>Эффективное плечо:</b> {effective_l:.3f} м | Угол α = {angle_alpha:.1f}°</p>
+    <p><b>Требуемый момент по паспорту КНБК:</b> {p_moment:.2f} кН·м</p>
     <h4 style='color:#1E3A8A; margin-top:20px; border-bottom:1px solid #D1D5DB; padding-bottom:5px;'>ЗАКЛЮЧЕНИЕ ТЕХНИЧЕСКОГО КОНТРОЛЯ:</h4>
     {verdict_display}
     <p style='font-size:14px; color:#4B5563;'>{status_note}</p>
@@ -116,24 +125,26 @@ st.markdown("---")
 st.subheader("📥 Официальный бланк распоряжения для буровой бригады:")
 st.markdown(html_print, unsafe_allow_html=True)
 
-# --- 8. ИНТЕРАКТИВНЫЙ БЛОК ВЕРИФИКАЦИИ ДЛЯ СУПЕРВАЙЗЕРА ---
+# --- 7. ИНТЕРАКТИВНЫЙ БЛОК ВЕРИФИКАЦИИ ДЛЯ СУПЕРВАЙЗЕРА ---
 st.markdown(" ")
 with st.expander("🔐 Реестр легитимности и Интерактивная верификация ПО"):
     st.markdown("### 🛡️ МОДУЛЬ НЕЗАВИСИМОЙ ЭКСПРЕСС-ВЕРИФИКАЦИИ ПО")
     st.markdown("Если у контролирующих органов возникают сомнения в точности автоматического расчета, вы можете провести независимую перепроверку математического ядра «на лету».")
     
-    v_col1, v_col2, v_col3 = st.columns(3)
+    v_col1, v_col2, v_col3, v_col4 = st.columns(4)
     with v_col1:
         v_m_pasyp = st.number_input("Тестовый момент (Мпасп), кНм:", value=25.0, step=1.0, key="v_m_test")
     with v_col2:
         v_l_fact = st.number_input("Тестовое плечо (Lфакт), м:", value=0.715, step=0.01, key="v_l_test")
     with v_col3:
+        v_t_d = st.number_input("Тестовый трос, мм:", value=16.0, step=1.0, key="v_t_test")
+    with v_col4:
         v_angle = st.number_input("Тестовый угол (α), град:", value=75.0, min_value=1.0, max_value=90.0, step=1.0, key="v_a_test")
         
     # Чистый эталонный расчет
     v_rad = math.radians(v_angle)
-    v_eff = v_l_fact + 0.008
-    analytical_result = v_m_pasyp * (0.715 / (v_eff * math.sin(v_rad)))
+    v_eff = v_l_fact + ((v_t_d / 2.0) / 1000.0)
+    analytical_result = v_m_pasyp / (v_eff * math.sin(v_rad))
     program_result = float(f"{analytical_result:.4f}") 
     
     abs_error = abs(analytical_result - program_result)
@@ -155,7 +166,7 @@ with st.expander("🔐 Реестр легитимности и Интеракт
     Алгоритм признан легитимным для использования на основании соответствия **СТО ИНТИ S.QS.7 (п. 7.4.2)** и **СТО ИНТИ S.QS.8 (п. 5.3.1)**.
     """)
 
-# --- 9. ФУТЕРЫ СТРАНИЦЫ И ИНСТРУКЦИЯ ПО ПЕЧАТИ ---
+# --- 8. ФУТЕРЫ СТРАНИЦЫ И ПЕЧАТЬ ---
 st.markdown(" ")
 st.info("💡 **Как распечатать или сохранить в PDF:** Нажмите комбинацию клавиш **`Ctrl + P`** (или три точки браузера ➡️ Печать), выберите принтер «Сохранить как PDF» и заберите готовый документ!")
 
