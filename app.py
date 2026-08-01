@@ -7,8 +7,46 @@ st.set_page_config(
     layout="wide"
 )
 
-# 2. ИСПРАВЛЕНИЕ БОКОВОГО МЕНЮ ЧЕРЕЗ КОРНЕВОЙ CSS (Переименовывает пункты страниц)
-st.markdown("<style>[data-testid='stSidebarNav'] a span { font-size: 0 !important; } [data-testid='stSidebarNav'] a[href='/'] span::before { content: '🧭 Главная страница'; font-size: 14px !important; font-weight: bold; } [data-testid='stSidebarNav'] a[href*='1_vhodnoy_kontrol'] span::before { content: '📋 1. Входной контроль'; font-size: 14px !important; } [data-testid='stSidebarNav'] a[href*='2_raschet_umk'] span::before { content: '🧮 2. Расчет УМК'; font-size: 14px !important; } [data-testid='stSidebarNav'] a[href*='3_tech_cards'] span::before { content: '🔨 3. Технологические карты'; font-size: 14px !important; } [data-testid='stSidebarNav'] a[href*='4_lyuft_vzd'] span::before { content: '📏 4. Люфт ВЗД'; font-size: 14px !important; } [data-testid='stSidebarNav'] a[href*='_kontrol_rastvora'] span::before { content: '🧪 5. Контроль раствора'; font-size: 14px !important; } [data-testid='stSidebarNav'] a[href*='6_baza_znaniy'] span::before { content: '📚 6. База знаний'; font-size: 14px !important; }</style>", unsafe_allow_html=True)
+# 2. ИСПРАВЛЕНИЕ БОКОВОГО МЕНЮ ЧЕРЕЗ КОРНЕВОЙ CSS (Порядковое переименование строк)
+st.markdown("""
+<style>
+/* Скрываем исходный системный текст у всех ссылок в меню */
+[data-testid="stSidebarNav"] ul li a span {
+    font-size: 0 !important;
+}
+
+/* Намертво вписываем русские названия по порядку строк сверху вниз */
+[data-testid="stSidebarNav"] ul li:nth-child(1) a span::before {
+    content: "🧭 Главная страница";
+    font-size: 14px !important;
+    font-weight: bold;
+}
+[data-testid="stSidebarNav"] ul li:nth-child(2) a span::before {
+    content: "📋 1. Входной контроль";
+    font-size: 14px !important;
+}
+[data-testid="stSidebarNav"] ul li:nth-child(3) a span::before {
+    content: "🧮 2. Расчет УМК";
+    font-size: 14px !important;
+}
+[data-testid="stSidebarNav"] ul li:nth-child(4) a span::before {
+    content: "🔨 3. Технологические карты";
+    font-size: 14px !important;
+}
+[data-testid="stSidebarNav"] ul li:nth-child(5) a span::before {
+    content: "📏 4. Люфт ВЗД";
+    font-size: 14px !important;
+}
+[data-testid="stSidebarNav"] ul li:nth-child(6) a span::before {
+    content: "🧪 5. Контроль раствора";
+    font-size: 14px !important;
+}
+[data-testid="stSidebarNav"] ul li:nth-child(7) a span::before {
+    content: "📚 6. База знаний";
+    font-size: 14px !important;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # 3. ФУНКЦИЯ ПРОФЕССИОНАЛЬНОЙ АВТОРИЗАЦИИ ПЕРСОНАЛА
 def check_password():
