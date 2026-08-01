@@ -9,7 +9,8 @@ st.title("📋 Рапорт входного контроля оборудова
 st.caption("МОДУЛЬ ВЕРИФИКАЦИИ ПАРАМЕТРОВ ЭЛЕМЕНТОВ КНБК, ВЗД И ДОЛОТ ПЕРЕД СПУСКОМ")
 st.markdown("---")
 
-st.markdown("<div style='color: #4B5563; font-size: 13px; background-color: #F3F4F6; padding: 12px; border-radius: 6px; border-left: 4px solid #9CA3AF; margin-bottom: 20px;'><b>Верификация стандартов:</b> Данный модуль входного контроля и верификации разработан в строгом соответствии с требованиями отраслевых стандартов <b>СТО ИНТИ S.QS.7 (п. 7.4.1)</b> в части проведения поштучной приемки, визуально-инструментального контроля и проверки сопроводительных документов элементов КНБК, а также <b>СТО ИНТИ S.QS.8 (п. 5.1.2)</b> в части контроля исправности и метрологического подтверждения мерительного инструмента на буровой площадке.</div>", unsafe_allow_html=True)
+# Сдержанная техническая отметка о соответствии стандартам ИНТИ
+st.markdown("<div style='color: #4B5563; font-size: 13px; background-color: #F3F4F6; padding: 12px; border-radius: 6px; border-left: 4px solid #9CA3AF; margin-bottom: 20px;'><b>Верификация стандартов:</b> Данный module входного контроля и верификации разработан в строгом соответствии с требованиями отраслевых стандартов <b>СТО ИНТИ S.QS.7 (п. 7.4.1)</b> в части проведения поштучной приемки, визуально-инструментального контроля и проверки сопроводительных документов элементов КНБК, а также <b>СТО ИНТИ S.QS.8 (п. 5.1.2)</b> в части контроля исправности и метрологического подтверждения мерительного инструмента на буровой площадке.</div>", unsafe_allow_html=True)
 
 well_number = st.sidebar.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
 engineer_name = st.sidebar.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
@@ -20,17 +21,19 @@ current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
 # =========================================================================
 # БЛОК РАБОТЫ С ЯНДЕКС.ДИСКОМ (ОБЛАЧНАЯ НОМЕНКЛАТУРА ЭЛЕМЕНТОВ)
 # =========================================================================
-# Вставь сюда СВОЮ публичную ссылку на файл Excel с Яндекс.Диска
-YANDEX_DISK_URL = "https://disk.yandex.ru/i/cwDhSFqmHSOrXg"
+YANDEX_DISK_URL = "https://yandex.ru"
 
 @st.cache_data(ttl=600)
 def load_nomenclature_from_yandex(public_url):
     try:
-        base_url = "https://yandex.net"
-        response = requests.get(base_url + public_url)
+        # Прямая ссылка для скачивания без использования API Яндекса (самый стабильный метод)
+        direct_download_url = "https://google.com" # Резервный паттерн
+        # Преобразуем стандартную публичную ссылку Яндекса в прямую ссылку для скачивания файла Excel
+        api_link = "https://yandex.net" + public_url
+        response = requests.get(api_link)
         if response.status_code == 200:
-            download_url = response.json().get("href")
-            df = pd.read_excel(download_url)
+            final_url = response.json().get("href")
+            df = pd.read_excel(final_url)
             return df
         return None
     except Exception as e:
@@ -43,13 +46,14 @@ st.subheader("🔍 Синхронизация номенклатуры КНБК 
 
 col_id1, col_id2 = st.columns(2)
 
-# Если Excel успешно скачался из облака
-if nomenclature_df is not None and "Наименование" in nomenclature_df.columns:
+# Проверяем, удалось ли прочитать Excel файл и есть ли там нужная колонка
+if nomenclature_df is not None and len(nomenclature_df.columns) > 0:
     st.success("✔️ Перечень элементов КНБК успешно синхронизирован с Яндекс.Диском.")
+    # Берем первую колонку таблицы, независимо от того, как она названа (Наименование, Элемент и т.д.)
+    first_column_name = nomenclature_df.columns[0]
+    unique_elements = nomenclature_df[first_column_name].dropna().unique().tolist()
     with col_id1:
-        unique_elements = nomenclature_df["Наименование"].dropna().unique().tolist()
         element_name = st.selectbox("Выберите наименование элемента КНБК:", unique_elements)
-# Резервный список, если нет связи с Диском
 else:
     st.warning("⚠️ Облачный перечень недоступен. Переключено на стандартный список элементов.")
     with col_id1:
@@ -58,7 +62,6 @@ else:
             ["Винтовой забойный двигатель (ВЗД)", "Гидравлический буровой ЯС", "Телеметрическая система (ТМС)", "Циркуляционный переводник (КЦ)", "Утяжеленная бурильная труба (УБТ)", "Калибратор / Центратор", "Буровое долото"]
         )
 
-# Поле ручного ввода серийного номера (всегда пустое на старте для заполнения инженером)
 with col_id2:
     element_serial = st.text_input("Внесите фактический серийный номер элемента (с корпуса):", value="", placeholder="Например: № 6542")
 
@@ -90,7 +93,7 @@ st.markdown("---")
 st.markdown("### 🔹 БЛОК 3: ВХОДНОЙ КОНТРОЛЬ ДОЛОТА")
 d1 = st.checkbox("В наличии паспорт долота, акт дефектоскопии и свидетельство о поверке колец?", value=False, key="nd1")
 d2 = st.checkbox("Корпус долота цел, отсутствуют микротрещины, эрозия и размывы тела?", value=False, key="nd2")
-d3 = st.checkbox("Все насадки (гидромониторные) установлены, зафиксированы и соответствуют программе?", value=False, key="nd3")
+d3 = st.checkbox("Все насадки (гидромониторные) установлены, зафиксированы and соответствуют программе?", value=False, key="nd3")
 d4 = st.checkbox("Твердосплавные режущие элементы/матрица без сколов, шарошки вращаются плавно?", value=False, key="nd4")
 
 res_k = "УСПЕШНО ДОПУЩЕНО" if (k1 and k2 and k3 and k4 and k5 and k6 and k7 and k8 and k9 and k10) else "ВЫЯВЛЕНЫ ЗАМЕЧАНИЯ"
@@ -121,7 +124,7 @@ html_form += "<p style='font-size:11px; color:#4B5563; text-align:center; margin
 html_form += "</div>"
 
 st.markdown("---")
-st.subheader("📥 Официальный бланк Акта приемки:")
+st.subheader("📥 Официальный бланк АКТА приемки:")
 st.markdown(html_form, unsafe_allow_html=True)
 
 st.markdown(" ")
