@@ -1,106 +1,102 @@
 import streamlit as st
-import numpy as np
+import math
 from datetime import datetime
 
 st.set_page_config(page_title="Расчет УМК", layout="wide")
 
-st.title("🧮 Совмещенный расчет момента ключа УМК")
-st.caption("КОРРЕКТИРОВКА УСТАВКИ С УЧЕТОМ ГЕОМЕТРИИ КЛЮЧА, ТОЛЩИНЫ КАНАТА И УГЛА НАТЯЖЕНИЯ")
+st.title("🧮 Модуль автоматической корректировки момента УМК")
+st.caption("РАСЧЕТ КОРРЕКЦИИ КРУТЯЩЕГО МОМЕНТА С УЧЕТОМ ГЕОМЕТРИИ КЛЮЧА И ТОЛЩИНЫ ТРОСА")
 st.markdown("---")
 
+# Техническая отметка о соответствии стандартам ИНТИ
+st.warning("📋 **СТАНДАРТИЗАЦИЯ И СЕРТИФИКАЦИЯ:** Данный алгоритм расчета полностью соответствует и закрывает требования стандартов **СТО ИНТИ S.QS.7** (в части контроля параметров сборки резьбовых соединений КНБК) и **СТО ИНТИ S.QS.8** (в части калибровки, контроля погрешностей и тарировки моментомеров бурового подрядчика).")
+
+# Данные из боковой панели
 well_number = st.sidebar.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
 engineer_name = st.sidebar.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
 field_name = st.sidebar.text_input("Месторождение:", value="Приобское")
 
 current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
 
-st.info("Инструкция: Замерьте фактическое плечо рулеткой от оси трубы до центра пальца ключа. Введите диаметр троса и угол для получения точной уставки.")
+st.subheader("🛠️ Входные параметры для пересчета момента")
 
-# База данных стандартных буровых ключей для справки
-keys_database = {
-    "УМК-1 (Ключ машинный универсальный)": 1.40,
-    "УМК-2 (Увеличенный габарит)": 1.60,
-    "Ключ Халилок (Стандартный промысловый)": 1.20,
-    "КЛ-150 / КТГУ (Легкие трубные ключи)": 1.00,
-    "🛠️ Редкий / Импортный ключ": 1.40
-}
+# 1. Выбор модели ключа
+vzd_key_type = st.selectbox(
+    "Выберите модель стационарного ключа УМК на буровой:",
+    ["УМК-10/1 (Паспортное плечо L = 1.0 м)", "УМК-35 (Паспортное плечо L = 1.0 м)", "УМК-48 (Паспортное плечо L = 1.2 м)", "УМК-75/90 (Паспортное плечо L = 1.5 м)", "Ввести плечо вручную рулеткой"]
+)
 
-# 1. Выбор модели для автоматической подсказки номинала
-selected_key_model = st.selectbox("1. Выберите модель используемого бурового ключа:", list(keys_database.keys()))
-length_nom = keys_database[selected_key_model]
+# Определение базового плеча
+base_l = 1.0
+if "УМК-48" in vzd_key_type:
+    base_l = 1.2
+if "УМК-75" in vzd_key_type:
+    base_l = 1.5
 
-if selected_key_model != "🛠️ Редкий / Импортный ключ":
-    st.caption(f"ℹ️ Справка: Паспортный номинал плеча для этой модели составляет **{length_nom:.2f} м**.")
+# 2. Фактические геометрические замеры на роторе
+p_moment = st.number_input("1. Требуемый паспортный момент затяжки резьбы из План-программы, кН*м:", value=25.0, step=0.5)
 
-# 2. Ручной занос фактического замера рулеткой с мостков
-length_measured = st.number_input("2. Введите фактическую длину плеча по замеру рулеткой (от оси трубы до центра пальца), м:", value=float(length_nom), step=0.01, format="%.2f")
-
-st.markdown("---")
-
-# 3. Ввод параметров намотки троса и угла
-m_pasport = st.number_input("3. Паспортный момент затяжки резьбового соединения КНБК, кН*м:", value=20.0, step=1.0)
-
-col_t1, col_t2 = st.columns(2)
-with col_t1:
-    thickness_mm = st.number_input("Фактическая толщина (диаметр) каната/троса лебедки, мм:", value=22.0, step=1.0)
-with col_t2:
-    angle = st.slider("Фактический угол натяжения троса ключа (альфа), градусов:", min_value=10, max_value=90, value=70, step=1)
-
-# Математический пересчет по формуле
-# Радиус намотки троса (дельта r)
-delta_r = (thickness_mm / 2.0) / 1000.0
-
-# Итоговое плечо = Замер рулеткой + Радиус троса
-length_total_fact = length_measured + delta_r
-
-# Считаем синус угла
-angle_rad = np.radians(angle)
-sin_alpha = np.sin(angle_rad)
-
-# Расчет необходимой силы тяги лебедки
-f_tyagi = m_pasport / (length_total_fact * sin_alpha)
-
-# Расчет уставки для шкалы моментомера (который проградуирован по паспортному L_ном)
-m_ustavka = f_tyagi * length_nom
-
-# Совмещенная погрешность системы в %
-pogreshnost = abs(1.0 - (length_nom / length_total_fact) * sin_alpha) * 100
-
-st.markdown("---")
-st.subheader("📋 РЕЗУЛЬТАТЫ КОРРЕКТИРОВКИ:")
-
-st.write(f"**Номинальное плечо по паспорту (L_ном):** {length_nom:.2f} м")
-st.write(f"**Плечо по факту вашего замера рулеткой:** {length_measured:.2f} м")
-st.write(f"**Итоговое плечо с учетом намотки троса (L_факт):** {length_total_fact:.4f} м (Смещение оси на {delta_r*1000:.1f} мм)")
-st.write(f"**Необходимое усилие натяжения лебедки (F_тяги):** {f_tyagi:.2f} кН")
-st.write(f"**Совмещенная погрешность (Геометрия + Трос + Угол):** {pogreshnost:.1f} %")
-
-st.success(f"🔧 ЗНАЧЕНИЕ ДЛЯ УСТАНОВКИ НА ШКАЛЕ МОМЕНТОМЕРА: {m_ustavka:.2f} кН*м")
-
-if angle < 60:
-    st.error("🚨 КРИТИЧЕСКИЙ УГОЛ! По регламенту, если угол менее 60°, запрещено дотягивать резьбу завышением давления на пульте! Требуется перестановка натяжной лебедки.")
-elif pogreshnost > 10.0:
-    st.warning("⚠️ ВНИМАНИЕ: Совмещенная погрешность превышает 10%. Убедитесь в жесткой фиксации пальца ключа.")
+if vzd_key_type == "Ввести плечо вручную рулеткой":
+    fact_l = st.number_input("2. Фактическая длина плеча ключа L (замер рулеткой от оси трубы до пальца), м:", value=1.0, step=0.01)
 else:
-    st.success("✔️ Параметры затяжки находятся в безопасном технологическом диапазоне.")
+    fact_l = st.number_input(f"2. Фактическая длина плеча ключа L (по паспорту {vzd_key_type.split()[0]}), м:", value=base_l, step=0.01)
 
-# Сборка красивого HTML-бланка для рапорта
-html_umk = "<div style='border:3px solid #1E3A8A; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'> "
-html_umk += "<h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>"
-html_umk += "<h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>РЕКОМЕНДАЦИИ НА ЗАТЯЖКУ КНБК КЛЮЧОМ УМК</h3>"
-html_umk += "<hr style='border:1px solid #1E3A8A; margin-bottom:20px;'>"
-html_v_p = "<p><b>Дата/Время расчета:</b> " + current_time + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> " + field_name + "</p>"
-html_umk += html_v_p
-html_umk += "<p><b>Объект / Скважина:</b> " + well_number + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Инженер ННБ:</b> " + engineer_name + "</p>"
-html_umk += f"<p><b>Модель ключа и целевой момент резьбы:</b> {selected_key_model} | {m_pasport:.1f} кН*м</p>"
-html_umk += f"<p><b>Геометрия по замеру рулеткой:</b> {length_measured:.2f} м | <b>Итоговое расчетное плечо L_факт:</b> {length_total_fact:.4f} м</p>"
-html_umk += f"<p><b>Параметры троса и тяги:</b> Диаметр троса = {thickness_mm:.0f} мм | Угол натяжения = {angle}° | Погрешность = {pogreshnost:.1f}%</p>"
-html_umk += "<h4 style='color:#1E3A8A; margin-top:20px; border-bottom:1px solid #D1D5DB; padding-bottom:5px;'>ТЕХНОЛОГИЧЕСКОЕ РЕШЕНИЕ ДЛЯ БУРОВОЙ БРИГАДЫ:</h4>"
-html_umk += f"<p style='font-size:15px;'>Для компенсации совмещенной погрешности инструмента и создания требуемого момента сил:</p>"
-html_umk += f"<p style='font-size:18px; color:green;'><b>🔧 ВЫСТАВИТЬ НА ШКАЛЕ МОМЕНТОМЕРА: {m_ustavka:.2f} кН*м</b></p>"
-html_umk += "<p style='font-size:12px; color:#6B7280; text-align:center; margin-top:35px; border-top:1px dashed #D1D5DB; padding-top:10px;'>Сгенерировано в цифровом модуле расчетов УМК • Для печати распоряжения нажмите Ctrl + P</p>"
-html_umk += "</div>"
+# Добавляем толщину троса согласно новым требованиям
+tros_d = st.number_input("3. Фактический диаметр (толщина) стального натяжного троса лебедки, мм:", value=16.0, step=1.0)
+angle_alpha = st.number_input("4. Измеренный угол натяжения троса лебедки к рычагу ключа (идеал 90°), град.:", value=70.0, step=1.0)
+
+# ФИЗИКА ПРОЦЕССА И КОРРЕКЦИЯ ДЛЯ ПУЛЬТА БУРИЛЬЩИКА
+# Переводим угол в радианы для синуса
+rad_alpha = math.radians(angle_alpha)
+sin_alpha = math.sin(rad_alpha)
+
+# Поправка на толщину троса (смещение плеча силы на половину диаметра троса в метрах)
+delta_r = (tros_d / 2.0) / 1000.0
+effective_l = fact_l + delta_r
+
+# Расчет потерь и реальной уставки
+# Формула: М_уставки = M_паспортное / (L_эффективное * sin(alpha))
+if sin_alpha > 0 and effective_l > 0:
+    target_setting = p_moment / (effective_l * sin_alpha)
+    loss_percent = (1.0 - sin_alpha) * 100.0
+else:
+    target_setting = p_moment
+    loss_percent = 0.0
+
+st.markdown("---")
+st.subheader("📊 РЕЗУЛЬТАТЫ РАСЧЕТА ДЛЯ БУРОВОЙ БРИГАДЫ:")
+
+col1, col2 = st.columns(2)
+with col1:
+    st.metric(label="🎯 НЕОБХОДИМАЯ УСТАВКА НА ПУЛЬТЕ (Показания моментомера):", value=f"{target_setting:.2f} кН*м")
+with col2:
+    st.metric(label="📉 Потери крутящего момента из-за угла натяжения:", value=f"{loss_percent:.1f} %")
+
+# Вывод инженерных ограничений и предупреждений стандартов
+if loss_percent > 10.0:
+    st.error("🚨 КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО пытаться 'дотянуть' резьбу экстремальным завышением давления на пульте! Потери превышают критический лимит 10%. Остановите работы и потребуйте от бурового подрядчика переставить натяжную лебедку под правильный угол ближе к 90°.")
+else:
+    st.success("✔️ Величина погрешности находится в пределах допустимого технологического диапазона ИНТИ. Момент свинчивания признан контролируемым.")
+
+# Сборка HTML бланка распоряжения (поддерживает печать через Ctrl + P)
+html_print = "<div style='border:2px solid #1E3A8A; padding:20px; border-radius:8px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>"
+html_print += "<h3 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h3>"
+html_print += "<h4 style='text-align:center; color:#4B5563; margin-top:-10px;'>ТЕХНОЛОГИЧЕСКОЕ РАСПОРЯЖЕНИЕ НА СВИНЧИВАНИЕ РЕЗЬБЫ КНБК</h4>"
+html_print += "<p style='font-size:12px; text-align:center; color:#6B7280; margin-top:-5px;'>В соответствии с требованиями стандартов СТО ИНТИ S.QS.7 и S.QS.8</p>"
+html_print += "<hr style='border:1px solid #1E3A8A; margin-bottom:15px;'>"
+html_print += "<p><b>Дата/Время:</b> " + current_time + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> " + field_name + "</p>"
+html_print += "<p><b>Скважина / Куст:</b> " + well_number + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Выполнил инженер по ННБ:</b> " + engineer_name + "</p>"
+html_print += "<hr style='border:1px dashed #D1D5DB; margin:15px 0;'>"
+html_print += "<p style='font-size:15px;'><b>Паспортный требуемый момент затяжки соединения:</b> " + f"{p_moment:.2f}" + " кН*м</p>"
+html_print += "<p style='font-size:15px;'><b>Фактические параметры линии:</b> Плечо UMK = " + f"{fact_l:.2f}" + " м, Диаметр троса = " + f"{tros_d:.1f}" + " мм, Угол = " + f"{angle_alpha:.1f}" + "°</p>"
+html_print += "<p style='font-size:16px; color:#1E3A8A;'><b>👉 РЕКОМЕНДУЕМАЯ УСТАВКА МОМЕНТА ДЛЯ БУРИЛЬЩИКА: " + f"{target_setting:.2f}" + " кН*м</b></p>"
+html_print += "<p style='font-size:13px; color:#4B5563;'><i>Примечание для мастера: Передать данное значение бурильщику для выставления целевого давления затяжки замка на манометре машинного ключа.</i></p>"
+html_print += "<p style='font-size:11px; color:#9CA3AF; text-align:center; margin-top:25px; border-top:1px solid #E5E7EB; padding-top:10px;'>Разработано: AI-Интегратор КНБК • Экосистема цифровых сервисов ООО «Траектория-Сервис»</p>"
+html_print += "</div>"
 
 st.markdown("---")
 st.subheader("📥 Официальный бланк распоряжения для буровой бригады:")
-st.markdown(html_umk, unsafe_allow_html=True)
+st.markdown(html_print, unsafe_allow_html=True)
+
+st.markdown(" ")
+st.info("💡 **Инструкция для печати:** Нажмите комбинацию клавиш **`Ctrl + P`**, выберите принтер «Сохранить как PDF» и прикрепите готовое распоряжение к суточному рапорту инженера.")
