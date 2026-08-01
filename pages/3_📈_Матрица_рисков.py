@@ -9,7 +9,7 @@ st.title("📈 Матрица технологических рисков и о�
 st.caption("ЭКСПЕРТНАЯ СИСТЕМА ПРЕДОТВРАЩЕНИЯ БРАКА И НПВ ПРИ СБОРКЕ И ОПРЕССОВКЕ КНБК")
 st.markdown("---")
 
-# Сдержанная техническая отметка о соответствии стандартам ИНТИ с полным описанием пунктов
+# Сдержанная техническая отметка о соответствии стандартам ИНТИ
 st.markdown(
     "<div style='color: #4B5563; font-size: 13px; background-color: #F3F4F6; padding: 12px; border-radius: 6px; border-left: 4px solid #1E3A8A; margin-bottom: 20px; line-height: 1.5; font-family: Arial, sans-serif;'>"
     "<b>Верификация стандартами:</b> Данный модуль превентивного анализа и прогнозирования рисков разработан в соответствии с требованиями отраслевых стандартов "
@@ -103,7 +103,7 @@ elif section == "💦 2. Опрессовка КНБК и MWD":
         else:
             risk_color, risk_level, verdict_text, recommendations = "#DC2626", "КРИТИЧЕСКИЙ", "ПОДТВЕРЖДЕННЫЙ ОТКАЗ ТЕЛЕСИСТЕМЫ MWD.", ["Прекратить тестовые процедуры, зафиксировать отказ в суточном рапорте", "Произвести разрот верхней секции КНБК на мостках буровой установки", "Заменить модуль пульсатора/генератора телесистемы на исправный резервный комплект"]
 
-# --- 4. ГЕНЕРАЦИЯ HTML-КАРТЫ (С ПОДДЕРЖКОЙ ТЕМНОЙ ТЕМЫ) ---
+# --- 4. НАСТРОЙКА ЦВЕТОВЫХ СТИЛЕЙ БЛАНКА ---
 if risk_color == "#DC2626": 
     header_title = "🚨 КАРТА РИСКОВ — ЗАПРЕТ СВИНЧИВАНИЯ / РАБОТ"
     bg_verdict = "#FEE2E2" 
@@ -117,13 +117,14 @@ else:
     bg_verdict = "#D1FAE5" 
     text_verdict = "#065F46" 
 
-rec_html_lines = "".join([f"<li style='margin: 4px 0;'>{r}</li>" for r in recommendations])
+# Безопасная сборка списка рекомендаций через обычное сложение строк
+rec_items = ""
+for r in recommendations:
+    rec_items += "<li style='margin: 4px 0;'>" + str(r) + "</li>"
 
-html_risk_act = f"""
-<div style="border:3px solid {risk_color}; padding:20px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#111827; line-height:1.5;">
-    <h2 style="text-align:center; color:#1E3A8A; margin-top:0; font-size:20px;">ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>
-    <h3 style="text-align:center; color:#4B5563; margin-top:-10px; font-size:16px;">КАРТА ПРЕВЕНТИВНОГО МОНИТОРИНГА РИСКОВ НА УСТЬЕ</h3>
-    <hr style="border:1px solid #1E3A8A; margin-bottom:15px;">
-    
-    <p style="margin: 6px 0; font-size:14px;"><b>Дата/Время:</b> {current_time} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> {field_name}</p>
-    <p style="margin: 6px 0; font-size:14px;"><b>Объект / Скважина:</b> {well_number} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Инженер ННБ:</b> {engineer_name}</p>
+# --- 5. БЕЗОПАСНАЯ СБОРКА HTML ЧЕРЕЗ КОНКАТЕНАЦИЮ СТРОК (БЕЗ ТРОЙНЫХ F-СТРОК) ---
+html_risk_act = "<div style='border:3px solid " + risk_color + "; padding:20px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#111827; line-height:1.5;'>"
+html_risk_act += "<h2 style='text-align:center; color:#1E3A8A; margin-top:0; font-size:20px;'>ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>"
+html_risk_act += "<h3 style='text-align:center; color:#4B5563; margin-top:-10px; font-size:16px;'>КАРТА ПРЕВЕНТИВНОГО МОНИТОРИНГА РИСКОВ НА УСТЬЕ</h3>"
+html_risk_act += "<hr style='border:1px solid #1E3A8A; margin-bottom:15px;'>"
+html_risk_act += "<p style='margin: 6px 0; font-size:14px;'><b>Дата/Время:</b> " + current_time + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> " + field_name + "</p>"
