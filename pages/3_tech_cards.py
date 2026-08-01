@@ -3,14 +3,14 @@ import streamlit as st
 # 1. Настройка страницы (Формирует красивое отображение в боковом меню)
 st.set_page_config(
     page_title="Технологические карты КНБК",
-    page_icon="🛠",
+    page_icon="🔨",
     layout="wide"
 )
 
 # CSS для печатной формы (имитация листа А4 на экране, скрытие интерфейса при печати)
 st.markdown("<style>.print-preview { background-color: #ffffff; color: #000000; padding: 30px; border: 2px solid #ff4b4b; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-family: 'Arial', sans-serif; } @media print { div[data-testid='stSidebar'] { display: none !important; } div[data-testid='stHeader'] { display: none !important; } .stButton { display: none !important; } iframe { display: none !important; } div[data-testid='stBlock'] { border: none !important; box-shadow: none !important; padding: 0 !important; } .print-preview { border: none !important; box-shadow: none !important; padding: 0 !important; } }</style>", unsafe_allow_html=True)
 
-st.title("🛠 Интерактивные технологические карты сборки и испытания КНБК")
+st.title("🔨 Интерактивные технологические карты сборки и испытания КНБК")
 st.caption("Контроль технологической дисциплины в полевых условиях")
 
 # ==============================================================================
