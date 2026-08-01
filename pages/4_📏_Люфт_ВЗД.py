@@ -11,9 +11,9 @@ st.markdown("---")
 # Сдержанная техническая отметка о соответствии стандартам ИНТИ (адаптированная под ВЗД)
 st.markdown(
     "<div style='color: #4B5563; font-size: 13px; background-color: #F3F4F6; padding: 12px; border-radius: 6px; border-left: 4px solid #1E3A8A; margin-bottom: 20px; line-height: 1.5; font-family: Arial, sans-serif;'>"
-    "<b>Верификация стандартов:</b> Данный модуль контроля осевого и radialьного износа шпиндельной секции ВЗД разработан в строгом соответствии с требованиями отраслевых стандартов "
+    "<b>Верификация стандартами:</b> Данный модуль контроля осевого износа шпиндельной секции ВЗД разработан в строгом соответствии с требованиями отраслевых стандартов "
     "<b>СТО ИНТИ S.QS.7 (п. 7.4.3 «Верификация закупаемой продукции», п. 7.5.1 «Управление производством и предоставлением услуг»)</b> в части проведения обязательной входной инспекции, проверки критических параметров и оценки соответствия забойных двигателей критериям безопасной эксплуатации на устье, "
-    "а также <b>СТО ИНТИ S.QS.8 (п. 5.7.2 «Управление оборудованием для мониторинга и измерений»)</b> в части обязательного контроля исправности и метрологического подтверждения применяемого мерительного充 инструмента (индикаторов часового типа ИЧ, нутромеров) на буровой площадке."
+    "а также <b>СТО ИНТИ S.QS.8 (п. 5.7.2 «Управление оборудованием для мониторинга и измерений»)</b> в части обязательного контроля исправности и метрологического подтверждения применяемого мерительного инструмента на буровой площадке."
     "</div>", 
     unsafe_allow_html=True
 )
@@ -34,11 +34,11 @@ if "custom_vzd" not in st.session_state:
     st.session_state.custom_vzd = {}
 
 # --- 3. НОРМАТИВНЫЕ БАЗЫ ДАННЫХ ---
-# Внутренние лимиты крупных Заказчиков (распределены по габаритным группам)
+# Внутренние лимиты крупных Заказчиков по осевому люфту
 client_limits_db = {
-    "ПАО Роснефть": {"малый": {"axial": 3.5, "radial": 1.0}, "средний": {"axial": 4.0, "radial": 1.2}, "большой": {"axial": 5.0, "radial": 1.5}},
-    "ПАО Газпром": {"малый": {"axial": 4.0, "radial": 1.2}, "средний": {"axial": 4.5, "radial": 1.5}, "большой": {"axial": 5.0, "radial": 2.0}},
-    "ПАО Лукойл": {"малый": {"axial": 4.0, "radial": 1.2}, "средний": {"axial": 5.0, "radial": 1.6}, "большой": {"axial": 5.5, "radial": 2.2}}
+    "ПАО Роснефть": {"малый": 3.5, "средний": 4.0, "большой": 5.0},
+    "ПАО Газпром": {"малый": 4.0, "средний": 4.5, "большой": 5.0},
+    "ПАО Лукойл": {"малый": 4.0, "средний": 5.0, "большой": 5.5}
 }
 
 # Оригинальная встроенная база данных ВЗД
@@ -77,11 +77,10 @@ brands_list = list(base_vzd.keys()) + ["➕ НОВЫЙ ПОСТАВЩИК / МО
 selected_brand = st.selectbox("1. Выберите производителя оборудования ВЗД:", brands_list)
 
 limit_wear = 0.0
-limit_radial_wear = 1.5  # Базовый дефолтный предел радиального люфта
 vzd_model_name = ""
-size_group = "средний"   # По умолчанию
+size_group = "средний"
 
-# --- 4. ЛОГИКА ДЛЯ АМЕРИКАНСКИХ ВЗД (NOV) ---
+# --- 4. ЛОГИКА ДЛЯ NOV ---
 if selected_brand == "NOV":
     st.warning("🇺🇸 ВЗД Американского производства (NOV). Паспортные лимиты автоматически пересчитаны в метрическую систему до сотых долей.")
     st.markdown("**🔄 Промысловый конвертер долей дюйма (выберите значения из паспорта):**")
@@ -102,7 +101,6 @@ if selected_brand == "➕ НОВЫЙ ПОСТАВЩИК / МОДЕЛЬ":
     custom_brand = st.text_input("Введите название завода/поставщика:", value="Буринтех")
     custom_model = st.text_input("Введите габарит или шифр серии двигателя (например, 172ТС):", value="172 мм")
     custom_limit = st.number_input("Установите предельный осевой люфт по паспорту (мм):", min_value=0.0, max_value=25.0, value=5.5, step=0.1)
-    custom_radial_limit = st.number_input("Установите предельный радиальный люфт по паспорту (мм):", min_value=0.0, max_value=10.0, value=1.5, step=0.1)
     custom_group = st.selectbox("Укажите категорию габарита для привязки норм Заказчиков:", ["малый", "средний", "большой"], index=1)
     
     if st.button("💾 Сохранить и внести двигатель в реестр"):
@@ -111,14 +109,12 @@ if selected_brand == "➕ НОВЫЙ ПОСТАВЩИК / МОДЕЛЬ":
                 st.session_state.custom_vzd[custom_brand] = {}
             st.session_state.custom_vzd[custom_brand][custom_model] = {
                 "axial": custom_limit, 
-                "radial": custom_radial_limit, 
                 "group": custom_group
             }
             st.toast(f"Двигатель {custom_brand} {custom_model} успешно добавлен в списки!", icon="✔️")
             
     vzd_model_name = custom_brand + " " + custom_model
     limit_wear = custom_limit
-    limit_radial_wear = custom_radial_limit
     size_group = custom_group
 
 else:
@@ -129,40 +125,33 @@ else:
     selected_diameter = st.selectbox("2. Выберите габарит / шифр модели:", list(current_brand_models.keys()))
     vzd_model_name = selected_brand + " " + selected_diameter
     
-    # Извлечение данных из реестра (проверка типа данных для кастомных моделей)
     if isinstance(current_brand_models[selected_diameter], dict):
         limit_wear = current_brand_models[selected_diameter]["axial"]
-        limit_radial_wear = current_brand_models[selected_diameter]["radial"]
         size_group = current_brand_models[selected_diameter]["group"]
     else:
         limit_wear = current_brand_models[selected_diameter]
-        # Парсинг группы из текста для оригинальной базы
-        small_markers = ["43", "54", "73", "75", "88", "95", "98", "106", "5''"]
+        # Автоматическое определение группы из текста
+        small_markers = ["43", "54", "73", "75", "88", "95", "98", "106", "120", "127", "5''"]
         large_markers = ["195", "210", "240", "8''", "9-5/8''"]
         if any(m in selected_diameter for m in small_markers):
             size_group = "малый"
-            limit_radial_wear = 1.0
         elif any(m in selected_diameter for m in large_markers):
             size_group = "большой"
-            limit_radial_wear = 2.0
         else:
             size_group = "средний"
-            limit_radial_wear = 1.5
 
-# Динамический расчет номинала (зеленая зона приемки на устье)
-limit_nominal = limit_wear * 0.35
+# Расчет номинала (граница зоны предупреждения)
+limit_nominal = limit_wear * 0.50
 
 # --- 6. АЛГОРИТМ СРАВНЕНИЯ И СВЕРКИ С ЗАКАЗЧИКАМИ ---
 if selected_client in client_limits_db:
-    client_rules = client_limits_db[selected_client][size_group]
-    effective_max_axial = min(limit_wear, client_rules["axial"])
-    effective_max_radial = min(limit_radial_wear, client_rules["radial"])
-    st.info(f"ℹ️ **Нормы контроля:** Паспорт завода = {limit_wear:.2f} мм | Ограничение {selected_client} = {client_rules['axial']:.2f} мм")
-    st.warning(f"🎯 **Целевой критерий отбраковки на устье:** Осевой до **{effective_max_axial:.2f} мм** | Радиальный до **{effective_max_radial:.2f} мм**")
+    client_rule_axial = client_limits_db[selected_client][size_group]
+    effective_max_axial = min(limit_wear, client_rule_axial)
+    st.info(f"🔷 **Нормы контроля:** Паспорт завода = {limit_wear:.2f} мм | Ограничение {selected_client} = {client_rule_axial:.2f} мм")
+    st.warning(f"🎯 **Целевой критерий отбраковки на устье:** Осевой до **{effective_max_axial:.2f} мм**")
 else:
     effective_max_axial = limit_wear
-    effective_max_radial = limit_radial_wear
-    st.info(f"🎯 **Целевой критерий отбраковки (Паспортный):** Осевой до **{effective_max_axial:.2f} мм** | Радиальный до **{effective_max_radial:.2f} мм**")
+    st.info(f"🎯 **Целевой критерий отбраковки (Паспортный):** Осевой до **{effective_max_axial:.2f} мм**")
 
 # --- 7. ВВОД ФАКТИЧЕСКИХ ЗАМЕРОВ ---
 st.markdown("---")
@@ -171,9 +160,33 @@ col_input1, col_input2 = st.columns(2)
 
 with col_input1:
     size_a = st.number_input("Размер 'А' (шпиндель максимально выдвинут), мм:", min_value=0.0, max_value=50.0, value=10.0, step=0.01)
-    size_b = st.number_input("Размер 'Б' (шпиндель максимально разгружен), мм:", min_value=0.0, max_value=50.0, value=5.5, step=0.01)
-    calculated_delta = size_a - size_b
-
 with col_input2:
-    measured_radial = st.number_input("Фактический радиальный люфт по индикатору (ИЧ), мм:", min_value=0.0, max_value=15.0, value=0.4, step=0.01)
+    size_b = st.number_input("Размер 'Б' (шпиндель максимально разгружен), мм:", min_value=0.0, max_value=50.0, value=5.5, step=0.01)
 
+calculated_delta = size_a - size_b
+
+# --- 8. ПОЛНАЯ ОЦЕНКА, ИНДИКАЦИЯ И ВЫВОДЫ ---
+st.markdown("### РЕЗУЛЬТАТЫ РАСЧЕТА:")
+st.write(f"**Фактический осевой люфт (Δh):** {calculated_delta:.2f} мм")
+st.write(f"**Допустимый предел (с учетом ГК):** {effective_max_axial:.2f} мм")
+
+if calculated_delta > effective_max_axial:
+    res_text = "🚨 КРИТИЧЕСКИЙ ИЗНОС ОПОР ШПИНДЕЛЯ! СПУСК В СКВАЖИНУ КАТЕГОРИЧЕСКИ ЗАПРЕЩЕН!"
+    status_color = "red"
+    st.error(res_text)
+elif calculated_delta <= 0:
+    res_text = "⚠️ Ошибка измерений! Размер 'А' должен быть больше размера 'Б'. Перепроверьте рулетку/линейку."
+    status_color = "orange"
+    st.warning(res_text)
+elif calculated_delta > limit_nominal:
+    res_text = "⚠️ ПРЕДУПРЕЖДЕНИЕ! Люфт превысил норму первичной приемки. Повышенный эксплуатационный износ."
+    status_color = "#D97706"
+    st.warning(res_text)
+else:
+    res_text = "✔️ ЛЮФТ В НОРМЕ. Двигатель ДОПУЩЕН к спуску в скважину."
+    status_color = "green"
+    st.success(res_text)
+
+# --- 9. ГЕНЕРАЦИЯ КОРПОРАТИВНОГО HTML-АКТА ---
+html_vzd = "<div style='border:3px solid #1E3A8A; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>"
+html_vzd += "<h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>"
