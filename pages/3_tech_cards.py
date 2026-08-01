@@ -21,13 +21,14 @@ st.markdown("<div style='color: #4B5563; font-size: 13px; background-color: #F3F
 st.markdown("---")
 
 # --- БЛОК ВВОДА И ВЫБОРА КОНТЕКСТА ---
-col_meta, col_select = st.columns(2)
+# СБОР МЕТАДАННЫХ ТЕПЕРЬ СТРОГО В SIDEBAR
+st.sidebar.header("📋 Метаданные рапорта")
+well_number = st.sidebar.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
+engineer_name = st.sidebar.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
+field_name = st.sidebar.text_input("Месторождение:", value="Приобское")
 
-with col_meta:
-    st.subheader("📝 Метаданные рапорта")
-    well_num = st.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
-    engineer_fio = st.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
-    field_name = st.text_input("Месторождение:", value="Приобское")
+# На самой странице оставляем только выбор условий инцидента (без колонок)
+st.subheader("⚙ Выбор условий инцидента")
 
 with col_select:
     st.subheader("⚙️ Выбор условий инцидента")
@@ -63,12 +64,13 @@ with st.container(border=True):
     
     # Вывод метаданных в бланк
     col_b1, col_b2 = st.columns(2)
-    with col_b1:
-        st.write(f"**Месторождение:** {field_name}")
-        st.write(f"**Скважина / Куст:** {well_num}")
-    with col_b2:
-        st.write(f"**Проект (Заказчик):** {selected_client}")
-        st.write(f"**Инженер по ННБ:** {engineer_fio}")
+   with col_b1:
+    st.write(f"**Месторождение:** {field_name}")
+    st.write(f"**Скважина / Куст:** {well_number}") # Изменили с well_num
+with col_b2:
+    st.write(f"**Проект (Заказчик):** {selected_client}")
+    st.write(f"**Инженер по ННБ:** {engineer_name}") # Изменили с engineer_fio
+
     st.markdown("---")
 
     # --------------------------------------------------------------------------
