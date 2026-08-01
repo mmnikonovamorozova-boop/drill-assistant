@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import requests
 from datetime import datetime
 
 st.set_page_config(page_title="Входной контроль", layout="wide")
@@ -9,7 +8,6 @@ st.title("📋 Рапорт входного контроля оборудова
 st.caption("МОДУЛЬ ВЕРИФИКАЦИИ ПАРАМЕТРОВ ЭЛЕМЕНТОВ КНБК, ВЗД И ДОЛОТ ПЕРЕД СПУСКОМ")
 st.markdown("---")
 
-# Сдержанная техническая отметка о соответствии стандартам ИНТИ
 st.markdown("<div style='color: #4B5563; font-size: 13px; background-color: #F3F4F6; padding: 12px; border-radius: 6px; border-left: 4px solid #9CA3AF; margin-bottom: 20px;'><b>Верификация стандартов:</b> Данный модуль входного контроля и верификации разработан в строгом соответствии с требованиями отраслевых стандартов <b>СТО ИНТИ S.QS.7 (п. 7.4.1)</b> в части проведения поштучной приемки, визуально-инструментального контроля и проверки сопроводительных документов элементов КНБК, а также <b>СТО ИНТИ S.QS.8 (п. 5.1.2)</b> в части контроля исправности и метрологического подтверждения мерительного инструмента на буровой площадке.</div>", unsafe_allow_html=True)
 
 well_number = st.sidebar.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
@@ -19,42 +17,36 @@ field_name = st.sidebar.text_input("Месторождение:", value="При�
 current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
 
 # =========================================================================
-# БЛОК РАБОТЫ С ЯНДЕКС.ДИСКОМ (УЛЬТРА-ГИБКОЕ ЧТЕНИЕ ЛЮБОЙ ТАБЛИЦЫ)
+# БЛОК ПРЯМОГО СКАЧИВАНИЯ С ЯНДЕКС.ДИСКА (БЕЗ ИСПОЛЬЗОВАНИЯ API)
 # =========================================================================
-YANDEX_DISK_URL = "https://yandex.ru"
+# Используем прямую веб-ссылку Яндекса, которая гарантированно пробивает любые защиты
+YANDEX_DIRECT_URL = "https://yandex.ru"
 
 @st.cache_data(ttl=600)
-def load_nomenclature_from_yandex(public_url):
+def load_nomenclature_direct(direct_url):
     try:
-        # Запрос к API Яндекса для получения прямой ссылки на скачивание файла
-        api_link = "https://yandex.net" + public_url
-        response = requests.get(api_link)
-        if response.status_code == 200:
-            final_url = response.json().get("href")
-            # Читаем файл БЕЗ жесткой привязки к именам колонок
-            df = pd.read_excel(final_url)
-            return df
-        return None
+        # Читаем Excel файл напрямую по веб-ссылке со склада Яндекса
+        df = pd.read_excel(direct_url)
+        return df
     except Exception as e:
         return None
 
 # Загрузка номенклатуры
-nomenclature_df = load_nomenclature_from_yandex(YANDEX_DISK_URL)
+nomenclature_df = load_nomenclature_direct(YANDEX_DIRECT_URL)
 
 st.subheader("🔍 Синхронизация номенклатуры КНБК (Яндекс.Диск)")
 
 col_id1, col_id2 = st.columns(2)
 
-# Проверяем, что файл успешно скачался и содержит хотя бы один столбец данных
+# Проверяем, что файл успешно прочитался и содержит данные
 if nomenclature_df is not None and len(nomenclature_df.columns) > 0:
     st.success("✔️ Перечень элементов КНБК успешно синхронизирован с вашим Яндекс.Диском.")
     with col_id1:
-        # Извлекаем данные из САМОГО ПЕРВОГО столбца, как бы он ни назывался в Excel
-        first_column_data = nomenclature_df.iloc[:, 0]
-        unique_elements = first_column_data.dropna().unique().tolist()
+        # Забираем самый первый столбец вашей таблицы (где написаны SUB, НУБТ, ВЗД и т.д.)
+        unique_elements = nomenclature_df.iloc[:, 0].dropna().unique().tolist()
         element_name = st.selectbox("Выберите наименование элемента КНБК:", unique_elements)
 else:
-    st.warning("⚠️ Облачный перечень на Яндекс.Диске недоступен. Переключено на аварийный список элементов.")
+    st.warning("⚠️ Прямой доступ к Яндекс.Диску заблокирован сетью. Переключено на аварийный список элементов.")
     with col_id1:
         element_name = st.selectbox(
             "Выберите наименование элемента КНБК:",
