@@ -18,7 +18,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- 2. ВЫБОР ЗАКАЗЧИКА ---
+# --- 2. ВЫБОР ЗАКАЗЧИКА ПО ЦЕНТРУ СТРАНИЦЫ ---
 selected_client = st.selectbox(
     "1. Выберите Заказчика (Недропользователя) для применения ограничений:", 
     ["ПАО Роснефть", "ПАО Газпром", "ПАО Лукойл", "🔄 Без учета ограничений Заказчика"]
@@ -33,6 +33,7 @@ field_name = st.sidebar.text_input("Месторождение:", value="При�
 vzd_passport_number = st.sidebar.text_input("Серийный номер ВЗД по паспорту:", value="№ 6677")
 
 current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
+report_text = ""
 
 # Инициализация локальной пользовательской базы в сессии
 if "custom_vzd" not in st.session_state:
@@ -142,7 +143,7 @@ else:
         else:
             size_group = "средний"
 
-# Расчет номинала 
+# Расчет номинала (50% от лимита износа)
 limit_nominal = limit_wear * 0.50
 
 # --- 7. АЛГОРИТМ СРАВНЕНИЯ И СВЕРКИ С ЗАКАЗЧИКАМИ ---
@@ -170,26 +171,23 @@ calculated_delta = size_a - size_b
 # --- 9. ПОЛНАЯ ОЦЕНКА, ИНДИКАЦИЯ И ВЫВОДЫ ---
 st.markdown("### РЕЗУЛЬТАТЫ РАСЧЕТА:")
 st.write(f"**Фактический осевой люфт (Δh):** {calculated_delta:.2f} мм")
-st.write(f"**Допустимый предел (с учетом ГК):** {effective_max_axial:.2f} мм")
+st.write(f"**Допустимый предел по паспорту:** {limit_wear:.2f} мм")
 
 if calculated_delta > effective_max_axial:
     res_text = "🚨 КРИТИЧЕСКИЙ ИЗНОС ОПОР ШПИНДЕЛЯ! СПУСК В СКВАЖИНУ КАТЕГОРИЧЕСКИ ЗАПРЕЩЕН!"
-    status_color = "red"
     st.error(res_text)
 elif calculated_delta <= 0:
-    res_text = "⚠️ Ошибка измерений! Размер 'А' должен быть больше размера 'Б'. Перепроверьте рулетку/линейку."
-    status_color = "orange"
-    st.warning(res_text)
-elif calculated_delta > limit_nominal:
-    res_text = "⚠️ ПРЕДУПРЕЖДЕНИЕ! Люфт превысил норму первичной приемки. Повышенный эксплуатационный износ."
-    status_color = "#D97706"
+    res_text = "⚠️ Ошибка измерений! Размер 'А' должен быть больше размера 'Б'. Перепроверьте ИЧ."
     st.warning(res_text)
 else:
     res_text = "✔️ ЛЮФТ В НОРМЕ. Двигатель ДОПУЩЕН к спуску в скважину."
-    status_color = "green"
     st.success(res_text)
 
-# --- 10. ГЕНЕРАЦИЯ КОРПОРАТИВНОГО HTML-АКТА (Условие убрано, выводится всегда) ---
+# --- 10. ВСТАВКА ВАШЕГО ОРИГИНАЛЬНОГО ФРАГМЕНТА ВЫВОДА И ФУТЕРОВ ---
+
+# Генерация красивой печатной формы Акта
 html_vzd = "<div style='border:3px solid #1E3A8A; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>"
 html_vzd += "<h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>"
 html_vzd += "<h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>АКТ ТЕХНИЧЕСКОГО КОНТРОЛЯ ШПИНДЕЛЯ ВЗД</h3>"
+html_vzd += "<hr style='border:1px solid #1E3A8A; margin-bottom:20px;'>"
+html_vzd += "<p><b>Дата/Время:</b> " + current_time + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> " + field_name + "</p>"
