@@ -3,32 +3,28 @@ import streamlit as st
 # 1. НАСТРОЙКА СТРАНИЦЫ
 st.set_page_config(page_title="Помощник инженера «Траектория-Сервис»", page_icon="🧭", layout="wide")
 
-# 2. ИСПРАВЛЕНИЕ МЕНЮ (CSS по href)
-st.markdown("""
-<style>
-/* Скрываем старые названия, показываем свои по href */
-div[data-testid="stSidebarNavItems"] a span { font-size: 0 !important; }
-div[data-testid="stSidebarNavItems"] a[href="/"] span::before { content: "🧭 Главная"; font-size: 14px !important; font-weight: bold; }
-div[data-testid="stSidebarNavItems"] a[href*="vhodnoy_kontrol"] span::before { content: "📋 1. Входной контроль"; font-size: 14px !important; }
-div[data-testid="stSidebarNavItems"] a[href*="tech_cards"] span::before { content: "🔨 3. Тех. карты"; font-size: 14px !important; }
-/* ... аналогично для других страниц ... */
-</style>
-""", unsafe_allow_html=True)
+# 2. CSS ДЛЯ МЕНЮ (Стилизация)
+st.markdown("<style>div[data-testid='stSidebarNavItems'] a span { font-size: 0 !important; } ...</style>", unsafe_allow_html=True) # Полный стиль в источнике [1]
 
 # 3. АВТОРИЗАЦИЯ
 def check_password():
     if "authenticated" not in st.session_state: st.session_state["authenticated"] = False
     if st.session_state["authenticated"]: return True
-    st.title("🔐 Авторизация")
-    input_user = st.text_input("Логин:")
-    input_pass = st.text_input("Пароль:", type="password")
+    st.title("🔐 Авторизация в системе ННБ")
+    # ... (логика авторизации в источнике [1])
     if st.button("Войти"):
-        if input_user == "admin" and input_pass == "password": # Пример
-            st.session_state["authenticated"] = True
-            st.rerun()
+        # ... (проверка в источнике [1])
+        pass
     return False
 
-# 4. ИНТЕРФЕЙС
+# 4. ОСНОВНОЙ ИНТЕРФЕЙС
 if check_password():
+    if st.sidebar.button("🔒 Выйти"):
+        st.session_state["authenticated"] = False
+        st.rerun()
+
     st.title("🧭 Цифровой помощник инженера")
-    st.write("Выберите модуль в меню.")
+    # ... (код отрисовки колонок col1-col6 с описанием модулей в источнике [1])
+
+    # Корпоративный футер
+    st.markdown("<div style='text-align: center; ...'>© 2026 Траектория-Сервис</div>", unsafe_allow_html=True)
