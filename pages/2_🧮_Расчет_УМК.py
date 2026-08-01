@@ -87,7 +87,7 @@ else:
 # Сборка красивого HTML-бланка для рапорта
 html_umk = "<div style='border:3px solid #1E3A8A; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'> "
 html_umk += "<h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>"
-html_umk += "<h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>РАСПОРЯЖЕНИЕ НА ЗА ТЯЖКУ КНБК КЛЮЧОМ УМК</h3>"
+html_umk += "<h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>РЕКОМЕНДАЦИИ НА ЗАТЯЖКУ КНБК КЛЮЧОМ УМК</h3>"
 html_umk += "<hr style='border:1px solid #1E3A8A; margin-bottom:20px;'>"
 html_v_p = "<p><b>Дата/Время расчета:</b> " + current_time + " &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> " + field_name + "</p>"
 html_umk += html_v_p
@@ -97,7 +97,7 @@ html_umk += f"<p><b>Геометрия по замеру рулеткой:</b> {
 html_umk += f"<p><b>Параметры троса и тяги:</b> Диаметр троса = {thickness_mm:.0f} мм | Угол натяжения = {angle}° | Погрешность = {pogreshnost:.1f}%</p>"
 html_umk += "<h4 style='color:#1E3A8A; margin-top:20px; border-bottom:1px solid #D1D5DB; padding-bottom:5px;'>ТЕХНОЛОГИЧЕСКОЕ РЕШЕНИЕ ДЛЯ БУРОВОЙ БРИГАДЫ:</h4>"
 html_umk += f"<p style='font-size:15px;'>Для компенсации совмещенной погрешности инструмента и создания требуемого момента сил:</p>"
-html_umk += f"<p style='font-size:18px; color:green;'><b>🔧 ВЫСТАВИТЬ УСТАВКУ НА ПОКАТЕЛЕ МОМЕНТОМЕРА: {m_ustavka:.2f} кН*м</b></p>"
+html_umk += f"<p style='font-size:18px; color:green;'><b>🔧 ВЫСТАВИТЬ НА ШКАЛЕ МОМЕНТОМЕРА: {m_ustavka:.2f} кН*м</b></p>"
 html_umk += "<p style='font-size:12px; color:#6B7280; text-align:center; margin-top:35px; border-top:1px dashed #D1D5DB; padding-top:10px;'>Сгенерировано в цифровом модуле расчетов УМК • Для печати распоряжения нажмите Ctrl + P</p>"
 html_umk += "</div>"
 
