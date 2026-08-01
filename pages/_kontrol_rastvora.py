@@ -2,6 +2,30 @@ import streamlit as st
 
 import streamlit as st
 
+import streamlit as st
+
+# 1. Настройка страницы (Заголовок останется красивым)
+st.set_page_config(
+    page_title="5. Контроль раствора",
+    page_icon="🧪",
+    layout="wide"
+)
+
+# Проверка авторизации (если внедрили пароли из прошлого шага)
+if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
+    st.error("🚨 Доступ заблокирован! Пожалуйста, авторизуйтесь на Главной странице.")
+    st.stop()
+
+# 2. Красивое сервисное уведомление для буровой бригады
+st.title("🧪 5. Мониторинг параметров бурового раствора")
+st.markdown("---")
+
+# Выводим серый баннер, как в калькуляторе
+st.markdown("<div style='color: #4B5563; font-size: 14px; background-color: #F3F4F6; padding: 25px; border-radius: 8px; border-left: 4px solid #6b7280; text-align: center; font-family: Arial, sans-serif;'><b>🚧 МОДУЛЬ НАХОДИТСЯ НА СТАДИИ РАЗРАБОТКИ И ТЕСТИРОВАНИЯ</b><br><br>Инженерные расчеты гидравлики, контроля плотности и фильтрации бурового раствора по стандартам ИНТИ временно недоступны.<br>Ориентировочный запуск модуля: 3-й квартал 2026 года.</div>", unsafe_allow_html=True)
+
+st.markdown("---")
+st.caption("ООО «Траектория-Сервис» • Отдел систем менеджмента качества (ОСМК) 2026")
+
 # ПРОВЕРКА: Если инженер не залогинился на главной странице — выкидываем его назад
 if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
     st.error("🚨 Доступ заблокирован! Пожалуйста, перейдите на Главную страницу приложения и введите пароль.")
