@@ -18,14 +18,14 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- НОВЫЙ БЛОК: Выбор заказчика перемещен из sidebar под плашку ИНТИ ---
+# --- 2. ВЫБОР ЗАКАЗЧИКА ---
 selected_client = st.selectbox(
     "1. Выберите Заказчика (Недропользователя) для применения ограничений:", 
     ["ПАО Роснефть", "ПАО Газпром", "ПАО Лукойл", "🔄 Без учета ограничений Заказчика"]
 )
 st.markdown("---")
 
-# --- 2. СБОР МЕТАДАННЫХ (SIDEBAR - ОСТАЛИСЬ ТОЛЬКО ТЕКСТОВЫЕ ПОЛЯ) ---
+# --- 3. СБОР МЕТАДАННЫХ (SIDEBAR) ---
 st.sidebar.header("📋 Метаданные рапорта")
 well_number = st.sidebar.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
 engineer_name = st.sidebar.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
@@ -33,13 +33,12 @@ field_name = st.sidebar.text_input("Месторождение:", value="При�
 vzd_passport_number = st.sidebar.text_input("Серийный номер ВЗД по паспорту:", value="№ 6677")
 
 current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
-report_text = ""
 
 # Инициализация локальной пользовательской базы в сессии
 if "custom_vzd" not in st.session_state:
     st.session_state.custom_vzd = {}
 
-# --- 3. НОРМАТИВНЫЕ БАЗЫ ДАННЫХ ---
+# --- 4. НОРМАТИВНЫЕ БАЗЫ ДАННЫХ ---
 client_limits_db = {
     "ПАО Роснефть": {"малый": 3.5, "средний": 4.0, "большой": 5.0},
     "ПАО Газпром": {"малый": 4.0, "средний": 4.5, "большой": 5.0},
@@ -84,7 +83,7 @@ limit_wear = 0.0
 vzd_model_name = ""
 size_group = "средний"
 
-# --- 4. ЛОГИКА ДЛЯ NOV ---
+# --- 5. ЛОГИКА ДЛЯ NOV ---
 if selected_brand == "NOV":
     st.warning("🇺🇸 ВЗД Американского производства (NOV). Паспортные лимиты автоматически пересчитаны в метрическую систему до сотых долей.")
     st.markdown("**🔄 Промысловый конвертер долей дюйма (выберите значения из паспорта):**")
@@ -99,7 +98,7 @@ if selected_brand == "NOV":
     st.success(f"📐 Результат перевода доли **{numerator}/{denominator}''** в метрическую систему: **{mm_result:.2f} мм**")
     st.markdown("---")
 
-# --- 5. ОБРАБОТКА ДОБАВЛЕНИЯ НОВОГО ОБОРУДОВАНИЯ ---
+# --- 6. ОБРАБОТКА ДОБАВЛЕНИЯ НОВОГО ОБОРУДОВАНИЯ ---
 if selected_brand == "➕ НОВЫЙ ПОСТАВЩИК / МОДЕЛЬ":
     st.success("🛠️ Окно добавления нового оборудования в локальную базу данных:")
     custom_brand = st.text_input("Введите название завода/поставщика:", value="Буринтех")
@@ -146,7 +145,7 @@ else:
 # Расчет номинала 
 limit_nominal = limit_wear * 0.50
 
-# --- 6. АЛГОРИТМ СРАВНЕНИЯ И СВЕРКИ С ЗАКАЗЧИКАМИ ---
+# --- 7. АЛГОРИТМ СРАВНЕНИЯ И СВЕРКИ С ЗАКАЗЧИКАМИ ---
 if selected_client != "🔄 Без учета ограничений Заказчика":
     client_rule_axial = client_limits_db[selected_client][size_group]
     effective_max_axial = min(limit_wear, client_rule_axial)
@@ -156,7 +155,7 @@ else:
     effective_max_axial = limit_wear
     st.info(f"🎯 **Целевой критерий отбраковки (Паспортный):** Осевой до **{effective_max_axial:.2f} мм**")
 
-# --- 7. ВВОД ФАКТИЧЕСКИХ ЗАМЕРОВ ---
+# --- 8. ВВОД ФАКТИЧЕСКИХ ЗАМЕРОВ ---
 st.markdown("---")
 st.subheader("📥 4. Фактические замеры на устье скважины")
 col_input1, col_input2 = st.columns(2)
@@ -168,7 +167,7 @@ with col_input2:
 
 calculated_delta = size_a - size_b
 
-# --- 8. ПОЛНАЯ ОЦЕНКА, ИНДИКАЦИЯ И ВЫВОДЫ ---
+# --- 9. ПОЛНАЯ ОЦЕНКА, ИНДИКАЦИЯ И ВЫВОДЫ ---
 st.markdown("### РЕЗУЛЬТАТЫ РАСЧЕТА:")
 st.write(f"**Фактический осевой люфт (Δh):** {calculated_delta:.2f} мм")
 st.write(f"**Допустимый предел (с учетом ГК):** {effective_max_axial:.2f} мм")
@@ -190,6 +189,7 @@ else:
     status_color = "green"
     st.success(res_text)
 
-# --- 9. ГЕНЕРАЦИЯ КОРПОРАТИВНОГО HTML-АКТА ---
+# --- 10. ГЕНЕРАЦИЯ КОРПОРАТИВНОГО HTML-АКТА (Условие убрано, выводится всегда) ---
 html_vzd = "<div style='border:3px solid #1E3A8A; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>"
 html_vzd += "<h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>"
+html_vzd += "<h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>АКТ ТЕХНИЧЕСКОГО КОНТРОЛЯ ШПИНДЕЛЯ ВЗД</h3>"
