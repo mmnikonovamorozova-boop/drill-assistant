@@ -37,18 +37,29 @@ keys_db = {
 selected_key = st.selectbox("1. Выберите модель гидравлического ключа УМК:", list(keys_db.keys()))
 passport_length = keys_db[selected_key]
 
-# --- 4. ВХОДНЫЕ ТЕХНОЛОГИЧЕСКИЕ ПАРАМЕТРЫ ---
+# --- 4. ВХОДНЫЕ ТЕХНОЛОГИЧЕСКИЕ ПАРАМЕТРЫ (ВЕРТИКАЛЬНОЕ РАСПОЛОЖЕНИЕ) ---
 st.markdown("### ⚙️ Параметры замера резьбового соединения КНБК")
-col_p1, col_p2, col_p3, col_p4 = st.columns(4)
 
-with col_p1:
-    p_moment = st.number_input("Требуемый паспортный момент резьбы, кН·м:", min_value=0.0, max_value=150.0, value=25.0, step=0.5)
-with col_p2:
-    fact_l = st.number_input("Фактическая длина плеча ключа при замере, м:", min_value=0.1, max_value=3.0, value=passport_length, step=0.005)
-with col_p3:
-    tros_d = st.number_input("Толщина (диаметр) натяжного троса, мм:", min_value=0.0, max_value=50.0, value=16.0, step=1.0)
-with col_p4:
-    angle_alpha = st.number_input("Измеренный угол натяжения троса лебедки (α), град:", min_value=10.0, max_value=90.0, value=90.0, step=1.0)
+p_moment = st.number_input(
+    "1️⃣ Требуемый паспортный момент резьбы КНБК, кН·м:", 
+    min_value=0.0, max_value=150.0, value=25.0, step=0.5
+)
+
+fact_l = st.number_input(
+    "2️⃣ Фактическая длина плеча ключа при замере на устье, м:", 
+    min_value=0.1, max_value=3.0, value=passport_length, step=0.005
+)
+
+tros_d = st.number_input(
+    "3️⃣ Толщина (диаметр) применяемого натяжного троса, мм:", 
+    min_value=0.0, max_value=50.0, value=16.0, step=1.0
+)
+
+angle_alpha = st.number_input(
+    "4️⃣ Измеренный угол натяжения троса лебедки относительно рычага ключа (α), град:", 
+    min_value=10.0, max_value=90.0, value=90.0, step=1.0
+)
+
 
 # --- 5. ФИЗИКА ПРОЦЕССА И МАТЕМАТИЧЕСКАЯ КОРРЕКЦИЯ ---
 rad_alpha = math.radians(angle_alpha)
