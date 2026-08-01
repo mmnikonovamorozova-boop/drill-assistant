@@ -114,34 +114,32 @@ else:
     )
     status_note = "<b>СТАТУС: Допущено.</b> Значение крутящего момента передается буровому мастеру для настройки гидроключей."
 
-# --- 6. ГЕНЕРАЦИЯ КОРПОРАТИВНОГО HTML-АКТА ---
-# --- ИСПРАВЛЕННЫЙ БЛОК ГЕОМЕТРИИ В АКТЕ (ВЕРТИКАЛЬНЫЙ СПИСОК) ---
+# --- 6. ГЕНЕРАЦИЯ КОРПОРАТИВНОГО HTML-АКТА (ИСПРАВЛЕННЫЙ СИНТАКСИС) ---
 html_print = f"""
-<div style='border:{border_style}; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>
-    <h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>
-    <h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>АКТ СКОРРЕКТИРОВАННОГО КРУТЯЩЕГО МОМЕНТА СВИНЧИВАНИЯ</h3>
-    <hr style='border:1px solid #1E3A8A; margin-bottom:20px;'>
+<div style="border:{border_style}; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;">
+    <h2 style="text-align:center; color:#1E3A8A; margin-top:0;">ООО «ТРАЕКТОРЬЯ-СЕРВИС»</h2>
+    <h3 style="text-align:center; color:#4B5563; margin-top:-10px;">АКТ СКОРРЕКТИРОВАННОГО КРУТЯЩЕГО МОМЕНТА СВИНЧИВАНИЯ</h3>
+    <hr style="border:1px solid #1E3A8A; margin-bottom:20px;">
     <p><b>Дата/Время:</b> {current_time} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Месторождение:</b> {field_name}</p>
     <p><b>Объект / Скважина:</b> {well_number} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Инженер ННБ:</b> {engineer_name}</p>
     <p><b>Используемое оборудование:</b> {selected_key}</p>
     
-    <h4 style='color:#4B5563; margin-top:15px; margin-bottom:5px; border-bottom:1px solid #E5E7EB; padding-bottom:3px;'>ИСХОДНЫЕ ТЕХНОЛОГИЧЕСКИЕ ПАРАМЕТРЫ:</h4>
-    <table style='width:100%; border-collapse:collapse; font-size:14px; line-height:1.6;'>
-        <tr><td style='width:60%; color:#555;'>• Требуемый крутящий момент по паспорту КНБК:</td><td><b>{p_moment:.2f} кН·м</b></td></tr>
-        <tr><td style='color:#555;'>• Паспортная длина плеча гидроключа (Lпасп):</td><td><b>{passport_length:.3f} м</b></td></tr>
-        <tr><td style='color:#555;'>• Фактическая длина плеча при замере на устье (Lфакт):</td><td><b>{fact_l:.3f} м</b></td></tr>
-        <tr><td style='color:#555;'>• Диаметр натяжного каната лебедки (tros_d):</td><td><b>{tros_d} мм</b> (смещение оси Δr = {delta_r:.4f} м)</td></tr>
-        <tr><td style='color:#555;'>• Измеренный угол линии натяжения (α):</td><td><b>{angle_alpha:.1f}°</b></td></tr>
-        <tr><td style='color:#1E3A8A; font-weight:bold;'>• Расчетное эффективное плечо рычага:</td><td style='color:#1E3A8A; font-weight:bold;'><b>{effective_l:.3f} м</b></td></tr>
+    <h4 style="color:#4B5563; margin-top:15px; margin-bottom:5px; border-bottom:1px solid #E5E7EB; padding-bottom:3px;">ИСХОДНЫЕ ТЕХНОЛОГИЧЕСКИЕ ПАРАМЕТРЫ:</h4>
+    <table style="width:100%; border-collapse:collapse; font-size:14px; line-height:1.6;">
+        <tr><td style="width:60%; color:#555;">• Требуемый крутящий момент по паспорту КНБК:</td><td><b>{p_moment:.2f} кН·м</b></td></tr>
+        <tr><td style="width:60%; color:#555;">• Паспортная длина плеча гидроключа (Lпасп):</td><td><b>{passport_length:.3f} м</b></td></tr>
+        <tr><td style="width:60%; color:#555;">• Фактическая длина плеча при замере на устье (Lфакт):</td><td><b>{fact_l:.3f} м</b></td></tr>
+        <tr><td style="width:60%; color:#555;">• Диаметр натяжного каната лебедки (tros_d):</td><td><b>{tros_d} мм</b> (смещение оси Δr = {delta_r:.4f} м)</td></tr>
+        <tr><td style="width:60%; color:#555;">• Измеренный угол линии натяжения (α):</td><td><b>{angle_alpha:.1f}°</b></td></tr>
+        <tr><td style="width:60%; color:#1E3A8A; font-weight:bold;">• Расчетное эффективное плечо рычага:</td><td style="color:#1E3A8A; font-weight:bold;"><b>{effective_l:.3f} м</b></td></tr>
     </table>
 
-    <h4 style='color:#1E3A8A; margin-top:20px; border-bottom:1px solid #D1D5DB; padding-bottom:5px;'>ЗАКЛЮЧЕНИЕ ТЕХНИЧЕСКОГО КОНТРОЛЯ:</h4>
+    <h4 style="color:#1E3A8A; margin-top:20px; border-bottom:1px solid #D1D5DB; padding-bottom:5px;">ЗАКЛЮЧЕНИЕ ТЕХНИЧЕСКОГО КОНТРОЛЯ:</h4>
     {verdict_display}
-    <p style='font-size:14px; color:#4B5563;'>{status_note}</p>
-    <p style='font-size:12px; color:#6B7280; text-align:center; margin-top:35px; border-top:1px dashed #D1D5DB; padding-top:10px;'>Сгенерировано в цифровом модуле • Для печати нажмите Ctrl + P</p>
+    <p style="font-size:14px; color:#4B5563;">{status_note}</p>
+    <p style="font-size:12px; color:#6B7280; text-align:center; margin-top:35px; border-top:1px dashed #D1D5DB; padding-top:10px;">Сгенерировано в цифровом модуле • Для печати нажмите Ctrl + P</p>
 </div>
 """
-
 
 st.markdown("---")
 st.subheader("📥 Официальный бланк распоряжения для буровой бригады:")
