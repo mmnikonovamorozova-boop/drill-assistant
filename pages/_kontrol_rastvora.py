@@ -26,6 +26,9 @@ st.markdown("<div style='color: #4B5563; font-size: 14px; background-color: #F3F
 st.markdown("---")
 st.caption("ООО «Траектория-Сервис» • Отдел систем менеджмента качества (ОСМК) 2026")
 
+# 🚨 СТОП-КРАН: Добавьте эту строчку обязательно! 
+st.stop() 
+
 # ПРОВЕРКА: Если инженер не залогинился на главной странице — выкидываем его назад
 if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
     st.error("🚨 Доступ заблокирован! Пожалуйста, перейдите на Главную страницу приложения и введите пароль.")
