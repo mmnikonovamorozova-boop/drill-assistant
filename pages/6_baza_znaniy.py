@@ -1,65 +1,63 @@
 import streamlit as st
+import base64
 
-# 1. Настройка страницы (Конфигурация для браузера)
+# 1. Настройка страницы
 st.set_page_config(
     page_title="6. База знаний",
     page_icon="📚",
     layout="wide"
 )
 
-# 3. ПРОВЕРКА АВТОРИЗАЦИИ ИНЖЕНЕРА
+# 2. ПРОВЕРКА АВТОРИЗАЦИИ ИНЖЕНЕРА
 if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
     st.error("🚨 Доступ заблокирован! Пожалуйста, пройдите авторизацию на Главной странице приложения.")
     st.stop()
 
-# 4. КОНТЕНТ СТРАНИЦЫ БАЗЫ ЗНАНИЙ
+# 3. КОНТЕНТ СТРАНИЦЫ БАЗЫ ЗНАНИЙ
 st.title("📚 Центральная база нормативно-технической документации")
 st.caption("Единый реестр стандартов ИНТИ и регламентов ООО «Траектория-Сервис»")
 st.markdown("---")
 
-st.write("Приветствую, {}. Ниже представлены актуальные производственные инструкции и стандарты, регламентирующие работу инженера по ННБ на устье скважины.".format(st.session_state.get("username", "Коллега")))
-
-# Сетка категорий документов
-col_inti, col_corp = st.columns(2)
-
-with col_inti:
-    st.subheader("🌐 Отраслевые стандарты ИНТИ")
-    st.markdown("---")
-    
-    # Кнопка скачивания СТО ИНТИ S.100.3
+# Функция для безопасного кодирования и отображения PDF внутри Streamlit
+def display_pdf(file_path):
     try:
-        with open("docs/inti_s100.pdf", "rb") as file_inti:
-            st.download_button(
-                label="📥 Скачать СТО ИНТИ S.100.3 (Сборка и ВИК КНБК)",
-                data=file_inti,
-                file_name="STO_INTI_S100_3.pdf",
-                mime="application/pdf"
-            )
+        with open(file_path, "rb") as f:
+            base64_pdf = base64.b64encode(f.read()).decode('utf-8')
+        # Создаем встроенное окно просмотра (высота 700 пикселей)
+        pdf_display = f'<iframe src="data:application/pdf;base64,{base64_pdf}" width="100%" height="700" type="application/pdf"></iframe>'
+        st.markdown(pdf_display, unsafe_allow_html=True)
     except FileNotFoundError:
-        st.info("📑 Документ СТО ИНТИ S.100.3 станет доступен для скачивания, как только вы загрузите файл в папку docs/inti_s100.pdf на GitHub.")
+        st.error(f"🚨 Файл '{file_path}' не найден в папке docs/. Проверьте точное имя файла на GitHub.")
 
-    # Место для второго документа ИНТИ (например, по качеству)
-    st.write("• **СТО ИНТИ S.QS.7** — Системы менеджмента качества (доступно на устье)")
-    st.write("• **СТО ИНТИ S.QS.8** — Требования к метрологическому обеспечению оборудования")
+# Выпадающий список для выбора документа
+selected_doc = st.selectbox(
+    "💬 Выберите нормативный документ для онлайн-просмотра на экране:",
+    [
+        "Пожалуйста, выберите документ из списка...",
+        "СТО ИНТИ S.100.3-2024 (Инспекция и сборка КНБК)",
+        "Инструкция по креплению резьбовых соединений ключами УМК"
+    ]
+)
 
-with col_corp:
-    st.subheader("🏢 Корпоративные регламенты и РД")
-    st.markdown("---")
-    
-    # Кнопка скачивания Инструкции по УМК
-    try:
-        with open("docs/инструкция_умк.pdf", "rb") as file_umk:
-            st.download_button(
-                label="📥 Скачать Инструкцию по креплению резьбовых соединений ключами УМК",
-                data=file_umk,
-                file_name="Instrukciya_UMK.pdf",
-                mime="application/pdf"
-            )
-    except FileNotFoundError:
-        st.info("📑 Инструкция по ключам УМК станет доступна для скачивания, как только вы загрузите файл в папку docs/инструкция_умк.pdf на GitHub.")
+st.markdown("---")
 
-    st.write("• **РД-01-2026** — Инструкция по входному контролю долотных элементов")
-    st.write("• **РД-02-2026** — Методика замера осевых люфтов шпинделя ВЗД")
+# Логика интерактивного переключения документов
+if "СТО ИНТИ" in selected_doc:
+    st.info("📖 Отображается: СТО ИНТИ S.100.3-2024. Вы можете читать, масштабировать и печатать документ прямо отсюда.")
+    display_pdf("docs/inti_s100.pdf")
+
+elif "Инструкция" in selected_doc:
+    st.info("📖 Отображается: Инструкция по ключам УМК ООО «Траектория-Сервис».")
+    display_pdf("docs/instrukciya_umk.pdf")
+
+else:
+    st.markdown("""
+    <div style='color: #4B5563; font-size: 14px; background-color: #F3F4F6; padding: 20px; border-radius: 6px; text-align: center; font-family: Arial, sans-serif;'>
+        <b>💡 Подсказка для инженера:</b><br><br>
+        Выберите необходимый регламент или стандарт в выпадающем списке выше.<br>
+        Документ откроется в интерактивном окне. Скачивание файла на устройство не требуется.
+    </div>
+    """, unsafe_allow_html=True)
 
 st.markdown("---")
 st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px;'>Отдел систем менеджмента качества (ОСМК) • ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
