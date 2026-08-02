@@ -12,7 +12,6 @@ if "authenticated" not in st.session_state or not st.session_state["authenticate
 st.set_page_config(page_title="Калькулятор люфта ВЗД", layout="wide")
 
 st.title("📏 Комплексный расчет износа и люфтов шпинделя ВЗД")
-st.markdown("<style>a[href*='vhodnoy_kontrol'] span, a[href*='raschet_umk'] span, a[href*='tech_cards'] span, a[href*='lyuft_vzd'] span, a[href*='kontrol_rastvora'] span, a[href*='baza_znaniy'] span, a[href='/'] span { font-size: 0 !important; } a[href='/'] span::before { content: '🧭 Главная страница'; font-size: 14px !important; font-weight: bold; } a[href*='vhodnoy_kontrol'] span::before { content: '📋 1. Входной контроль'; font-size: 14px !important; } a[href*='raschet_umk'] span::before { content: '🧮 2. Расчет УМК'; font-size: 14px !important; } a[href*='tech_cards'] span::before { content: '🔨 3. Технологические карты'; font-size: 14px !important; } a[href*='lyuft_vzd'] span::before { content: '📏 4. Люфт ВЗД'; font-size: 14px !important; } a[href*='kontrol_rastvora'] span::before { content: '🧪 5. Контроль раствора'; font-size: 14px !important; } a[href*='baza_znaniy'] span::before { content: '📚 6. База знаний'; font-size: 14px !important; }</style>", unsafe_allow_html=True)
 st.caption("МЕТОДИКА КОНТРОЛЯ ИЗНОСА ОПОР ШПИНДЕЛЯ ПО РЕГЛАМЕНТАМ ПОСТАВЩИКОВ И ЗАКАЗЧИКОВ")
 st.markdown("---")
 
