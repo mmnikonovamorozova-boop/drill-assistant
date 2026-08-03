@@ -26,7 +26,7 @@ st.caption("Документы защищены от копирования и �
 st.markdown("---")
 
 # Функция получения файлов из публичной папки Яндекса
-@st.cache_data(ttl=300)
+# @st.cache_data(ttl=300)
 def get_public_folder_files(public_key):
     try:
         enc_key = urllib.parse.quote(public_key)
