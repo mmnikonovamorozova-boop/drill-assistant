@@ -73,7 +73,7 @@ for tab, (block_name, public_link) in zip(tabs, BLOCKS.items()):
                 key=f"sel_{block_name}"
             )
 
-            if selected_file_name != "Пожалуйста, выберите документ...":
+                       if selected_file_name != "Пожалуйста, выберите документ...":
                 selected_file_obj = next((f for f in files if f["name"] == selected_file_name), None)
                 if selected_file_obj:
                     with st.spinner("🔒 Безопасная загрузка..."):
@@ -93,5 +93,8 @@ for tab, (block_name, public_link) in zip(tabs, BLOCKS.items()):
                         st.error("🚨 Ошибка загрузки.")
 
         st.markdown("---")
+
+st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px;'>ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
+
 
 st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px;'>ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
