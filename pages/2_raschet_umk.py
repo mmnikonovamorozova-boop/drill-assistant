@@ -4,11 +4,21 @@ import math
 from datetime import datetime
 
 import streamlit as st
-
 # ПРОВЕРКА: Если инженер не залогинился на главной странице — выкидываем его назад
-if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
-    st.error("🚨 Доступ заблокирован! Пожалуйста, перейдите на Главную страницу приложения и введите пароль.")
-    st.stop() # Полностью останавливаем выполнение кода этой страницы КНБК
+import os
+
+# Проверяем, запущен ли этот файл как главный (отдельное приложение)
+try:
+    ctx = st.runtime.scriptrunner.get_script_run_ctx()
+    is_standalone = (__name__ == "__main__") or (ctx and os.path.basename(ctx.script_path) == "2_raschet_umk.py")
+except Exception:
+    is_standalone = True
+
+# Включаем блокировку ТОЛЬКО если модуль работает внутри большой экосистемы
+if not is_standalone:
+    if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
+        st.error("🚨 Доступ заблокирован! Пожалуйста, перейдите на Главную страницу приложения и введите пароль.")
+        st.stop() # Полностью останавливаем выполнение кода этой страницы КНБК
 
 # --- 1. КОНФИГУРАЦИЯ СТРАНИЦЫ ---
 st.set_page_config(page_title="Калькулятор УМК", layout="wide")
