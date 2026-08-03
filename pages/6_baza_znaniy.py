@@ -14,9 +14,9 @@ if "authenticated" not in st.session_state or not st.session_state["authenticate
 
 # СЮДА ВСТАВЬТЕ ВАШИ ССЫЛКИ НА ПАПКИ С ЯНДЕКС ДИСКА:
 BLOCKS = {
-    "1 Стандарты ИНТИ": "https://disk.yandex.ru/d/rqQpRbIZndCIUg",
-    "2 Инструкции и Регламенты": "https://disk.yandex.ru/d/6G47YrLJzz1Hfw",
-    "3 Руководство по бурению": "https://disk.yandex.ru/d/ybfkwoSWz67ekw"
+    "1 Стандарты ИНТИ": "https://yandex.ru",
+    "2 Инструкции и Регламенты": "https://yandex.ru",
+    "3 Руководство по бурению": "https://yandex.ru"
 }
 
 BASE_PUBLIC_URL = "https://yandex.net"
@@ -26,7 +26,6 @@ st.caption("Документы защищены от копирования и �
 st.markdown("---")
 
 # Функция получения файлов из публичной папки Яндекса
-# @st.cache_data(ttl=300)
 def get_public_folder_files(public_key):
     try:
         enc_key = urllib.parse.quote(public_key)
