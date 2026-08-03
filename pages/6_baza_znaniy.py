@@ -19,7 +19,7 @@ BLOCKS = {
     "3 Руководство по бурению": "https://disk.yandex.ru/d/ybfkwoSWz67ekw"
 }
 
-BASE_PUBLIC_URL = "https://yandex.net"
+BASE_PUBLIC_URL = "https://cloud-api.yandex.net/v1/disk/public/resources"
 
 st.title("📚 Центральная база нормативно-технической документации")
 st.caption("Документы защищены от копирования и скачивания. Доступен только просмотр.")
