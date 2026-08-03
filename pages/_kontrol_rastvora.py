@@ -296,7 +296,7 @@ with st.expander("🔐 Реестр легитимности и Интеракт
         v_n_hb = 0.5
     v_n_hb = max(0.1, min(1.0, v_n_hb))
 
-    etalon_n_hb = 0.51859
+    etalon_n_hb = 0.27181
     rel_error_n = (abs(v_n_hb - etalon_n_hb) / etalon_n_hb) * 100
 
     # Сверка ядра ВЗД (Тейлор-Круглов)
