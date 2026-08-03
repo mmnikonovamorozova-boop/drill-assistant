@@ -284,8 +284,8 @@ with st.expander("🔐 Реестр легитимности и Интеракт
     # Сверка ядра гидродинамики
     v_rho_base, v_yp_si = v_f_density * 1000.0, v_f_yp * 0.1
     v_theta_300, v_theta_600 = v_f_pv + v_f_yp, (2 * v_f_pv) + v_f_yp
-   # Математически точный расчет индекса течения по шкале Fann 35
-    v_n_hb = 3.32 * math.log10((v_theta_600 - v_f_yp) / (v_theta_300 - v_f_yp)) if (v_theta_300 - v_f_yp) > 0 else 0.5
+    # Математически верный расчет индекса течения Гершеля-Балкли по ГОСТ/API с учетом τ0 в СИ
+    v_n_hb = 3.32 * math.log10((v_theta_600 - (v_f_yp * 0.1)) / (v_theta_300 - (v_f_yp * 0.1))) if (v_theta_300 - (v_f_yp * 0.1)) > 0 else 0.5
     v_n_hb = max(0.1, min(1.0, v_n_hb))
 
     etalon_n_hb = 0.51859
