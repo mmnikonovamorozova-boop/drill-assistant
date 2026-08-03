@@ -5,3 +5,6 @@ openpyxl>=3.1.0
 reportlab
 pdf2image
 requests
+streamlit
+sqlalchemy
+psycopg2-binary
