@@ -325,10 +325,11 @@ if 'well_name' not in locals() and 'well_name' not in globals():
     well_name = "Скв. № 101, Куст 5"
 if 'fio' not in locals() and 'fio' not in globals():
     fio = "Иванов И.И."
+# Адаптивная HTML-верстка Акта (автоматически переключает тему)
 blank_html = f"""
-<div style='border: 2px solid #1E3A8A; padding: 20px; border-radius: 8px; background-color: #0E1117; color: white; font-family: monospace; margin-bottom: 15px;'>
+<div style='border: 2px solid #1E3A8A; padding: 20px; border-radius: 8px; background-color: var(--background-color); color: var(--text-color); font-family: monospace; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>
     <h3 style='text-align: center; color: #38BDF8; margin: 0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h3>
-    <h4 style='text-align: center; color: white; margin-top: 5px; margin-bottom: 15px;'>АКТ ТЕХНОЛОГИЧЕСКОГО АУДИТА ПАРАМЕТРОВ ОЧИСТКИ И ГИДРАВЛИКИ</h4>
+    <h4 style='text-align: center; margin-top: 5px; margin-bottom: 15px;'>АКТ ТЕХНОЛОГИЧЕСКОГО АУДИТА ПАРАМЕТРОВ ОЧИСТКИ И ГИДРАВЛИКИ</h4>
     <hr style='border-color: #1E3A8A;'>
     <p style='font-size: 13px;'><b>Скважина / Куст:</b> {well_name} | <b>Инженер ННБ:</b> {fio}</p>
     <p style='font-size: 13px;'><b>Заказчик по договору:</b> {customer} | <b>Месторождение:</b> Приобское</p>
