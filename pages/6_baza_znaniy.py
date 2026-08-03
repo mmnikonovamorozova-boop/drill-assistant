@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import io
+import urllib.parse
 from pdf2image import convert_from_bytes
 
 # 1. Настройка страницы
@@ -11,32 +12,38 @@ if "authenticated" not in st.session_state or not st.session_state["authenticate
     st.error("🚨 Доступ заблокирован! Пожалуйста, пройдите авторизацию на Главной странице.")
     st.stop()
 
-# Автономное подключение токена без использования st.secrets
-TOKEN = "y0__wgBEOCakoMCGKzURiCWitvDGDCG7NP5B6FyP1JjFSB2qVO7VcH9N9yhl9n9"
+# СЮДА ВСТАВЬТЕ ВАШИ ССЫЛКИ НА ПАПКИ С ЯНДЕКС ДИСКА:
+BLOCKS = {
+    "1 Стандарты ИНТИ": "https://disk.yandex.ru/d/rqQpRbIZndCIUg",
+    "2 Инструкции и Регламенты": "https://disk.yandex.ru/d/6G47YrLJzz1Hfw",
+    "3 Руководство по бурению": "https://disk.yandex.ru/d/ybfkwoSWz67ekw"
+}
 
-HEADERS = {"Authorization": f"OAuth {TOKEN}"}
-BASE_URL = "https://yandex.net"
-ROOT_DIR = "disk:/drill_docs"
+BASE_PUBLIC_URL = "https://yandex.net"
 
 st.title("📚 Центральная база нормативно-технической документации")
 st.caption("Документы защищены от копирования и скачивания. Доступен только просмотр.")
 st.markdown("---")
 
-# Функция получения структуры папок из Яндекс Диска
-@st.cache_data(ttl=600)
-def get_yandex_structure(path):
+# Функция получения файлов из публичной папки Яндекса
+@st.cache_data(ttl=300)
+def get_public_folder_files(public_key):
     try:
-        res = requests.get(f"{BASE_URL}?path={path}", headers=HEADERS)
+        enc_key = urllib.parse.quote(public_key)
+        res = requests.get(f"{BASE_PUBLIC_URL}?public_key={enc_key}&limit=100")
         if res.status_code == 200:
-            return res.json().get("_embedded", {}).get("items", [])
+            items = res.json().get("_embedded", {}).get("items", [])
+            return [i for i in items if i["type"] == "file" and i["name"].lower().endswith('.pdf')]
         return []
     except Exception:
         return []
 
-# Функция скачивания файла в оперативную память сервера
-def download_yandex_file(file_path):
+# Функция безопасного скачивания файла в память
+def download_public_file(public_key, file_path):
     try:
-        res = requests.get(f"{BASE_URL}/download?path={file_path}", headers=HEADERS)
+        enc_key = urllib.parse.quote(public_key)
+        enc_path = urllib.parse.quote(file_path)
+        res = requests.get(f"{BASE_PUBLIC_URL}/download?public_key={enc_key}&path={enc_path}")
         if res.status_code == 200:
             download_url = res.json().get("href")
             file_res = requests.get(download_url)
@@ -46,47 +53,49 @@ def download_yandex_file(file_path):
     except Exception:
         return None
 
-# Собираем блоки (папки)
-folders = [f for f in get_yandex_structure(ROOT_DIR) if f["type"] == "dir"]
+# Создаем вкладки (блоки) на основе нашего словаря BLOCKS
+tabs = st.tabs(list(BLOCKS.keys()))
 
-if not folders:
-    st.warning("⚠️ База знаний пуста. Создайте папки внутри `drill_docs` на Яндекс Диске.")
-else:
-    # Создаем вкладки по именам папок (блоки)
-    tab_names = [f["name"].replace("_", " ") for f in folders]
-    tabs = st.tabs(tab_names)
-
-    for tab, folder in zip(tabs, folders):
-        with tab:
-            # Получаем список файлов внутри блока
-            files = [file for file in get_yandex_structure(folder["path"]) if file["type"] == "file" and file["name"].lower().endswith('.pdf')]
-            file_names = [f["name"] for f in files]
+for tab, (block_name, public_link) in zip(tabs, BLOCKS.items()):
+    with tab:
+        if "ВСТАВЬТЕ_СЮДА" in public_link or not public_link:
+            st.warning("⚠️ Ссылка на эту папку еще не настроена в коде GitHub.")
+            continue
             
+        with st.spinner("Загрузка списка документов..."):
+            files = get_public_folder_files(public_link)
+        
+        if not files:
+            st.info("📂 В этом разделе пока нет PDF-документов или ссылка неверна.")
+        else:
+            file_names = [f["name"] for f in files]
             selected_file_name = st.selectbox(
                 "💬 Выберите нормативный документ для просмотра:", 
                 ["Пожалуйста, выберите документ..."] + file_names, 
-                key=f"sel_{folder['name']}"
+                key=f"sel_{block_name}"
             )
 
-            if selected_file_name != "Пожалуйста, выберите документ...":
-                selected_file_obj = next(f for f in files if f["name"] == selected_file_name)
+            if selected_file_name != "Пожалуйста, выберите document...":
+                # Ищем выбранный файл в списке
+                selected_file_obj = next((f for f in files if f["name"] == selected_file_name), None)
                 
-                with st.spinner("🔒 Безопасная загрузка документа..."):
-                    pdf_bytes = download_yandex_file(selected_file_obj["path"])
-                    
-                    if pdf_bytes:
-                        try:
-                            images = convert_from_bytes(pdf_bytes, dpi=120)
-                            st.info(f"📖 Отображается страниц: {len(images)}. Скачивание оригинального файла заблокировано.")
-                            
-                            for i, page in enumerate(images):
-                                img_byte_arr = io.BytesIO()
-                                page.save(img_byte_arr, format='JPEG')
-                                st.image(img_byte_arr.getvalue(), use_container_width=True, caption=f"Страница {i+1}")
-                        except Exception as e:
-                            st.error("🚨 Не удалось обработать структуру документа. Убедитесь, что PDF не поврежден.")
-                    else:
-                        st.error("🚨 Не удалось безопасно получить файл из облака.")
+                if selected_file_obj:
+                    with st.spinner("🔒 Безопасная загрузка страниц..."):
+                        pdf_bytes = download_public_file(public_link, selected_file_obj["path"])
+                        
+                        if pdf_bytes:
+                            try:
+                                images = convert_from_bytes(pdf_bytes, dpi=110)
+                                st.info(f"📖 Отображается страниц: {len(images)}. Скачивание файла заблокировано.")
+                                
+                                for i, page in enumerate(images):
+                                    img_byte_arr = io.BytesIO()
+                                    page.save(img_byte_arr, format='JPEG')
+                                    st.image(img_byte_arr.getvalue(), use_container_width=True, caption=f"Страница {i+1}")
+                            except Exception:
+                                st.error("🚨 Не удалось обработать структуру документа. Убедитесь, что PDF не поврежден.")
+                        else:
+                            st.error("🚨 Не удалось безопасно получить файл из облака.")
 
 st.markdown("---")
 st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px;'>ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
