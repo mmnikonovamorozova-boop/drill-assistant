@@ -123,7 +123,6 @@ html_print = f"""
     
     <h4 style="color:#1E3A8A; margin-bottom:5px; font-size:13px; border-bottom:1px solid #E5E7EB;">ИСХОДНЫЕ ПАРАМЕТРЫ ОБОРУДОВАНИЯ:</h4>
     <table style="width:100%; border-collapse:collapse; font-size:13px; line-height:1.6; margin-bottom:15px;">
-        <tr><td style="width:65%; color:#555;">• Модель гидроключа:</td><td><b>{tong_model}</b></td></tr>
         <tr><td style="width:65%; color:#555;">• Паспортное плечо (Lном):</td><td><b>{passport_length:.3f} м</b></td></tr>
         <tr><td style="width:65%; color:#555;">• Фактическое плечо (Lфакт):</td><td><b>{fact_l:.3f} м</b></td></tr>
         <tr><td style="width:65%; color:#555;">• Диаметр каната:</td><td><b>{tros_d:.1f} мм</b></td></tr>
