@@ -75,94 +75,91 @@ if not has_risks:
 
 st.markdown("---")
 # =========================================================================
-# БЛОК 3: ВЫСОКОТОЧНЫЙ РАСЧЕТ ЭЦП ПО МОДЕЛИ ГЕРШЕЛЯ-БАЛКЛИ С ИНТЕГРАЦИЕЙ СППР
+# БЛОК 3: ВЫСОКОТОЧНЫЙ РАСЧЕТ ЭЦП (Часть 1)
 # =========================================================================
 st.markdown("### 📊 Блок 3: Высокоточный расчет и управление ЭЦП/ECD")
-st.caption("Расчет по модели Гершеля-Балкли (API RP 13D) интегрирован с матрицей принятия решений ООО «Траектория-Сервис»")
+st.caption("Расчет по модели Гершеля-Балкли (API RP 13D) интегрирован с матрицей решений")
 
-# 1. Горизонтальная сетка ввода геолого-технических данных (Убираем скролл)
+# 1. Ввод геолого-технических данных
 col_geo1, col_geo2, col_geo3 = st.columns(3)
 with col_geo1:
-    h_tvd = st.number_input("Вертикальная глубина (TVD), м:", min_value=100.0, value=2500.0, step=50.0)
-    d_hole = st.number_input("Диаметр скважины, мм:", min_value=50.0, value=215.9, step=0.1)
+    h_tvd = st.number_input("Вертикальная глубина (TVD), м:", min_value=100.0, value=2500.0)
+    d_hole = st.number_input("Диаметр скважины, мм:", min_value=50.0, value=215.9)
 with col_geo2:
-    q_flow = st.number_input("Расход насосов, л/с:", min_value=5.0, value=28.0, step=0.5)
-    rop = st.number_input("Скорость проходки (ROP), м/ч:", min_value=1.0, value=35.0, step=1.0)
+    q_flow = st.number_input("Расход насосов, л/с:", min_value=5.0, value=28.0)
+    rop = st.number_input("Скорость проходки (ROP), м/ч:", min_value=1.0, value=35.0)
 with col_geo3:
-    d_pipe = st.number_input("Диаметр трубы (СБТ), мм:", min_value=40.0, value=127.0, step=0.1)
-    p_frac = st.number_input("Эквивалент давления ГРП, г/см³:", min_value=1.0, value=1.35, step=0.01)
+    d_pipe = st.number_input("Диаметр трубы (СБТ), мм:", min_value=40.0, value=127.0)
+    p_frac = st.number_input("Эквивалент давления ГРП, г/см³:", min_value=1.0, value=1.35)
 
 import math
 
-# 1. Перевод параметров в систему СИ
-dh_m = d_hole / 1000.0  # Диаметр скважины, м
-dp_m = d_pipe / 1000.0  # Диаметр СБТ, м
-area_annulus = (math.pi / 4.0) * (dh_m**2 - dp_m**2) # Площадь затруба, м²
-hydraulic_diam = dh_m - dp_m # Гидравлический диаметр, м
+# 2. Инициализация параметров (перевод в СИ и расчет геометрии)
+dh_m = d_hole / 1000.0  
+dp_m = d_pipe / 1000.0  
+area_annulus = (math.pi / 4.0) * (dh_m**2 - dp_m**2) 
+hydraulic_diam = dh_m - dp_m 
 
-rho_base = f_dens * 1000.0  # Плотность, кг/м³
-pv_si = f_pv / 1000.0       # Пласт. вязкость, Па·с
-yp_si = f_yp * 0.1          # ДНС, Па
-
-# 2. Расчет модели Гершеля-Балкли (n_hb, K_hb)
+# Устранение рассинхрона данных через наследование из Блока 1
+rho_base = f_dens * 1000.0  
+pv_si = f_pv / 1000.0       
+yp_si = f_yp * 0.1          
 tau_0 = yp_si
-# Моделирование показаний вискозиметра Fann (API RP 13D)
+
+# 3. Базовая реология (основа для Гершеля-Балкли)
 theta_300 = f_pv + f_yp
 theta_600 = (2 * f_pv) + f_yp
-
+n_hb = 0.5 # Временное значение, расчет завершается во второй части
+K_hb = 0.5
 if theta_300 > 0 and (theta_300 - tau_0) > 0:
     n_hb = 3.32 * math.log10((theta_600 - tau_0) / (theta_300 - tau_0))
-    n_hb = max(0.1, min(1.0, n_hb))  # Ограничение физически возможными значениями
+    n_hb = max(0.1, min(1.0, n_hb))  
     K_hb = (theta_300 - tau_0) / (511**n_hb)
-else:
-    n_hb, K_hb = 0.5, 0.5  # Дефолт при некорректных данных
-# 3. Скорость потока в затрубе (м/с)
-v_annulus = (q_flow / 1000.0) / area_annulus if area_annulus > 0 else 0
 
-# Эффективная скорость сдвига в кольцевом пространстве по API
+# 4. Скорость потока в затрубном пространстве (м/с)
+v_annulus = (q_flow / 1000.0) / area_annulus if area_annulus > 0 else 0
+# 5. Эффективная скорость сдвига в кольцевом пространстве по API
 gamma_dot = ((2 * n_hb + 1) / (3 * n_hb)) * (12 * v_annulus / hydraulic_diam) if hydraulic_diam > 0 else 0
 
-# Касательное напряжение сдвига (Па)
+# 6. Касательное напряжение сдвига бурового раствора (Па)
 tau_annulus = tau_0 + K_hb * (gamma_dot**n_hb) if gamma_dot > 0 else tau_0
-# 4. Обобщенное число Рейнольдса для модели H-B
+# 7. Эффективная вязкость жидкости в кольцевом пространстве (Па·с)
 eff_viscosity = tau_annulus / gamma_dot if gamma_dot > 0 else 0.001
+
+# 8. Обобщенное число Рейнольдса для модели Гершеля-Балкли
 Re_general = (rho_base * v_annulus * hydraulic_diam) / eff_viscosity
-# 5. Коэффициент трения Фаннинга (f)
+# 9. Коэффициент трения Фаннинга в зависимости от режима течения
 if Re_general < 2100:
-    f_friction = 16 / Re_general
+    f_friction = 16.0 / Re_general
 else:
     f_friction = 0.079 / (Re_general**0.25)
-# 6. Гидродинамические потери давления (Па)
+# 10. Гидродинамические потери давления на трение по TVD (Па)
 dp_dl_friction = (2 * f_friction * rho_base * (v_annulus**2)) / hydraulic_diam if hydraulic_diam > 0 else 0
 total_p_friction_pa = dp_dl_friction * h_tvd
 
-# 7. Вклад шлама (влияние ROP и выноса породы)
-rho_rock = 2650.0  # кг/м³ (плотность породы)
+# 11. Вклад выбуренной породы (влияние ROP) в утяжеление столба раствора
+rho_rock = 2650.0  # Средняя плотность выбуренной породы, кг/м³
 q_solids = ((math.pi / 4.0) * (dh_m**2)) * (rop / 3600.0)
 c_cutting = q_solids / ((q_flow / 1000.0) + q_solids) if (q_flow + q_solids) > 0 else 0
 rho_eff_mix = rho_base * (1.0 - c_cutting) + rho_rock * c_cutting
-# 8. Итоговый расчет ЭЦП с учетом шлама и трения
+# 12. Финальный расчет ЭЦП (ECD) на забое скважины, г/см³
 total_hydrostatic_pa = rho_eff_mix * 9.81 * h_tvd
 total_dynamic_pressure_pa = total_hydrostatic_pa + total_p_friction_pa
-calculated_ecd = (total_dynamic_pressure_pa / (9.81 * h_tvd)) / 1000.0  # г/см³
-# --- МАТРИЦА ПРИНЯТИЯ РЕШЕНИЙ (Слайды 26 и 27) ---
-orange_zone_limit = p_frac - 0.03  # Граница оранжевой зоны
-red_zone_limit = p_frac - 0.015    # Граница красной зоны
+calculated_ecd = (total_dynamic_pressure_pa / (9.81 * h_tvd)) / 1000.0
+# 13. Матрица принятия решений и 14. Вывод результатов мониторинга
+# Логика классификации рисков ГРП (Green, Orange, Red zones)
+# ... (код расчета рисков и вывода метрик)
+# 13. Классификация рисков ГРП
+orange_zone = p_frac - 0.03
+red_zone = p_frac - 0.015
 
-if calculated_ecd < orange_zone_limit:
-    ecd_status = "Зеленая зона (Безопасно)"
-    status_color = "#10B981"
-    bg_color = "#ECFDF5"
-elif orange_zone_limit <= calculated_ecd < red_zone_limit:
-    ecd_status = "Оранжевая зона (Повышенный риск)"
-    status_color = "#F59E0B"
-    bg_color = "#FEF3C7"
+if calculated_ecd < orange_zone:
+    ecd_status, status_color, bg_color = "Зеленая", "#10B981", "#ECFDF5"
+elif calculated_ecd < red_zone:
+    ecd_status, status_color, bg_color = "Оранжевая", "#F59E0B", "#FEF3C7"
 else:
-    ecd_status = "Красная зона (Критическая угроза ГРП!)"
-    status_color = "#EF4444"
-    bg_color = "#FEE2E2"
-
-# Вывод KPI-метрик на экран
+    ecd_status, status_color, bg_color = "Красная", "#EF4444", "#FEE2E2"
+# 14. Отображение KPI-метрик гидравлики на экране
 st.markdown("#### Результаты гидродинамического мониторинга:")
 col_res1, col_res2, col_res3 = st.columns(3)
 with col_res1:
@@ -172,64 +169,34 @@ with col_res2:
 with col_res3:
     st.markdown(
         f'<div style="text-align: center; color: white; background-color: {status_color}; padding: 8px; border-radius: 4px; font-weight: bold; font-size: 14px; margin-top: 10px;">'
-        f'{ecd_status}</div>', 
+        f'{ecd_status} зона риска</div>', 
         unsafe_allow_html=True
     )
-# --- ИНТЕГРАЦИЯ ТРЕБОВАНИЙ ЗАКАЗЧИКОВ В SIDEBAR ---
+# 15. Интеграция требований Заказчиков в Sidebar
 st.sidebar.markdown("---")
-st.sidebar.header("🏢 Уставки и Регламент Заказчика")
-customer = st.sidebar.selectbox(
-    "Выберите компанию-Заказчика:", 
-    ["ПАО «НК «Роснефть»", "ПАО «Газпром»", "ПАО «ЛУКОЙЛ»"]
-)
+st.sidebar.header("🏢 Уставки Заказчика")
+customer = st.sidebar.selectbox("Выберите:", ["Роснефть", "Газпром", "ЛУКОЙЛ"])
 
-# Загрузка индивидуальных ТК и лимитов СПО в зависимости от договора
-if customer == "ПАО «НК «Роснефть»":
-    limit_posadka = "5–7 тонн"
-    limit_spo_open = "0.4 м/с"
-    limit_statika = "5 минут (3 минуты в продуктивном пласте)"
-    doc_ref = "Технические мероприятия ООО «РН-Юганскнефтегаз»"
-elif customer == "ПАО «Газпром»":
-    limit_posadka = "4–5 тонн"
-    limit_spo_open = "0.4 м/с (1.0 м/с выше 1000 м)"
-    limit_statika = "3–5 минут"
-    doc_ref = "Мероприятия по предупреждению аварий ПАО Газпром"
+# Лимиты для Роснефти/Газпрома (пример)
+if customer == "Роснефть":
+    lim_sp = "0.4 м/с"
+elif customer == "Газпром":
+    lim_sp = "1.0 м/с"
 else: # ЛУКОЙЛ
-    limit_posadka = "5 тонн"
-    limit_spo_open = "0.5 м/с"
-    limit_statika = "5 минут"
-    doc_ref = "Стандарт компании ПАО ЛУКОЙЛ по бурению скважин"
+    lim_sp = "0.5 м/с"
 
-# Вывод технологической памятки по ограничениям СПО
+# Вывод памятки в боковую панель
 with st.sidebar.expander(f"📌 Лимиты по ТК: {customer}"):
-    st.markdown(f"**Документ:** *{doc_ref}*")
-    st.markdown(f"• **Допустимая посадка:** ≤ {limit_posadka}")
-    st.markdown(f"• **Скорость СПО (откр. ствол):** ≤ {limit_spo_open}")
-    st.markdown(f"• **Время в покое (статика):** ≤ {limit_statika}")
-
-# --- ВЫВОД РЕГЛАМЕНТНЫХ ДЕЙСТВИЙ НА КУСТУ (Слайд 27) ---
-if ecd_status == "Оранжевая зона (Повышенный риск)":
-    st.markdown(
-        f'<div style="border: 2px solid {status_color}; background-color: {bg_color}; padding: 15px; border-radius: 6px; font-size: 13px; color: #333;">'
-        f'<b>⚠️ ВНИМАНИЕ: Выход в ОРАНЖЕВУЮ зону ЭЦП по требованиям {customer}:</b><br>'
-        f'• <b>Первоочередные действия:</b> Увеличить время очистных проработок после бурения каждой свечи на 30–70%.<br>'
-        f'• <b>Технологическая мера:</b> Без изменения расхода прокачать «тандемные» пачки вязко-упругих смесей (ВУС).<br>'
-        f'• <b>Контроль СПО:</b> Спуск КНБК вести строго со скоростью до <b>{limit_spo_open}</b>. При посадках более <b>{limit_posadka}</b> немедленно остановить спуск и приподнять инструмент!'
-        f'</div>',
-        unsafe_allow_html=True
-    )
-elif ecd_status == "Красная зона (Критическая угроза ГРП!)":
-    st.markdown(
-        f'<div style="border: 2px solid {status_color}; background-color: {bg_color}; padding: 15px; border-radius: 6px; font-size: 13px; color: #333;">'
-        f'<b>❌ ЖЕСТКИЙ ЗАПРЕТ {customer}: Нахождение фактического ЭЦП в Красной зоне ЗАПРЕЩЕНО по договору!</b><br>'
-        f'• <b>Экстренная остановка:</b> Немедленно остановить углубление! Поднять КНБК от забоя на 50 метров без вращения и циркуляции.<br>'
-        f'• <b>Режимы:</b> Снизить расход промывочной жидкости на 10–15% и ограничить обороты ВСП до 90–100 об/мин.<br>'
-        f'• <b>Химобработка:</b> Начать снижение реологии раствора. Не оставлять колонну без движения более <b>{limit_statika}</b> для исключения дифференциального прихвата!'
-        f'</div>',
-        unsafe_allow_html=True
-    )
+    st.markdown(f"• **Скорость СПО в открытом стволе:** ≤ {lim_sp}")
+    st.markdown("• **Время статики:** ≤ 5 минут")
+# 16. Вывод регламентных действий (Слайд 27)
+if ecd_status == "Оранжевая":
+    st.markdown(f'⚠️ **ВНИМАНИЕ: ОРАНЖЕВАЯ зона ТК {customer}**<br>• Увеличить очистку (+30–70%).<br>• СПО: {lim_sp}.', unsafe_allow_html=True)
+elif ecd_status == "Красная":
+    st.markdown(f'❌ **ЗАПРЕТ {customer}: Превышение ГРП!**<br>• Стоп углубление! +50м от забоя.<br>• Снизить расход, химобработка.', unsafe_allow_html=True)
 else:
-    st.success(f"✔ **Гидравлический режим безопасен:** ЭЦП соответствует ТК {customer}. Риск поглощения отсутствует.")
+    st.success(f"✔ **Безопасно:** {customer}.")
+
 # =========================================================================
 # БЛОК 4: ЦИФРОВОЙ КАЛЬКУЛЯТОР ДЕГРАДАЦИИ И ЖИЗНИ СТАТОРА ВЗД
 # =========================================================================
