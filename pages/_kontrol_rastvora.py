@@ -1,5 +1,8 @@
 import streamlit as st
 from datetime import datetime
+import pandas as pd
+import yadisk
+import os
 
 # --- ПРОВЕРКА АВТОРИЗАЦИИ ---
 if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
@@ -395,4 +398,79 @@ html_report = (
 st.markdown(html_report, unsafe_allow_html=True)
 
 st.markdown(" ")
+
+# =========================================================================
+# БЛОК 6: АВТОМАТИЧЕСКОЕ СОХРАНЕНИЕ СУТОЧНЫХ ПАРАМЕТРОВ НА ЯНДЕКС.ДИСК
+# =========================================================================
+st.markdown("---")
+st.markdown("### 💾 Блок 6: Архивирование параметров секции")
+st.caption("Данные сохраняются в единую таблицу на Яндекс.Диск для накопления истории по скважине")
+
+# Сюда вставьте ваш OAuth-токен, полученный на oauth.yandex.ru
+YANDEX_TOKEN = "ВАШ_О_АУТ_ТОКЕН_ЗДЕСЬ" 
+y = yadisk.YaDisk(token=YANDEX_TOKEN)
+
+# Кнопка для фиксации текущей точки параметров
+if st.button("🚀 Зафиксировать точку и отправить на Яндекс.Диск"):
+    
+    # 1. Формируем словарь со всеми ключевыми параметрами из вашего модуля
+    current_data = {
+        "Дата_Время": current_time,
+        "Скважина_Куст": well_number,
+        "Инженер": engineer_name,
+        "Плотность_План": plan_density,
+        "Плотность_Факт": fact_density,
+        "Вязкость_Факт": fact_visc,
+        "Песок_Факт": fact_sand,
+        "ПВ_Факт": fact_pv,
+        "ДНС_Факт": fact_yp,
+        "Расчетная_ЭЦП": round(calculated_ecd, 3),
+        "Коэффициент_Износа_ВЗД": round(wear_factor, 2),
+        "Остаток_Жизни_ВЗД_ч": round(predicted_hours_to_failure, 1)
+    }
+    
+    # Создаем безопасное имя файла на основе номера скважины (заменяем пробелы и знаки)
+    safe_well_name = well_number.replace(" ", "_").replace("№", "N").replace(",", "").replace(".", "")
+    local_filename = f"history_{safe_well_name}.csv"
+    remote_path = f"/Бурение_Секции/{local_filename}"
+    
+    try:
+        if y.check_token():
+            # Создаем корневую папку на Диске, если её еще нет
+            if not y.is_dir("/Бурение_Секции"):
+                y.mkdir("/Бурение_Секции")
+            
+            # Проверяем, существует ли уже файл по этой скважине на Диске
+            if y.is_file(remote_path):
+                # Если файл есть — скачиваем его, чтобы дописать данные
+                y.download(remote_path, local_filename)
+                old_df = pd.read_csv(local_filename, encoding="utf-8-sig")
+                # Добавляем новую строчку
+                new_df = pd.concat([old_df, pd.DataFrame([current_data])], ignore_index=True)
+            else:
+                # Если файла еще нет (первая точка секции) — создаем новую таблицу
+                new_df = pd.DataFrame([current_data])
+            
+            # Сохраняем файл на сервере/компьютере локально
+            new_df.to_csv(local_filename, index=False, encoding="utf-8-sig")
+            
+            # Загружаем обновленный файл обратно на Яндекс.Диск с перезаписью
+            y.upload(local_filename, remote_path, overwrite=True)
+            
+            # Удаляем локальный мусорный файл
+            if os.path.exists(local_filename):
+                os.remove(local_filename)
+                
+            st.balloons()
+            st.success(f"📈 Точка успешно добавлена в файл '{local_filename}' на Яндекс.Диске!")
+            
+            # Показываем инженеру всю историю бурения секции из файла
+            st.markdown("#### История изменения параметров секции:")
+            st.dataframe(new_df)
+            
+        else:
+            st.error("Ошибка: Токен авторизации Яндекс.Диска недействителен!")
+    except Exception as e:
+        st.error(f"Критическая ошибка сохранения: {e}")
+
 st.info("💡 **Как распечатать рапорт:** Нажмите комбинацию клавиш **`Ctrl + P`**, выберите «Сохранить как PDF» для отправки акта Заказчику.")
