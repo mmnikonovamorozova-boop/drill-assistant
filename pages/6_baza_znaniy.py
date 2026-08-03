@@ -73,8 +73,8 @@ for tab, (block_name, public_link) in zip(tabs, BLOCKS.items()):
                 key=f"sel_{block_name}"
             )
 
-                       if selected_file_name != "Пожалуйста, выберите документ...":
-                selected_file_obj = next((f for f in files if f["name"] == selected_file_name), None)
+                    if selected_file_name != "Пожалуйста, выберите документ...":
+                       selected_file_obj = next((f for f in files if f["name"] == selected_file_name), None)
                 if selected_file_obj:
                     with st.spinner("🔒 Безопасная загрузка..."):
                         pdf_bytes = download_public_file(public_link, selected_file_obj["path"])
@@ -89,8 +89,8 @@ for tab, (block_name, public_link) in zip(tabs, BLOCKS.items()):
                                 st.image(img_byte_arr.getvalue(), use_container_width=True)
                         except Exception:
                             st.error("🚨 Ошибка обработки PDF.")
-                    else:
-                        st.error("🚨 Ошибка загрузки.")
+                        else:
+                            st.error("🚨 Ошибка загрузки.")
 
         st.markdown("---")
 
