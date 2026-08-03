@@ -29,10 +29,12 @@ st.markdown("---")
 def get_public_folder_files(public_key):
     try:
         enc_key = urllib.parse.quote(public_key)
-        res = requests.get(f"{BASE_PUBLIC_URL}?public_key={enc_key}&limit=100")
+        # Добавляем параметр &path=/ для гарантированного чтения корня публичной ссылки
+        res = requests.get(f"{BASE_PUBLIC_URL}?public_key={enc_key}&path=/&limit=100")
         if res.status_code == 200:
             items = res.json().get("_embedded", {}).get("items", [])
-            return [i for i in items if i["type"] == "file" and i["name"].lower().endswith('.pdf')]
+            # Делаем проверку расширения регистра-независимой через .lower()
+            return [i for i in items if i["type"] == "file" and str(i["name"]).lower().endswith('.pdf')]
         return []
     except Exception:
         return []
