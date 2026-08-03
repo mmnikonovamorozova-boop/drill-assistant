@@ -317,6 +317,11 @@ else:
     inti_status, inti_color = "СООТВЕТСТВУЕТ ТРЕБОВАНИЯМ СТО ИНТИ S.100.3", "#10B981"
 
 # Новая информативная HTML-верстка Акта
+# Защитный блок инициализации метаданных рапорта для исключения NameError
+if 'well_name' not in locals() and 'well_name' not in globals():
+    well_name = "Скв. № 101, Куст 5"
+if 'fio' not in locals() and 'fio' not in globals():
+    fio = "Иванов И.И."
 blank_html = f"""
 <div style='border: 2px solid #1E3A8A; padding: 20px; border-radius: 8px; background-color: #0E1117; color: white; font-family: monospace; margin-bottom: 15px;'>
     <h3 style='text-align: center; color: #38BDF8; margin: 0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h3>
