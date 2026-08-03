@@ -354,39 +354,45 @@ st.markdown("---")
 st.markdown("---")
 st.subheader("📋 Блок 5: Финальный отчет по контролю очистки и гидравлики")
 
-# Расчет статуса (логика из Блоков 2-4)
-is_critical_report = (fact_sand > MAX_SAND_CONTENT) or \
-                     ((fact_visc > MAX_FUNNEL_VISC or fact_yp > MAX_YP or fact_pv > MAX_PV) and q_pump_max) or \
-                     (calculated_ecd >= (p_frac - 0.015))
+is_critical_report = (fact_sand > MAX_SAND_CONTENT) or ((fact_visc > MAX_FUNNEL_VISC or fact_yp > MAX_YP or fact_pv > MAX_PV) and q_pump_max) or (calculated_ecd >= (p_frac - 0.015))
 
-status_text = "🚨 ВНИМАНИЕ: ВЫХОД ЗА ПРЕДЕЛЫ НОРМЫ!" if is_critical_report else "✔ УСПЕШНО ВЕРИФИЦИРОВАНО."
+status_text = "🚨 ВНИМАНИЕ: ТЕХНОЛОГИЧЕСКИЙ ВЫХОД ЗА ПРЕДЕЛЫ НОРМЫ!" if is_critical_report else "✔ УСПЕШНО ВЕРИФИЦИРОВАНО."
 status_color = "#EF4444" if is_critical_report else "#10B981"
 stator_status = f"Ускоренный износ (x{wear_factor:.2f}). Отказ через {predicted_hours_to_failure:.1f} ч." if wear_factor > 1.0 else "В норме"
 
-# HTML-шаблон отчета (улучшенный)
-html_report = f"""
-<div style='border: 2px solid #1E3A8A; padding: 20px; border-radius: 10px; font-family: Arial; background-color: #F9FAFB;'>
-    <h3 style='text-align: center; color: #1E3A8A;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»: ОТЧЕТ</h3>
-    <p><b>Инженер:</b> {engineer_name} | <b>Дата:</b> {current_time}</p>
-    
-    <table style='width: 100%; border-collapse: collapse; font-size: 14px;'>
-        <tr style='background-color: #E5E7EB;'><th style='padding: 5px; border: 1px solid #D1D5DB;'>Параметр</th><th style='padding: 5px; border: 1px solid #D1D5DB;'>Факт</th></tr>
-        <tr><td>ЭЦП (ECD), г/см³</td><td>{calculated_ecd:.3f}</td></tr>
-        <tr><td>Песок/Твердая фаза, %</td><td>{fact_sand:.2f}</td></tr>
-        <tr><td>Износ статора</td><td>{stator_status}</td></tr>
-    </table>
-    
-    <div style='background-color: {status_color}; color: white; padding: 10px; text-align: center; margin-top: 15px; font-weight: bold;'>
-        {status_text}
-    </div>
-</div>
-"""
+# Записываем HTML строгими однострочниками, чтобы Streamlit не путал форматирование
+html_report = (
+    f"<div style='border: 3px solid #1E3A8A; padding: 25px; border-radius: 12px; background-color: #FAFAFA; font-family: Arial, sans-serif; color: #333333; max-width: 1000px; margin: 0 auto;'>"
+    f"<h2 style='text-align: center; color: #1E3A8A; margin-top: 0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>"
+    f"<h4 style='text-align: center; color: #4B5563; margin-top: -10px;'>КОМПЛЕКСНЫЙ АКТ АУДИТА БУРОВОГО РАСТВОРА И ГИДРАВЛИКИ</h4>"
+    f"<hr style='border: 1px solid #1E3A8A; margin-bottom: 20px;'> Standard"
+    f"<p><b>Дата/Время замеров:</b> {current_time} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Объект / Скважина:</b> {well_number}</p>"
+    f"<p><b>Инженер по ННБ:</b> {engineer_name}</p>"
+    f"<h4 style='color: #1E3A8A; margin-top: 20px; border-bottom: 1px solid #D1D5DB; padding-bottom: 5px;'>РЕЗУЛЬТАТЫ СВЕРКИ И АУДИТА:</h4>"
+    f"<table style='width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; margin-bottom: 20px;'>"
+    f"<tr style='background-color: #E5E7EB; font-weight: bold;'>"
+    f"<th style='padding: 8px; border: 1px solid #D1D5DB;'>Контролируемый параметр</th>"
+    f"<th style='padding: 8px; border: 1px solid #D1D5DB;'>План-программа</th>"
+    f"<th style='padding: 8px; border: 1px solid #D1D5DB;'>Фактический акт</th>"
+    f"<th style='padding: 8px; border: 1px solid #D1D5DB;'>Отклонение</th>"
+    f"</tr>"
+    f"<tr><td style='padding: 8px; border: 1px solid #D1D5DB;'>Плотность раствора, г/см³</td><td style='padding: 8px; border: 1px solid #D1D5DB;'>{plan_density:.2f}</td><td style='padding: 8px; border: 1px solid #D1D5DB;'>{fact_density:.2f}</td><td style='padding: 8px; border: 1px solid #D1D5DB;'>{fact_density - plan_density:+.2f}</td></tr>"
+    f"<tr><td style='padding: 8px; border: 1px solid #D1D5DB;'>Условная вязкость, с</td><td style='padding: 8px; border: 1px solid #D1D5DB;'>{plan_visc:.1f}</td><td style='padding: 8px; border: 1px solid #D1D5DB;'>{fact_visc:.1f}</td><td style='padding: 8px; border: 1px solid #D1D5DB;'>{fact_visc - plan_visc:+.1f}</td></tr>"
+    f"<tr><td style='padding: 8px; border: 1px solid #D1D5DB;'>Содержание песка, %</td><td style='padding: 8px; border: 1px solid #D1D5DB;'>{plan_sand:.2f}</td><td style='padding: 8px; border: 1px solid #D1D5DB;'>{fact_sand:.2f}</td><td style='padding: 8px; border: 1px solid #D1D5DB;'>{fact_sand - plan_sand:+.2f}</td></tr>"
+    f"<tr><td style='padding: 8px; border: 1px solid #D1D5DB;'>Пластическая вязкость, мПа·с</td><td style='padding: 8px; border: 1px solid #D1D5DB;'>{plan_pv:.1f}</td><td style='padding: 8px; border: 1px solid #D1D5DB;'>{fact_pv:.1f}</td><td style='padding: 8px; border: 1px solid #D1D5DB;'>{fact_pv - plan_pv:+.1f}</td></tr>"
+    f"<tr><td style='padding: 8px; border: 1px solid #D1D5DB;'>Динамическое напряжение сдвига (ДНС), дПа</td><td style='padding: 8px; border: 1px solid #D1D5DB;'>{plan_yp:.1f}</td><td style='padding: 8px; border: 1px solid #D1D5DB;'>{fact_yp:.1f}</td><td style='padding: 8px; border: 1px solid #D1D5DB;'>{fact_yp - plan_yp:+.1f}</td></tr>"
+    f"</table>"
+    f"<p><b>Расчетная ЭЦП (ECD) по Гершелю-Балкли:</b> <span style='font-size: 15px; color: {'#EF4444' if calculated_ecd >= (p_frac-0.015) else '#1E3A8A'};'><b>{calculated_ecd:.3f} г/см³</b></span> (Допустимый предел ГРП: {p_frac:.2f} г/см³)</p>"
+    f"<p><b>Прогноз состояния статора силовой секции ВЗД:</b> <b>{stator_status}</b></p>"
+    f"<div style='background-color: {status_color}; color: white; padding: 12px; text-align: center; font-weight: bold; border-radius: 6px; font-size: 15px; margin-top: 25px;'>"
+    f"{status_text}"
+    f"</div>"
+    f"<p style='font-size: 11px; color: #6B7280; text-align: center; margin-top: 35px; border-top: 1px dashed #D1D5DB; padding-top: 10px;'>Цифровая экосистема ООО «Траектория-Сервис» • Суточный рапорт контроля параметров очистки</p>"
+    f"</div>"
+)
 
-# ВЫВОД ИСПРАВЛЕННОГО HTML С unsafe_allow_html=True
+# Очищенный вывод HTML
 st.markdown(html_report, unsafe_allow_html=True)
 
-st.info("💡 **Инструкция:** Для сохранения PDF нажмите **`Ctrl + P`**.")
-
-# Отрисовка
-st.markdown(html_report, unsafe_allow_html=True)
-st.info("💡 **Экспорт:** Нажмите `Ctrl + P` для сохранения PDF.")
+st.markdown(" ")
+st.info("💡 **Как распечатать рапорт:** Нажмите комбинацию клавиш **`Ctrl + P`**, выберите «Сохранить как PDF» для отправки акта Заказчику.")
