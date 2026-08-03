@@ -284,10 +284,17 @@ with st.expander("🔐 Реестр легитимности и Интеракт
     # Сверка ядра гидродинамики
     v_rho_base, v_yp_si = v_f_density * 1000.0, v_f_yp * 0.1
     v_theta_300, v_theta_600 = v_f_pv + v_f_yp, (2 * v_f_pv) + v_f_yp
-    # Аналитически точная калибровочная формула Гершеля-Балкли по ГОСТ ISO 10414
-    v_n_hb = 3.32 * math.log10((v_theta_600 - (v_f_yp / 5.11)) / (v_theta_300 - (v_f_yp / 5.11))) if (v_theta_300 - (v_f_yp / 5.11)) > 0 else 0.5
+    # Научно обоснованный перевод углов шкалы Fann 35 и ДНС в Паскали (СИ) по ГОСТ
+    tau_300_pa = v_theta_300 * 0.511
+    tau_600_pa = v_theta_600 * 0.511
+    tau_0_pa = v_f_yp * 0.1  # Перевод дПа в Па
+    
+    # Расчет индекса течения Гершеля-Балкли в единой размерности (Паскали)
+    if (tau_300_pa - tau_0_pa) > 0:
+        v_n_hb = 3.32 * math.log10((tau_600_pa - tau_0_pa) / (tau_300_pa - tau_0_pa))
+    else:
+        v_n_hb = 0.5
     v_n_hb = max(0.1, min(1.0, v_n_hb))
-
 
     etalon_n_hb = 0.51859
     rel_error_n = (abs(v_n_hb - etalon_n_hb) / etalon_n_hb) * 100
