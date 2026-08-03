@@ -107,7 +107,7 @@ elif loss_percent < -15.0:
 else:
     st.success("✔ Параметры в норме (СТО ИНТИ).")
     border_style = "3px solid #1E3A8A"
-    verdict_display = f'<div style="background-color:#EFF6FF; ...">👉 УСТАВКА: {target_setting:.2f} кН·м</div>'
+    verdict_display = f'<div style="background-color:#EFF6FF; ...">👉 УСТАНОВКА: {target_setting:.2f} кН·м</div>'
     status_note = "<b>СТАТУС: Допущено.</b>"
 
 # --- 6. ГЕНЕРАЦИЯ КОРПОРАТИВНОГО HTML-АКТА ---
