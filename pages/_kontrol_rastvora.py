@@ -349,48 +349,43 @@ else:
 st.markdown("---")
 
 # =========================================================================
-# БЛОК 5: ГЕНЕРАЦИЯ ЕДИНОГО ИТОГОВОГО ТЕХНОЛОГИЧЕСКОГО ОТЧЕТА
+# БЛОК 5: ГЕНЕРАЦИЯ ЕДИНОГО ИТОГОВОГО ТЕХНОЛОГИЧЕСКОГО ОТЧЕТА (ИСПРАВЛЕННЫЙ)
 # =========================================================================
 st.markdown("---")
-st.subheader("📋 Блок 5: Единый технологический отчет по контролю очистки и гидравлики")
-st.caption("Официальный бланк для интеграции в суточный рапорт супервайзера (СуCtrl+P)")
+st.subheader("📋 Блок 5: Финальный отчет по контролю очистки и гидравлики")
 
-# Проверка рисков для статуса отчета (используются переменные из блоков 2-4)
-is_critical = (fact_sand > MAX_SAND_CONTENT) or \
-              ((fact_visc > MAX_FUNNEL_VISC or fact_yp > MAX_YP or fact_pv > MAX_PV) and q_pump_max) or \
-              (calculated_ecd >= (p_frac - 0.015))
+# Расчет статуса (логика из Блоков 2-4)
+is_critical_report = (fact_sand > MAX_SAND_CONTENT) or \
+                     ((fact_visc > MAX_FUNNEL_VISC or fact_yp > MAX_YP or fact_pv > MAX_PV) and q_pump_max) or \
+                     (calculated_ecd >= (p_frac - 0.015))
 
-report_status_text = "🚨 ВНИМАНИЕ: ТЕХНОЛОГИЧЕСКИЙ ВЫХОД ЗА ПРЕДЕЛЫ НОРМЫ!" if is_critical else "✔ УСПЕШНО ВЕРИФИЦИРОВАНО."
-report_status_color = "#EF4444" if is_critical else "#10B981"
+status_text = "🚨 ВНИМАНИЕ: ВЫХОД ЗА ПРЕДЕЛЫ НОРМЫ!" if is_critical_report else "✔ УСПЕШНО ВЕРИФИЦИРОВАНО."
+status_color = "#EF4444" if is_critical_report else "#10B981"
+stator_status = f"Ускоренный износ (x{wear_factor:.2f}). Отказ через {predicted_hours_to_failure:.1f} ч." if wear_factor > 1.0 else "В норме"
 
-# HTML-шаблон отчета с использованием f-строк для подстановки данных
+# HTML-шаблон отчета (улучшенный)
 html_report = f"""
-<div style='border: 3px solid #1E3A8A; padding: 25px; border-radius: 12px; background-color: #FAFAFA; font-family: Arial, sans-serif; color: #333333; max-width: 1000px; margin: 0 auto;'>
-    <h2 style='text-align: center; color: #1E3A8A;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>
-    <h4 style='text-align: center; color: #4B5563;'>КОМПЛЕКСНЫЙ АКТ АУДИТА БУРОВОГО РАСТВОРА И ГИДРАВЛИКИ</h4>
-    <hr>
+<div style='border: 2px solid #1E3A8A; padding: 20px; border-radius: 10px; font-family: Arial; background-color: #F9FAFB;'>
+    <h3 style='text-align: center; color: #1E3A8A;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»: ОТЧЕТ</h3>
+    <p><b>Инженер:</b> {engineer_name} | <b>Дата:</b> {current_time}</p>
     
-    <!-- Данные -->
-    <p><b>Дата/Время:</b> {current_time} | <b>Скважина:</b> {well_number}</p>
-    
-    <!-- Сводная таблица параметров (План/Факт) -->
-    <table style='width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;'>
-        <tr style='background-color: #E5E7EB;'><th>Параметр</th><th>План</th><th>Факт</th><th>Отклон.</th></tr>
-        <tr><td>Плотность, г/см³</td><td>{plan_density:.2f}</td><td>{fact_density:.2f}</td><td>{fact_density - plan_density:+.2f}</td></tr>
-        <tr><td>Усл. вязкость, с</td><td>{plan_visc:.1f}</td><td>{fact_visc:.1f}</td><td>{fact_visc - plan_visc:+.1f}</td></tr>
-        <tr><td>Содержание песка, %</td><td>{plan_sand:.2f}</td><td>{fact_sand:.2f}</td><td>{fact_sand - plan_sand:+.2f}</td></tr>
+    <table style='width: 100%; border-collapse: collapse; font-size: 14px;'>
+        <tr style='background-color: #E5E7EB;'><th style='padding: 5px; border: 1px solid #D1D5DB;'>Параметр</th><th style='padding: 5px; border: 1px solid #D1D5DB;'>Факт</th></tr>
+        <tr><td>ЭЦП (ECD), г/см³</td><td>{calculated_ecd:.3f}</td></tr>
+        <tr><td>Песок/Твердая фаза, %</td><td>{fact_sand:.2f}</td></tr>
+        <tr><td>Износ статора</td><td>{stator_status}</td></tr>
     </table>
-
-    <!-- Гидравлика и износ -->
-    <p><b>ECD:</b> {calculated_ecd:.3f} г/см³ (Лимит: {p_frac:.2f})</p>
-    <p><b>Ресурс ВЗД:</b> {"Снижен" if fact_sand > MAX_SAFE_SAND else "Норма"}</p>
-
-    <!-- Итог -->
-    <div style='background-color: {report_status_color}; color: white; padding: 10px; text-align: center; font-weight: bold;'>
-        {report_status_text}
+    
+    <div style='background-color: {status_color}; color: white; padding: 10px; text-align: center; margin-top: 15px; font-weight: bold;'>
+        {status_text}
     </div>
 </div>
 """
+
+# ВЫВОД ИСПРАВЛЕННОГО HTML С unsafe_allow_html=True
+st.markdown(html_report, unsafe_allow_html=True)
+
+st.info("💡 **Инструкция:** Для сохранения PDF нажмите **`Ctrl + P`**.")
 
 # Отрисовка
 st.markdown(html_report, unsafe_allow_html=True)
