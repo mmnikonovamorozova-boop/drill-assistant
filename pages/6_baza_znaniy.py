@@ -51,7 +51,6 @@ def download_public_file(public_key, file_path):
         return None
     except Exception:
         return None
-        
 # Создаем вкладки (блоки) на основе нашего словаря BLOCKS
 tabs = st.tabs(list(BLOCKS.keys()))
 for tab, (block_name, public_link) in zip(tabs, BLOCKS.items()):
@@ -72,9 +71,9 @@ for tab, (block_name, public_link) in zip(tabs, BLOCKS.items()):
                 ["Пожалуйста, выберите документ..."] + file_names,
                 key=f"sel_{block_name}"
             )
-
-                    if selected_file_name != "Пожалуйста, выберите документ...":
-                       selected_file_obj = next((f for f in files if f["name"] == selected_file_name), None)
+            
+            if selected_file_name != "Пожалуйста, выберите документ...":
+                selected_file_obj = next((f for f in files if f["name"] == selected_file_name), None)
                 if selected_file_obj:
                     with st.spinner("🔒 Безопасная загрузка..."):
                         pdf_bytes = download_public_file(public_link, selected_file_obj["path"])
@@ -89,12 +88,9 @@ for tab, (block_name, public_link) in zip(tabs, BLOCKS.items()):
                                 st.image(img_byte_arr.getvalue(), use_container_width=True)
                         except Exception:
                             st.error("🚨 Ошибка обработки PDF.")
-                        else:
-                            st.error("🚨 Ошибка загрузки.")
+                    else:
+                        st.error("🚨 Ошибка загрузки.")
 
         st.markdown("---")
-
-st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px;'>ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
-
 
 st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px;'>ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
