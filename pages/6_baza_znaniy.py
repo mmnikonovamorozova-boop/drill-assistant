@@ -128,5 +128,5 @@ else:
                 st.error("🚨 Ошибка загрузки.")
 
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px;'>ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший инженер по качеству ОСМК Никонова-Морозова М.М. • Верифицировано по стандартам СТО ИНТИ • Цифровая экосистема ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
 
