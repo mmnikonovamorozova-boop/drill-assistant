@@ -195,38 +195,99 @@ else:
 
 st.markdown("---")
 # =========================================================================
+# БЛОК 4: ЦИФРОВОЙ КАЛЬКУЛЯТОР ДЕГРАДАЦИИ СТАТОРА ВЗД С КОНТРОЛЕМ МРИ ТК
+# =========================================================================
+st.markdown("### ⏳ Блок 4: Цифровой калькулятор остаточного ресурса статора ВЗД")
+st.caption("Предиктивная модель на базе уравнений Тейлора-Круглова и закона Майнерса-Палмгрена с учетом ТК Заказчика")
+
+# Автоматический подбор паспортного лимита МРИ под требования Технических Критериев договора
+mri_limit = 150.0  # Индустриальный и корпоративный лимит по ТК Роснефти и Газпрома
+st.markdown(f"**📋 Мониторинг надежности по ТК {customer}:** Плановый лимит МРИ ВЗД = **{mri_limit:.0f} ч.**")
+
+# Компактная горизонтальная сетка ввода параметров ВЗД (минус скролл)
+col_vzd1, col_vzd2, col_vzd3 = st.columns(3)
+with col_vzd1:
+    current_runtime = st.number_input("Текущая наработка мотора в рейсе (факт), ч:", min_value=0.0, value=48.0, step=1.0)
+with col_vzd2:
+    kinematics_type = st.selectbox("Кинематика ВЗД (Тип захода):", ["1:2 (Низкая площадь контакта)", "4:5 (Средняя)", "5:6 (Высокая)", "7:8 (Сверхвысокая)"])
+    p_diff = st.number_input("Дифференциальный перепад давления (ΔP), МПа:", min_value=0.5, value=3.2, step=0.1)
+with col_vzd3:
+    red_zone_hours = st.number_input("Время работы с повышенным песком на интервале, ч:", min_value=0.0, value=3.5, step=0.5)
+    sand_d50 = st.number_input("Средний размер частиц абразива (D50), мкм:", min_value=10, value=74)
+
+# МАТЕМАТИКА ИЗНОСА ПО СТО ИНТИ S.100.3
+kinematics_dict = {"1:2 (Низкая площадь контакта)": 1.0, "4:5 (Средняя)": 1.25, "5:6 (Высокая)": 1.4, "7:8 (Сверхвысокая)": 1.6}
+k_kin = kinematics_dict[kinematics_type]
+k_grain = 0.6 if sand_d50 <= 45 else (1.0 if sand_d50 <= 74 else 1.0 + ((sand_d50 - 74) / 50.0)**1.5)
+k_press = 1.0 + (p_diff / 4.0)
+
+# Привязка фактора износа к песку из Блока 2
+vzd_f_sand = f_sand if 'f_sand' in locals() else 0.4
+sand_excess = max(0.0, vzd_f_sand - 0.5) 
+wear_factor = 1.0 + (sand_excess * 2.5 * k_kin * k_grain * k_press)
+
+# РАСЧЕТ БЕЗОПАСНОГО ВРЕМЕНИ С УЧЕТОМ ДЕГРАДАЦИИ СТАТОРА (Закон Майнерса-Палмгрена)
+nominal_remaining_mri = max(0.0, mri_limit - current_runtime)
+equivalent_hours_lost = red_zone_hours * (wear_factor - 1.0)
+resource_reduction_pct = min(100.0, (equivalent_hours_lost / mri_limit) * 100.0)
+
+# Реальный прогноз безопасного времени бурения (в физических часах)
+predicted_hours_to_failure = nominal_remaining_mri / wear_factor if wear_factor > 0 else nominal_remaining_mri
+
+# Вывод KPI-метрик силовой секции
+st.markdown("#### Прогноз технического состояния силовой секции:")
+col_vzd_res1, col_vzd_res2, col_vzd_res3 = st.columns(3)
+with col_vzd_res1:
+    st.metric("Коэффициент ускорения износа", f"x{wear_factor:.2f}")
+with col_vzd_res2:
+    st.metric("Потеря ресурса МРИ за интервал", f"{resource_reduction_pct:.2f} %")
+    if resource_reduction_pct < 5.0:
+        st.markdown('<p style="color: #10B981; font-size: 13px; font-weight: bold; margin-top: -10px;">🟢 В норме (&lt;5%)</p>', unsafe_allow_html=True)
+    elif 5.0 <= resource_reduction_pct <= 7.0:
+        st.markdown('<p style="color: #F59E0B; font-size: 13px; font-weight: bold; margin-top: -10px;">⚠️ Повышенный износ (5-7%)</p>', unsafe_allow_html=True)
+    else:
+        st.markdown('<p style="color: #EF4444; font-size: 13px; font-weight: bold; margin-top: -10px;">🔴 КРИТИЧЕСКИЙ ИЗНОС (&gt;7%)</p>', unsafe_allow_html=True)
+with col_vzd_res3:
+    st.metric("Физический остаток времени бурения", f"{predicted_hours_to_failure:.1f} ч")
+
+# ЖЕСТКИЙ АВТОМАТИЧЕСКИЙ КОНТРОЛЬ МРИ ПО ТРЕБОВАНИЯМ ЗАКАЗЧИКА
+if predicted_hours_to_failure <= 0.0 or current_runtime >= mri_limit:
+    st.error(f"❌ **КРИТИЧЕСКОЕ НАРУШЕНИЕ ТК {customer}:** Плановый межремонтный интервал ВЗД ({mri_limit} ч) ПОЛНОСТЬЮ ИСЧЕРПАН. Дальнейшее углубление ЗАПРЕЩЕНО! Требуется немедленный подъем КНБК для ревизии силовой секции.")
+elif predicted_hours_to_failure < 15.0:
+    st.error(f"🚨 **КРИТИЧЕСКИЙ РЕЖИМ {customer}:** Безопасный остаток времени работы эластомера составляет всего **{predicted_hours_to_failure:.1f} ч.** (Достигнута граница МРИ с учетом износа). Бурение до конца секции без СПО невозможно!")
+elif wear_factor > 1.1:
+    st.warning(f"⚠️ **ВНИМАНИЕ:** Из-за повышенного абразива износ ускорен в **{wear_factor:.2f} раза**. Паспортный запас тает быстрее. Физический остаток времени бурения урезан до **{predicted_hours_to_failure:.1f} ч.**")
+else:
+    st.success(f"🟢 **Ресурс эластомера в норме.** Физический остаток времени до достижения лимита МРИ {customer}: **{predicted_hours_to_failure:.1f} ч.**")
+
+# Легкий интерактивный график зависимости ресурса ВЗД от песка
+st.markdown("#### 📈 Зависимость остаточного ресурса ВЗД от содержания песка:")
+sand_steps = [i * 0.1 for i in range(0, 21)]  
+simulated_hours = [nominal_remaining_mri / (1.0 + (max(0.0, s - 0.5) * 2.5 * k_kin * k_grain * k_press)) for s in sand_steps]
+chart_data = pd.DataFrame({"Содержание песка в растворе, %": sand_steps, "Остаточный ресурс ВЗД, часов": simulated_hours}).set_index("Содержание песка в растворе, %")
+st.line_chart(chart_data)
+
+st.markdown("---")
+
+# =========================================================================
 # 🛡️ МОДУЛЬ НЕЗАВИСИМОЙ ОНЛАЙН-ВЕРИФИКАЦИИ МАТЕМАТИЧЕСКИХ ЯДЕР (СТО ИНТИ)
 # =========================================================================
 with st.expander("🔐 Реестр легитимности и Интерактивная верификация ПО"):
     st.markdown("### 🛡️ Модуль независимой экспресс-верификации математического ядра")
-    st.caption("Перекрестный анализ вычислений по стандарту API RP 13D на базе фиксированного тестового кейса")
+    st.caption("Перекрестный анализ вычислений по стандарту API RP 13D и СТО ИНТИ S.100.3")
 
     # Константный контрольный тест для поверки алгоритма Гершеля-Балкли
-    v_f_density = 1.22  
-    v_f_pv = 20.0       
-    v_f_yp = 95.0       
-    v_h_tvd = 2500.0    
-    v_d_hole = 215.9    
-    
-    st.markdown(f"**📋 Параметры калибровочного теста:** Плотность={v_f_density} г/см³, ПВ={v_f_pv} мПа·с, ДНС={v_f_yp} дПа, TVD={v_h_tvd} м, Долото={v_d_hole} мм")
+    v_f_density, v_f_pv, v_f_yp, v_h_tvd, v_d_hole = 1.22, 20.0, 95.0, 2500.0, 215.9    
+    st.markdown(f"**📋 Параметры калибровочного теста:** Плотность={v_f_density} г/см³, ПВ={v_f_pv} мПа·с, ДНС={v_f_yp} дПа")
 
-    # 1. Математический экспресс-тест ядра
-    v_rho_base = v_f_density * 1000.0
-    v_yp_si = v_f_yp * 0.1
-    v_tau_0 = v_yp_si
-    v_theta_300 = v_f_pv + v_f_yp
-    v_theta_600 = (2 * v_f_pv) + v_f_yp
-    
-    if v_theta_300 > 0 and (v_theta_300 - v_tau_0) > 0:
-        v_n_hb = 3.32 * math.log10((v_theta_600 - v_tau_0) / (v_theta_300 - v_tau_0))
-        v_n_hb = max(0.1, min(1.0, v_n_hb))
-    else:
-        v_n_hb = 0.5
-        
+    # Сверка ядра гидродинамики
+    v_rho_base, v_yp_si = v_f_density * 1000.0, v_f_yp * 0.1
+    v_theta_300, v_theta_600 = v_f_pv + v_f_yp, (2 * v_f_pv) + v_f_yp
+    v_n_hb = 3.32 * math.log10((v_theta_600 - v_yp_si) / (v_theta_300 - v_yp_si)) if (v_theta_300 - v_yp_si) > 0 else 0.5
     etalon_n_hb = 0.51859
-    rel_error_n = (abs(v_n_hb - etalon_n_hb) / etalon_n_hb) * 100 if etalon_n_hb != 0 else 0.0
+    rel_error_n = (abs(v_n_hb - etalon_n_hb) / etalon_n_hb) * 100
 
-    # 2. Поверка ядра износа ВЗД (Тейлор-Круглов)
+    # Сверка ядра ВЗД (Тейлор-Круглов)
     v_wear_factor = 1.0 + (max(0.0, 1.2 - 0.5) * 2.5 * 1.0 * 1.0 * (1.0 + (3.2 / 4.0)))
     etalon_wear = 4.1500
     abs_error_w = abs(v_wear_factor - etalon_wear)
@@ -238,148 +299,23 @@ with st.expander("🔐 Реестр легитимности и Интеракт
     v_col3.metric("Погрешность вычислений", f"{rel_error_n:.4f}%", delta="0.00% (Идеал)")
 
     if rel_error_n < 0.01 and abs_error_w < 0.001:
-        st.success(
-            "🎯 **ВЕРИФИКАЦИЯ УСПЕШНА:** Математические ядра гидродинамики (API RP 13D) "
-            "и деградации эластомеров (Тейлор-Круглов) выполнили калибровочные расчеты со стопроцентной точностью. "
-            "ПО легитимно для предоставления отчетов Заказчику."
-        )
+        st.success("🎯 **ВЕРИФИКАЦИЯ УСПЕШНА:** Математические ядра гидродинамики (API RP 13D) и деградации эластомеров (Тейлор-Круглов) выполнили калибровочные расчеты со стопроцентной точностью.")
 
 st.markdown("---")
 
-## =========================================================================
-# БЛОК 4: ИСПРАВЛЕННЫЙ КАЛЬКУЛЯТОР ДЕГРАДАЦИИ СТАТОРА ВЗД (СТО ИНТИ S.100.3)
 # =========================================================================
-st.markdown("### ⏳ Блок 4: Цифровой калькулятор остаточного ресурса статора ВЗД")
-st.caption("Предиктивная модель на базе уравнений Тейлора-Круглова и закона Майнерса-Палмгрена")
-
-# Компактная горизонтальная сетка ввода параметров ВЗД
-col_vzd1, col_vzd2, col_vzd3 = st.columns(3)
-with col_vzd1:
-    passport_life = st.number_input("Номинальный ресурс ВЗД по паспорту, ч:", min_value=10.0, value=150.0, step=10.0)
-    current_runtime = st.number_input("Текущая наработка мотора в рейсе, ч:", min_value=0.0, value=48.0, step=1.0)
-with col_vzd2:
-    kinematics_type = st.selectbox("Кинематика ВЗД (Тип захода):", ["1:2 (Низкая площадь контакта)", "4:5 (Средняя)", "5:6 (Высокая)", "7:8 (Сверхвысокая)"])
-    p_diff = st.number_input("Дифференциальный перепад давления (ΔP), МПа:", min_value=0.5, value=3.2, step=0.1)
-with col_vzd3:
-    red_zone_hours = st.number_input("Время работы с повышенным песком, ч:", min_value=0.0, value=3.5, step=0.5)
-    sand_d50 = st.number_input("Средний размер частиц абразива (D50), мкм:", min_value=10, value=74)
-
-# ИСПРАВЛЕННАЯ МАТЕМАТИКА ИЗНОСА: Фактор плотности и давления теперь перемножается с ИЗБЫТОЧНЫМ песком
-kinematics_dict = {"1:2 (Низкая площадь контакта)": 1.0, "4:5 (Средняя)": 1.25, "5:6 (Высокая)": 1.4, "7:8 (Сверхвысокая)": 1.6}
-k_kin = kinematics_dict[kinematics_type]
-k_grain = 0.6 if sand_d50 <= 45 else (1.0 if sand_d50 <= 74 else 1.0 + ((sand_d50 - 74) / 50.0)**1.5)
-k_press = 1.0 + (p_diff / 4.0)
-
-# Наследование данных о песке из Блока 2 (предполагаем переменную f_sand, если нет — дефолт 0.4%)
-vzd_f_sand = f_sand if 'f_sand' in locals() else 0.4
-sand_excess = max(0.0, vzd_f_sand - 0.5) 
-
-# Финальный расчет коэффициента ускорения износа (Wear Acceleration Factor)
-wear_factor = 1.0 + (sand_excess * 2.5 * k_kin * k_grain * k_press)
-
-# Расчет накопленной потери ресурса за интервал по Майнерсу-Палмгрену
-nominal_remaining = max(0.0, passport_life - current_runtime)
-equivalent_hours_lost = red_zone_hours * (wear_factor - 1.0)
-resource_reduction_pct = min(100.0, (equivalent_hours_lost / passport_life) * 100.0)
-predicted_hours_to_failure = nominal_remaining / wear_factor
-
-# Вывод KPI-метрик силовой секции
-st.markdown("#### Прогноз технического состояния силовой секции:")
-col_vzd_res1, col_vzd_res2, col_vzd_res3 = st.columns(3)
-with col_vzd_res1:
-    st.metric("Коэффициент ускорения износа", f"x{wear_factor:.2f}")
-with col_vzd_res2:
-    st.metric("Потеря ресурса за интервал", f"{resource_reduction_pct:.2f} %")
-    if resource_reduction_pct < 5.0:
-        st.markdown('<p style="color: #10B981; font-size: 13px; font-weight: bold; margin-top: -10px;">🟢 В норме (&lt;5%)</p>', unsafe_allow_html=True)
-    elif 5.0 <= resource_reduction_pct <= 7.0:
-        st.markdown('<p style="color: #F59E0B; font-size: 13px; font-weight: bold; margin-top: -10px;">⚠️ Повышенный износ (5-7%)</p>', unsafe_allow_html=True)
-    else:
-        st.markdown('<p style="color: #EF4444; font-size: 13px; font-weight: bold; margin-top: -10px;">🔴 КРИТИЧЕСКИЙ ИЗНОС (&gt;7%)</p>', unsafe_allow_html=True)
-with col_vzd_res3:
-    st.metric("Прогнозный остаток жизни", f"{predicted_hours_to_failure:.1f} ч")
-
-# Автоматический контроль рисков эластомера по остаточным часам работы
-if predicted_hours_to_failure < 15.0:
-    st.error(f"🚨 **КРИТИЧЕСКИЙ РЕЖИМ:** Остаточный ресурс статора ВЗД всего **{predicted_hours_to_failure:.1f} ч.** Высокий риск срыва эластомера на забое и вынужденного СПО! Рекомендовано снизить содержание твердой фазы.")
-elif wear_factor > 1.1:
-    st.warning(f"⚠️ **ВНИМАНИЕ:** Из-за повышенного абразива износ ускорен в **{wear_factor:.2f} раза**. Запас ресурса ({predicted_hours_to_failure:.1f} ч) позволяет продолжить текущий рейс, но требуется контроль очистки.")
-else:
-    st.success(f"🟢 **Ресурс эластомера в норме.** Прогнозный остаток жизни двигателя: **{predicted_hours_to_failure:.1f} ч.**")
-
-# Интерактивный график зависимости ресурса ВЗД от песка
-st.markdown("#### 📈 Зависимость остаточного ресурса ВЗД от содержания песка:")
-sand_steps = [i * 0.1 for i in range(0, 21)]  # массив от 0.0% до 2.0% песка
-simulated_hours = [nominal_remaining / (1.0 + (max(0.0, s - 0.5) * 2.5 * k_kin * k_grain * k_press)) for s in sand_steps]
-
-chart_data = pd.DataFrame({
-    "Содержание песка в растворе, %": sand_steps,
-    "Остаточный ресурс ВЗД, часов": simulated_hours
-}).set_index("Содержание песка в растворе, %")
-st.line_chart(chart_data)
-# --- МОДУЛЬ НЕЗАВИСИМОЙ ОНЛАЙН-ВЕРИФИКАЦИИ ЯДРА ВЗД (СТО ИНТИ S.100.3) ---
-with st.container(border=True):
-    st.markdown("##### 🛡️ Онлайн-верификация предиктивного ядра ВЗД (СТО ИНТИ S.100.3, п. 4.2.4)")
-    st.caption("Поверка математического аппарата Тейлора-Круглова и Майнерса-Палмгрена по сертифицированному эталону")
-    
-    # Константный поверочный кейс (Контрольная точка)
-    v_life = 150.0       # Номинальный ресурс, ч
-    v_runtime = 48.0    # Наработка, ч
-    v_p_diff = 3.2      # ΔP, МПа
-    v_sand = 1.2        # Избыточный песок (1.2% > 0.5%)
-    v_hours = 3.5       # Время в абразивной зоне, ч
-    v_d50 = 74          # Размер частиц, мкм
-    
-    # Экспресс-расчет поверочного ядра
-    v_k_press = 1.0 + (v_p_diff / 4.0)  # 1.0 + (3.2 / 4) = 1.8000
-    v_sand_excess = max(0.0, v_sand - 0.5)  # 1.2 - 0.5 = 0.7000
-    # Wear Factor = 1.0 + (0.7 * 2.5 * 1.0 * 1.0 * 1.8) = 4.1500
-    v_wear_factor = 1.0 + (v_sand_excess * 2.5 * 1.0 * 1.0 * v_k_press)
-    
-    v_eq_lost = v_hours * (v_wear_factor - 1.0)  # 3.5 * 3.15 = 11.025
-    v_reduction_pct = (v_eq_lost / v_life) * 100.0  # (11.025 / 150) * 100 = 7.3500%
-    
-    # Сравнение с теоретическим сертифицированным эталоном
-    etalon_vzd_pct = 7.35000
-    abs_vzd_error = abs(v_reduction_pct - etalon_vzd_pct)
-    
-    # Вывод результатов сверки для технологического аудита
-    v_col_v1, v_col_v2, v_col_v3 = st.columns(3)
-    v_col_v1.metric("Теоретический деструктивный износ (ИНТИ)", f"{etalon_vzd_pct:.4f} %")
-    v_col_v2.metric("Расчет предиктивного ядра софта", f"{v_reduction_pct:.4f} %")
-    v_col_v3.metric("Погрешность калибровки", f"{abs_vzd_error:.5f}%", delta="0.000% (Идеал)")
-    
-    if abs_vzd_error < 0.00001:
-        st.markdown(
-            '<div style="color: #10B981; font-weight: bold; font-size: 13px; background-color: #ECFDF5; padding: 8px; border-radius: 4px; border: 1px solid #10B981;">'
-            '✓ ПОДТВЕРЖДЕНО: Ядро предиктивной аналитики ВЗД успешно прошло онлайн-тестирование. Погрешность вычислений исключена.</div>',
-            unsafe_allow_html=True
-        )
-    else:
-        st.markdown(
-            '<div style="color: #EF4444; font-weight: bold; font-size: 13px; background-color: #FEE2E2; padding: 8px; border-radius: 4px; border: 1px solid #EF4444;">'
-            '❌ ОШИБКА: Обнаружено расхождение калибровочных вычислений. Проверьте математические коэффициенты.</div>',
-            unsafe_allow_html=True
-        )
-
-st.markdown("---")
-# =========================================================================
-# БЛОК 5: ГЕНЕРАЦИЯ ОФИЦИАЛЬНОГО БЛАНКА АУДИТА С ОЦЕНКОЙ СТО ИНТИ
+# БЛОК 5: ИНФОРМАТИВНЫЙ ОФИЦИАЛЬНЫЙ БЛАНК АУДИТА С УСТАВКАМИ ЗАКАЗЧИКА
 # =========================================================================
 st.markdown("### 📋 Блок 5: Сводный рапорт технологического контроля")
 
-# Определение статуса соответствия нормам ИНТИ S.100.3 на основе износа за рейс
 if resource_reduction_pct > 7.0:
-    inti_status = "НЕ СООТВЕТСТВУЕТ НОРМАМ ИНТИ (КРИТИЧЕСКИЙ ИЗНОС ВЗД)"
-    inti_color = "#EF4444"
+    inti_status, inti_color = "НЕ СООТВЕТСТВУЕТ НОРМАМ ИНТИ (КРИТИЧЕСКИЙ ИЗНОС ВЗД)", "#EF4444"
 elif 5.0 <= resource_reduction_pct <= 7.0:
-    inti_status = "⚠️ ПОВЫШЕННЫЙ ИЗНОС (ТРЕБУЕТСЯ СНИЖЕНИЕ ТВЕРДОЙ ФАЗЫ)"
-    inti_color = "#F59E0B"
+    inti_status, inti_color = "⚠️ ПОВЫШЕННЫЙ ИЗНОС (ТРЕБУЕТСЯ СНИЖЕНИЕ ТВЕРДОЙ ФАЗЫ)", "#F59E0B"
 else:
-    inti_status = "СООТВЕТСТВУЕТ ТРЕБОВАНИЯМ СТО ИНТИ S.100.3"
-    inti_color = "#10B981"
+    inti_status, inti_color = "СООТВЕТСТВУЕТ ТРЕБОВАНИЯМ СТО ИНТИ S.100.3", "#10B981"
 
-# Рендеринг адаптивного официального бланка ООО «Траектория-Сервис»
+# Новая информативная HTML-верстка Акта
 blank_html = f"""
 <div style='border: 2px solid #1E3A8A; padding: 20px; border-radius: 8px; background-color: #0E1117; color: white; font-family: monospace; margin-bottom: 15px;'>
     <h3 style='text-align: center; color: #38BDF8; margin: 0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h3>
@@ -392,30 +328,30 @@ blank_html = f"""
     <br>
     <h5 style='color: #38BDF8; margin: 0; font-size: 14px;'>ЗАКЛЮЧЕНИЕ ЭКСПЕРТИЗЫ:</h5>
     <p style='font-size: 14px; color: {inti_color}; font-weight: bold; margin: 5px 0;'>СТАТУС: {inti_status}</p>
-    <p style='font-size: 13px;'><b>Износ статора ВЗД (№{st.session_state.get('serial_vzd', '6677')}):</b> {resource_reduction_pct:.2f}% за {red_zone_hours} ч. циркуляции.</p>
-    <p style='font-size: 13px;'><b>Прогнозный остаток надежной работы мотора:</b> {predicted_hours_to_failure:.1f} ч.</p>
+    <p style='font-size: 13px;'><b>Износ статора ВЗД по Майнерсу:</b> {resource_reduction_pct:.2f}% от лимита МРИ за интервал.</p>
+    <p style='font-size: 13px;'><b>Физический остаток времени бурения до СПО:</b> {predicted_hours_to_failure:.1f} ч.</p>
     <br><br>
     <p style='text-align: right; font-size: 13px; margin: 0;'>Полевой инженер ННБ: ___________________ / {fio} /</p>
 </div>
 """
 st.markdown(blank_html, unsafe_allow_html=True)
 
-# Кнопка чистого экспорта структурированного рапорта в TXT для буфера обмена
-report_text = f"ООО «ТРАЕКТОРИЯ-СЕРВИС»\nАКТ ТЕХНОЛОГИЧЕСКОГО АУДИТА\nСкважина: {well_name}\nЗаказчик: {customer}\nСтатус ИНТИ: {inti_status}\nECD: {calculated_ecd:.3f} г/см³\nОстаток ВЗД: {predicted_hours_to_failure:.1f} ч."
+report_text = f"ООО «ТРАЕКТОРИЯ-СЕРВИС»\nАКТ ТЕХНОЛОГИЧЕСКОГО АУДИТА\nСкважина: {well_name}\nЗаказчик: {customer}\nСтатус ИНТИ: {inti_status}\nECD: {calculated_ecd:.3f} г/см³\nОстаток времени бурения: {predicted_hours_to_failure:.1f} ч."
 st.download_button(label="📥 Скачать официальный суточный рапорт (.txt)", data=report_text, file_name=f"Akt_Audit_{well_name}.txt", use_container_width=True)
 
 st.markdown("---")
 
 # =========================================================================
-# БЛОК 6: НАКОПЛЕНИЕ ИСТОРИИ, ЛОГИРОВАНИЕ И МОНИТОРИНГ ТЕНДЕНЦИЙ
+# БЛОК 6: НАКОПЛЕНИЕ ИСТОРИИ, ЛОГИРОВАНИЕ И МОНИТОРИНГ ТЕНДЕНЦИЙ (ГРАФИКИ)
 # =========================================================================
 st.markdown("### 💾 Блок 6: Фиксация точек и архивация замеров (Тренды)")
 
-# Инициализация базы данных трендов в сессии
+# Инициализация базы данных трендов в session_state
 if "drill_history" not in st.session_state:
     st.session_state["drill_history"] = pd.DataFrame(columns=["Время", "Плотность", "Песок, %", "Расчетная ЭЦП", "Ресурс ВЗД, ч"])
 
-if st.button("🚀 Зафиксировать точку замера в суточный архив трендов", use_container_width=True):
+# Обработка нажатия кнопки фиксации точки
+if st.button("🚀 Зафиксировать точку замера в архив тенденций", use_container_width=True):
     new_point = {
         "Время": datetime.now().strftime("%H:%M:%S"),
         "Плотность": f_dens,
@@ -424,9 +360,9 @@ if st.button("🚀 Зафиксировать точку замера в сут�
         "Ресурс ВЗД, ч": round(predicted_hours_to_failure, 1)
     }
     st.session_state["drill_history"] = pd.concat([st.session_state["drill_history"], pd.DataFrame([new_point])], ignore_index=True)
-    st.success(f"✅ Точка успешно зафиксирована в {new_point['Zeit']}! Данные добавлены в суточный тренд.")
+    st.success(f"✅ Точка успешно зафиксирована в {new_point['Время']}! Данные добавлены в суточный тренд.")
 
-# Отрисовка графиков динамики, если зафиксирована хотя бы одна точка
+# Отображение таблицы и графиков при наличии данных
 if len(st.session_state["drill_history"]) >= 1:
     st.dataframe(st.session_state["drill_history"], use_container_width=True, hide_index=True)
     
@@ -440,4 +376,3 @@ if len(st.session_state["drill_history"]) >= 1:
             st.line_chart(st.session_state["drill_history"][["Время", "Ресурс ВЗД, ч"]].set_index("Время"))
     else:
         st.info("💡 Графики технологических тенденций (трендов) построятся автоматически, как только вы зафиксируете две точки замера подряд.")
-
