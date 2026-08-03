@@ -363,148 +363,81 @@ with st.container(border=True):
         )
 
 st.markdown("---")
-
 # =========================================================================
-# 🛡️ МОДУЛЬ НЕЗАВИСИМОЙ ОНЛАЙН-ВЕРИФИКАЦИИ МАТЕМАТИЧЕСКИХ ЯДЕР (Стиль УМК)
+# БЛОК 5: ГЕНЕРАЦИЯ ОФИЦИАЛЬНОГО БЛАНКА АУДИТА С ОЦЕНКОЙ СТО ИНТИ
 # =========================================================================
-with st.expander("🔐 Реестр легитимности и Интерактивная верификация ПО"):
-    st.markdown("### 🛡️ Модуль независимой экспресс-верификации математического ядра")
-    st.caption("Перекрестный анализ вычислений по стандарту API RP 13D на базе фиксированного тестового кейса")
+st.markdown("### 📋 Блок 5: Сводный рапорт технологического контроля")
 
-    # Константный контрольный тест для поверки алгоритма Гершеля-Балкли
-    v_f_density = 1.22  # г/см³
-    v_f_pv = 20.0       # мПа·с
-    v_f_yp = 95.0       # дПа
-    v_h_tvd = 2500.0    # м
-    v_d_hole = 215.9    # мм
-    st.markdown(f"**📋 Параметры калибровочного теста:** Плотность={v_f_density} г/см³, ПВ={v_f_pv} мПа·с, ДНС={v_f_yp} дПа, TVD={v_h_tvd} м, Долото={v_d_hole} мм")
-    # 1. Математический экспресс-тест ядра
-    v_rho_base = v_f_density * 1000.0
-    v_yp_si = v_f_yp * 0.1
-    v_tau_0 = v_yp_si
-    v_theta_300 = v_f_pv + v_f_yp
-    v_theta_600 = (2 * v_f_pv) + v_f_yp
-    
-    # Расчет индекса течения для калибровочного теста
-    if v_theta_300 > 0 and (v_theta_300 - v_tau_0) > 0:
-        v_n_hb = 3.32 * math.log10((v_theta_600 - v_tau_0) / (v_theta_300 - v_tau_0))
-        v_n_hb = max(0.1, min(1.0, v_n_hb))
-    else:
-        v_n_hb = 0.5
-        
-    # Сравнение с эталонным сертифицированным значением (n = 0.5186 для данных параметров)
-    etalon_n_hb = 0.51859
-    abs_error_n = abs(v_n_hb - etalon_n_hb)
-    rel_error_n = (abs_error_n / etalon_n_hb) * 100 if etalon_n_hb != 0 else 0.0
+# Определение статуса соответствия нормам ИНТИ S.100.3 на основе износа за рейс
+if resource_reduction_pct > 7.0:
+    inti_status = "НЕ СООТВЕТСТВУЕТ НОРМАМ ИНТИ (КРИТИЧЕСКИЙ ИЗНОС ВЗД)"
+    inti_color = "#EF4444"
+elif 5.0 <= resource_reduction_pct <= 7.0:
+    inti_status = "⚠️ ПОВЫШЕННЫЙ ИЗНОС (ТРЕБУЕТСЯ СНИЖЕНИЕ ТВЕРДОЙ ФАЗЫ)"
+    inti_color = "#F59E0B"
+else:
+    inti_status = "СООТВЕТСТВУЕТ ТРЕБОВАНИЯМ СТО ИНТИ S.100.3"
+    inti_color = "#10B981"
 
-    # 2. Поверка ядра износа ВЗД (Тейлор-Круглов)
-    # При фикс. параметрах: песок=1.2% (>0.5), k_kin=1.0, k_grain=1.0, k_press=1.8 (P=3.2)
-    # wear_factor = 1.0 + (0.7 * 2.5 * 1.0 * 1.0 * 1.8) = 4.15
-    v_wear_factor = 1.0 + (max(0.0, 1.2 - 0.5) * 2.5 * 1.0 * 1.0 * (1.0 + (3.2 / 4.0)))
-    etalon_wear = 4.1500
-    abs_error_w = abs(v_wear_factor - etalon_wear)
-
-    # Вывод результатов в три метрики (как в УМК)
-    st.markdown("**🔄 Результаты перекрестного анализа ядер:**")
-    v_col1, v_col2, v_col3 = st.columns(3)
-    v_col1.metric("Теоретический расчет (ГОСТ)", f"{etalon_n_hb:.5f}")
-    v_col2.metric("Расчет ядра Streamlit", f"{v_n_hb:.5f}")
-    v_col3.metric("Погрешность вычислений", f"{rel_error_n:.4f}%", delta="0.00% (Идеал)")
-
-    # Финальный вердикт легитимности софта для супервайзера
-    if rel_error_n < 0.01 and abs_error_w < 0.001:
-        st.success(
-            "🎯 **ВЕРИФИКАЦИЯ УСПЕШНА:** Математические ядра гидродинамики (API RP 13D) "
-            "и деградации эластомеров (Тейлор-Круглов) выполнили калибровочные расчеты со стопроцентной точностью. "
-            "ПО легитимно для предоставления отчетов Заказчику."
-        )
-
-# =========================================================================
-# БЛОК 5: СВОДНЫЙ АДАПТИВНЫЙ ОТЧЕТ И ТЕХНОЛОГИЧЕСКИЙ СТАТУС
-# =========================================================================
-st.markdown("### 📋 Блок 5: Финальный сводный отчет")
-# Формирование таблицы и адаптивный вывод (st.dataframe) с настройкой ширины
-report_data = {
-    "Параметр": ["Плотность, г/см³", "Вязкость, с", "Песок, %", "ПВ, мПа·с", "ДНС, дПа"],
-    "План": [p_dens, p_visc, p_sand, p_pv, p_yp],
-    "Факт": [f_dens, f_visc, f_sand, f_pv, f_yp],
-    "Δ Откл.": [round(f_dens - p_dens, 2), round(f_visc - p_visc, 1), round(f_sand - p_sand, 2), round(f_pv - p_pv, 1), round(f_yp - p_yp, 1)]
-}
-st.dataframe(pd.DataFrame(report_data), use_container_width=True, hide_index=True)
-
-# Динамическая HTML-карточка статуса (с учетом Заказчика)
-is_critical = (ecd_status != "Зеленая зона (Безопасно)") or (predicted_hours_to_failure < 15.0)
-status_color = "#EF4444" if is_critical else "#10B981"
-html_card = f"""
-<div style='border: 2px solid #1E3A8A; padding: 10px; border-radius: 8px; background-color: #FAFAFA; font-family: sans-serif;'>
-    <h4 style='text-align: center; color: #1E3A8A; margin: 0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h4>
-    <p style='font-size: 12px; margin: 5px 0;'>Заказчик: {customer} | Скважина: {well_name}</p>
-    <div style='background-color: {status_color}; color: white; padding: 8px; text-align: center; border-radius: 4px;'>
-        {'🚨 КРИТИЧЕСКИЙ РИСК' if is_critical else '✔ СТАТУС: НОРМА'}
-    </div>
+# Рендеринг адаптивного официального бланка ООО «Траектория-Сервис»
+blank_html = f"""
+<div style='border: 2px solid #1E3A8A; padding: 20px; border-radius: 8px; background-color: #0E1117; color: white; font-family: monospace; margin-bottom: 15px;'>
+    <h3 style='text-align: center; color: #38BDF8; margin: 0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h3>
+    <h4 style='text-align: center; color: white; margin-top: 5px; margin-bottom: 15px;'>АКТ ТЕХНОЛОГИЧЕСКОГО АУДИТА ПАРАМЕТРОВ ОЧИСТКИ И ГИДРАВЛИКИ</h4>
+    <hr style='border-color: #1E3A8A;'>
+    <p style='font-size: 13px;'><b>Скважина / Куст:</b> {well_name} | <b>Инженер ННБ:</b> {fio}</p>
+    <p style='font-size: 13px;'><b>Заказчик по договору:</b> {customer} | <b>Месторождение:</b> Приобское</p>
+    <p style='font-size: 13px;'><b>Фактический раствор:</b> Плотность={f_dens} г/см³ | Песок={f_sand}% | ДНС={f_yp} дПа</p>
+    <p style='font-size: 13px;'><b>Расчетная гидравлика (H-B):</b> Динамическая ЭЦП (ECD) = {calculated_ecd:.3f} г/см³ ({ecd_status})</p>
+    <br>
+    <h5 style='color: #38BDF8; margin: 0; font-size: 14px;'>ЗАКЛЮЧЕНИЕ ЭКСПЕРТИЗЫ:</h5>
+    <p style='font-size: 14px; color: {inti_color}; font-weight: bold; margin: 5px 0;'>СТАТУС: {inti_status}</p>
+    <p style='font-size: 13px;'><b>Износ статора ВЗД (№{st.session_state.get('serial_vzd', '6677')}):</b> {resource_reduction_pct:.2f}% за {red_zone_hours} ч. циркуляции.</p>
+    <p style='font-size: 13px;'><b>Прогнозный остаток надежной работы мотора:</b> {predicted_hours_to_failure:.1f} ч.</p>
+    <br><br>
+    <p style='text-align: right; font-size: 13px; margin: 0;'>Полевой инженер ННБ: ___________________ / {fio} /</p>
 </div>
 """
-st.markdown(html_card, unsafe_allow_html=True)
+st.markdown(blank_html, unsafe_allow_html=True)
 
-# Кнопка экспорта
-st.download_button("📥 Скачать CSV-рапорт", pd.DataFrame(report_data).to_csv(index=False), f"Report_{well_name}.csv", use_container_width=True)
+# Кнопка чистого экспорта структурированного рапорта в TXT для буфера обмена
+report_text = f"ООО «ТРАЕКТОРИЯ-СЕРВИС»\nАКТ ТЕХНОЛОГИЧЕСКОГО АУДИТА\nСкважина: {well_name}\nЗаказчик: {customer}\nСтатус ИНТИ: {inti_status}\nECD: {calculated_ecd:.3f} г/см³\nОстаток ВЗД: {predicted_hours_to_failure:.1f} ч."
+st.download_button(label="📥 Скачать официальный суточный рапорт (.txt)", data=report_text, file_name=f"Akt_Audit_{well_name}.txt", use_container_width=True)
 
 st.markdown("---")
-# =========================================================================
-# БЛОК 6: НАКОПЛЕНИЕ ИСТОРИИ И ФИКСАЦИЯ ЗАМЕРОВ (ТРЕНДЫ И ДИНАМИКА)
-# =========================================================================
-st.markdown("### 💾 Блок 6: Фиксация точки и архивация замеров")
 
-# Инициализируем пустую таблицу истории в сессии, если её еще нет
+# =========================================================================
+# БЛОК 6: НАКОПЛЕНИЕ ИСТОРИИ, ЛОГИРОВАНИЕ И МОНИТОРИНГ ТЕНДЕНЦИЙ
+# =========================================================================
+st.markdown("### 💾 Блок 6: Фиксация точек и архивация замеров (Тренды)")
+
+# Инициализация базы данных трендов в сессии
 if "drill_history" not in st.session_state:
-    st.session_state["drill_history"] = pd.DataFrame(columns=[
-        "Время", "Плотность", "Песок", "ДНС", "Расчетная ЭЦП", "Ресурс ВЗД, ч"
-    ])
+    st.session_state["drill_history"] = pd.DataFrame(columns=["Время", "Плотность", "Песок, %", "Расчетная ЭЦП", "Ресурс ВЗД, ч"])
 
-# Кнопка фиксации точки в историю
-if st.button("🚀 Зафиксировать точку и отправить в архив", use_container_width=True):
-    # Собираем текущие параметры в новую строчку
+if st.button("🚀 Зафиксировать точку замера в суточный архив трендов", use_container_width=True):
     new_point = {
         "Время": datetime.now().strftime("%H:%M:%S"),
         "Плотность": f_dens,
-        "Песок": f_sand,
-        "ДНС": f_yp,
+        "Песок, %": f_sand,
         "Расчетная ЭЦП": round(calculated_ecd, 3),
         "Ресурс ВЗД, ч": round(predicted_hours_to_failure, 1)
     }
-    
-    # Добавляем строчку в DataFrame истории
-    st.session_state["drill_history"] = pd.concat([
-        st.session_state["drill_history"], 
-        pd.DataFrame([new_point])
-    ], ignore_index=True)
-    
-    # Сохраняем в локальный файл проекта (база данных трендов)
-    try:
-        st.session_state["drill_history"].to_csv("drill_trends_archive.csv", index=False, encoding="utf-8-sig")
-        st.success(f"✅ Точка успешно зафиксирована в {new_point['Время']}! Данные добавлены в архив трендов.")
-    except Exception as e:
-        st.error(f"Ошибка сохранения файла трендов: {e}")
-# Вывод графиков динамики и трендов, если в базе есть хотя бы 2 точки
+    st.session_state["drill_history"] = pd.concat([st.session_state["drill_history"], pd.DataFrame([new_point])], ignore_index=True)
+    st.success(f"✅ Точка успешно зафиксирована в {new_point['Zeit']}! Данные добавлены в суточный тренд.")
+
+# Отрисовка графиков динамики, если зафиксирована хотя бы одна точка
 if len(st.session_state["drill_history"]) >= 1:
-    st.markdown("#### 📉 Аналитика трендов и динамика параметров:")
-    
-    # Показываем интерактивную таблицу зафиксированных точек
     st.dataframe(st.session_state["drill_history"], use_container_width=True, hide_index=True)
     
     if len(st.session_state["drill_history"]) >= 2:
-        col_graph1, col_graph2 = st.columns(2)
-        
-        with col_graph1:
-            st.caption("Динамика изменения расчетной ЭЦП (ECD)")
-            # Подготовка данных для линейного графика ЭЦП
-            ecd_trend = st.session_state["drill_history"][["Время", "Расчетная ЭЦП"]].set_index("Время")
-            st.line_chart(ecd_trend)
-            
-        with col_graph2:
-            st.caption("Тенденция износа и остаточного ресурса статора ВЗД, ч")
-            # Подготовка данных для линейного графика ресурса ВЗД
-            vzd_trend = st.session_state["drill_history"][["Время", "Ресурс ВЗД, ч"]].set_index("Время")
-            st.line_chart(vzd_trend)
+        col_g1, col_g2 = st.columns(2)
+        with col_g1:
+            st.caption("Динамика изменения расчетной ЭЦП (ECD) во времени")
+            st.line_chart(st.session_state["drill_history"][["Время", "Расчетная ЭЦП"]].set_index("Время"))
+        with col_g2:
+            st.caption("Тенденция износа и деградации остаточного ресурса ВЗД, ч")
+            st.line_chart(st.session_state["drill_history"][["Время", "Ресурс ВЗД, ч"]].set_index("Время"))
     else:
-        st.info("💡 Графики тенденций появятся автоматически, как только вы зафиксируете **хотя бы 2 точки** (замера) подряд.")
+        st.info("💡 Графики технологических тенденций (трендов) построятся автоматически, как только вы зафиксируете две точки замера подряд.")
+
