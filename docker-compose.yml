@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  # 1. СЕРВИС БАЗЫ ДАННЫХ (POSTGRESQL)
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: drilling_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: drilling_db        # Имя базы данных для расчетов
+      POSTGRES_USER: drill_admin      # Имя администратора базы
+      POSTGRES_PASSWORD: supertraektoriya # Придумайте свой сложный пароль
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Данные не удалятся при перезапуске
+
+  # 2. СЕРВИС ВАШЕГО ПРИЛОЖЕНИЯ STREAMLIT
+  streamlit_app:
+    build: . # Docker ищет Dockerfile в текущей папке репозитория
+    container_name: drilling_app
+    restart: always
+    ports:
+      - "80:8501" # Перенаправляем стандартный веб-порт 80 на внутренний порт Streamlit 8501
+    environment:
+      - DB_HOST=postgres_db
+      - DB_NAME=drilling_db
+      - DB_USER=drill_admin
+      - DB_PASSWORD=supertraektoriya # Пароль должен совпадать с паролем выше
+    depends_on:
+      - postgres_db # Запускать приложение только ПОСЛЕ того, как поднимется база данных
+
+volumes:
+  postgres_data: # Объявление защищенного хранилища данных на сервере
