@@ -63,46 +63,70 @@ def download_public_file(public_key, file_path):
         return None
     except Exception:
         return None
-# Создаем вкладки (блоки) на основе нашего словаря BLOCKS
-tabs = st.tabs(list(BLOCKS.keys()))
-for tab, (block_name, public_link) in zip(tabs, BLOCKS.items()):
-    with tab:
-        if "ВСТАВЬТЕ_СЮДА" in public_link or not public_link:
-            st.warning("⚠ Ссылка на эту папку еще не настроена в коде GitHub.")
-            continue
-            
-        with st.spinner("Загрузка списка документов..."):
-            files = get_public_folder_files(public_link)
-            
-        if not files:
-            st.info("📂 В этом разделе пока нет PDF-документов или ссылка неверна.")
-        else:
-            file_names = [f["name"] for f in files]
-            selected_file_name = st.selectbox(
-                "💬 Выберите нормативный документ для просмотра:",
-                ["Пожалуйста, выберите документ..."] + file_names,
-                key=f"sel_{block_name}"
-            )
-            
-            if selected_file_name != "Пожалуйста, выберите документ...":
-                selected_file_obj = next((f for f in files if f["name"] == selected_file_name), None)
-                if selected_file_obj:
-                    with st.spinner("🔒 Безопасная загрузка..."):
-                        pdf_bytes = download_public_file(public_link, selected_file_obj["path"])
-                    if pdf_bytes:
-                        try:
-                            # Конвертация PDF в изображения для безопасного просмотра
-                            images = convert_from_bytes(pdf_bytes, dpi=110)
-                            st.info(f"📖 Страниц: {len(images)}.")
-                            for i, page in enumerate(images):
-                                img_byte_arr = io.BytesIO()
-                                page.save(img_byte_arr, format='JPEG')
-                                st.image(img_byte_arr.getvalue(), use_container_width=True)
-                        except Exception:
-                            st.error("🚨 Ошибка обработки PDF.")
-                    else:
-                        st.error("🚨 Ошибка загрузки.")
+# Инициализируем выбранный блок в памяти приложения, если его еще нет
+if "current_block" not in st.session_state:
+    st.session_state["current_block"] = list(BLOCKS.keys())[0]
 
-        st.markdown("---")
+st.markdown("### 🗂 Выберите интересующий раздел базы знаний:")
 
+# Создаем сетку из 3 больших кнопок-плиток в один ряд
+col_btn1, col_btn2, col_btn3 = st.columns(3)
+
+with col_btn1:
+    if st.button("🏛 1. СТАНДАРТЫ ИНТИ", use_container_width=True, type="secondary" if st.session_state["current_block"] != "1 Стандарты ИНТИ" else "primary"):
+        st.session_state["current_block"] = "1 Стандарты ИНТИ"
+        st.rerun()
+
+with col_btn2:
+    if st.button("📜 2. ИНСТРУКЦИИ И РЕГЛАМЕНТЫ", use_container_width=True, type="secondary" if st.session_state["current_block"] != "2 Инструкции и Регламенты" else "primary"):
+        st.session_state["current_block"] = "2 Инструкции и Регламенты"
+        st.rerun()
+
+with col_btn3:
+    if st.button("📘 3. РУКОВОДСТВО ПО БУРЕНИЮ", use_container_width=True, type="secondary" if st.session_state["current_block"] != "3 Руководство по бурению" else "primary"):
+        st.session_state["current_block"] = "3 Руководство по бурению"
+        st.rerun()
+
+st.markdown("---")
+
+# Логика обработки документов для выбранного через кнопку раздела
+active_block = st.session_state["current_block"]
+public_link = BLOCKS[active_block]
+
+st.markdown(f"#### 📂 Активный раздел: <span style='color:#1E3A8A;'>{active_block}</span>", unsafe_allow_html=True)
+
+with st.spinner("Загрузка списка документов..."):
+    files = get_public_folder_files(public_link)
+    
+if not files:
+    st.info("📂 В этом разделе пока нет PDF-документов или ссылка неверна.")
+else:
+    file_names = [f["name"] for f in files]
+    selected_file_name = st.selectbox(
+        "💬 Выберите нормативный документ для просмотра:",
+        ["Пожалуйста, выберите документ..."] + file_names,
+        key=f"sel_{active_block}"
+    )
+    
+    if selected_file_name != "Пожалуйста, выберите документ...":
+        selected_file_obj = next((f for f in files if f["name"] == selected_file_name), None)
+        if selected_file_obj:
+            with st.spinner("🔒 Безопасная загрузка документа..."):
+                pdf_bytes = download_public_file(public_link, selected_file_obj["path"])
+            if pdf_bytes:
+                try:
+                    # Конвертация PDF в изображения для безопасного просмотра
+                    images = convert_from_bytes(pdf_bytes, dpi=110)
+                    st.info(f"📖 Страниц в документе: {len(images)}.")
+                    for i, page in enumerate(images):
+                        img_byte_arr = io.BytesIO()
+                        page.save(img_byte_arr, format='JPEG')
+                        st.image(img_byte_arr.getvalue(), use_container_width=True)
+                except Exception:
+                    st.error("🚨 Ошибка обработки PDF.")
+            else:
+                st.error("🚨 Ошибка загрузки.")
+
+st.markdown("---")
 st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px;'>ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
+
