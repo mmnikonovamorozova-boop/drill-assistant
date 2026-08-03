@@ -11,16 +11,8 @@ if "authenticated" not in st.session_state or not st.session_state["authenticate
     st.error("🚨 Доступ заблокирован! Пожалуйста, пройдите авторизацию на Главной странице.")
     st.stop()
 
-# Улучшенная проверка токена (ищет и крупный, и мелкий регистр)
-TOKEN = None
-if "YANDEX_TOKEN" in st.secrets:
-    TOKEN = st.secrets["YANDEX_TOKEN"]
-elif "yandex_token" in st.secrets:
-    TOKEN = st.secrets["yandex_token"]
-
-if not TOKEN:
-    st.error("🚨 Ошибка безопасности: Не настроен ключ доступа к хранилищу.")
-    st.stop()
+# Автономное подключение токена без использования st.secrets
+TOKEN = "y0__wgBEOCakoMCGKzURiCWitvDGDCG7NP5B6FyP1JjFSB2qVO7VcH9N9yhl9n9"
 
 HEADERS = {"Authorization": f"OAuth {TOKEN}"}
 BASE_URL = "https://yandex.net"
@@ -60,11 +52,13 @@ folders = [f for f in get_yandex_structure(ROOT_DIR) if f["type"] == "dir"]
 if not folders:
     st.warning("⚠️ База знаний пуста. Создайте папки внутри `drill_docs` на Яндекс Диске.")
 else:
+    # Создаем вкладки по именам папок (блоки)
     tab_names = [f["name"].replace("_", " ") for f in folders]
     tabs = st.tabs(tab_names)
 
     for tab, folder in zip(tabs, folders):
         with tab:
+            # Получаем список файлов внутри блока
             files = [file for file in get_yandex_structure(folder["path"]) if file["type"] == "file" and file["name"].lower().endswith('.pdf')]
             file_names = [f["name"] for f in files]
             
