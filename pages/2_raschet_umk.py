@@ -118,17 +118,11 @@ sign_ratio = "+" if ratio_percent >= 0 else ""
 
 html_print = f"""
 <div style="border:{border_style}; padding:15px; border-radius:8px; font-family:Arial, sans-serif; color:#333; background-color:#FFFFFF;">
-    <h3 style="text-align:center; color:#1E3A8A; margin-top:0;">АКТ ТЕХНИЧЕСКОГО КОНТРОЛЯ ГЕОМЕТРИИ КЛЮЧА</h3>
-    <p style="font-size:12px; text-align:right; color:#6B7280;">Дата: {datetime.now().strftime('%d.%m.%Y')}</p>
+    <h3 style="text-align:center; color:#1E3A8A; margin-top:0; font-size:16px;">АКТ ТЕХНИЧЕСКОГО КОНТРОЛЯ ГЕОМЕТРИИ КЛЮЧА</h3>
+    <p style="font-size:11px; text-align:right; color:#6B7280; margin-bottom:15px;">Дата расчета: {datetime.now().strftime('%d.%m.%Y')}</p>
     
-    <table style="width:100%; border-collapse:collapse; font-size:14px; line-height:1.6; margin-bottom:15px;">
-        <tr><td style="width:65%; color:#555;">• Скважина / Куст:</td><td><b>{well_number}</b></td></tr>
-        <tr><td style="width:65%; color:#555;">• Инженер по ННБ:</td><td><b>{engineer_fio}</b></td></tr>
-        <tr><td style="width:65%; color:#555;">• Месторождение:</td><td><b>{field_name}</b></td></tr>
-    </table>
-
-    <h4 style="color:#1E3A8A; margin-bottom:5px; border-bottom:1px solid #E5E7EB;">ИСХОДНЫЕ ПАРАМЕТРЫ ОБОРУДОВАНИЯ:</h4>
-    <table style="width:100%; border-collapse:collapse; font-size:14px; line-height:1.6; margin-bottom:15px;">
+    <h4 style="color:#1E3A8A; margin-bottom:5px; font-size:13px; border-bottom:1px solid #E5E7EB;">ИСХОДНЫЕ ПАРАМЕТРЫ ОБОРУДОВАНИЯ:</h4>
+    <table style="width:100%; border-collapse:collapse; font-size:13px; line-height:1.6; margin-bottom:15px;">
         <tr><td style="width:65%; color:#555;">• Модель гидроключа:</td><td><b>{tong_model}</b></td></tr>
         <tr><td style="width:65%; color:#555;">• Паспортное плечо (Lном):</td><td><b>{passport_length:.3f} м</b></td></tr>
         <tr><td style="width:65%; color:#555;">• Фактическое плечо (Lфакт):</td><td><b>{fact_l:.3f} м</b></td></tr>
@@ -136,12 +130,12 @@ html_print = f"""
         <tr><td style="width:65%; color:#555;">• Угол натяжения (α):</td><td><b>{angle_alpha}°</b></td></tr>
     </table>
 
-    <h4 style="color:#1E3A8A; margin-bottom:5px; border-bottom:1px solid #E5E7EB;">ЗАКЛЮЧЕНИЕ ТЕХНИЧЕСКОГО КОНТРОЛЯ:</h4>
+    <h4 style="color:#1E3A8A; margin-bottom:5px; font-size:13px; border-bottom:1px solid #E5E7EB;">ЗАКЛЮЧЕНИЕ ТЕХНИЧЕСКОГО КОНТРОЛЯ:</h4>
     {verdict_display}
-    <p style="font-size:14px; color:#4B5563; margin-top:10px;">{status_note}</p>
+    <p style="font-size:13px; color:#4B5563; margin-top:10px;">{status_note}</p>
     
-    <p style="font-size:11px; color:#9CA3AF; text-align:center; margin-top:25px; border-top:1px dashed #D1D5DB; padding-top:8px;">
-        Расчет по синтезированной методике (СТО ИНТИ + Геометрия + Износ) • Для печати: Ctrl + P
+    <p style="font-size:10px; color:#9CA3AF; text-align:center; margin-top:20px; border-top:1px dashed #D1D5DB; padding-top:8px;">
+        Модуль адаптивного расчета (СТО ИНТИ + Геометрия) • Для печати: Ctrl + P
     </p>
 </div>
 """
