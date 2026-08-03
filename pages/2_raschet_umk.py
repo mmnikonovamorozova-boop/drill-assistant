@@ -32,6 +32,8 @@ st.sidebar.header("📋 Метаданные рапорта")
 well_number = st.sidebar.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
 engineer_name = st.sidebar.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
 field_name = st.sidebar.text_input("Месторождение:", value="Приобское")
+# Добавьте это поле в блок ввода метаданных рапорта
+knbk_number = st.text_input("Сборка КНБК №:", value="1", key="knbk_num_input")
 
 current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
 
