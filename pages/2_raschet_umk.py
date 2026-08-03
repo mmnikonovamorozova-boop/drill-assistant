@@ -37,15 +37,48 @@ knbk_number = st.text_input("Сборка КНБК №:", value="1", key="knbk_n
 
 current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
 
-# --- 3. БАЗА ДАННЫХ КЛЮЧЕЙ УМК ---
-keys_db = {
-    "УМК-10/1 (Паспортное плечо: 0.715 м)": 0.715,
-    "УМК-35 (Паспортное плечо: 0.900 м)": 0.900,
-    "УМК-48 (Паспортное плечо: 1.100 м)": 1.100
-}
+# --- 3. БАЗА ДАННЫХ КЛЮЧЕЙ УМК (ДИНАМИЧЕСКАЯ) ---
+# Инициализируем базу данных в сессии, чтобы новые ключи не пропадали при обновлении страницы
+if "keys_db" not in st.session_state:
+    st.session_state.keys_db = {
+        "УМК-10/1 (Паспортное плечо: 0.715 м)": 0.715,
+        "УМК-35 (Паспортное плечо: 0.900 м)": 0.900,
+        "УМК-48 (Паспортное плечо: 1.100 м)": 1.100
+    }
 
-selected_key = st.selectbox("1. Выберите модель гидравлического ключа УМК:", list(keys_db.keys()))
-passport_length = keys_db[selected_key]
+# Формируем список опций для выпадающего меню, добавляя пункт ручного ввода
+menu_options = list(st.session_state.keys_db.keys()) + ["➕ Добавить новую модель ключа вручную..."]
+
+# Выпадающий список выбора оборудования
+selected_key = st.selectbox("1. Выберите модель гидравлического ключа УМК:", menu_options)
+
+# Логика работы при выборе ручного добавления ключа
+if selected_key == "➕ Добавить новую модель ключа вручную...":
+    st.info("📝 Заполните параметры ниже для добавления нового ключа в базу данных проекта.")
+    
+    with st.container(border=True):
+        new_tong_name = st.text_input("Введите название нового ключа (например, УМК-50):", value="", key="new_key_name_field")
+        new_tong_length = st.number_input("Введите паспортное плечо (Lном) нового ключа, м:", min_value=0.1, max_value=3.0, value=0.715, step=0.001, format="%.3f", key="new_key_len_field")
+        
+        if st.button("💾 Сохранить и внести в базу"):
+            if new_tong_name.strip() == "":
+                st.error("❌ Название ключа не может быть пустым.")
+            elif f"{new_tong_name.strip()} (Паспортное плечо: {new_tong_length:.3f} м)" in st.session_state.keys_db:
+                st.warning("⚠️ Такой ключ уже внесен в базу данных.")
+            else:
+                # Добавляем новую запись в динамическую базу сессии
+                formatted_name = f"{new_tong_name.strip()} (Паспортное плечо: {new_tong_length:.3f} м)"
+                st.session_state.keys_db[formatted_name] = new_tong_length
+                st.success(f"🎉 Ключ '{new_tong_name}' успешно сохранен и добавлен в выпадающий список!")
+                st.rerun()
+
+    # Временные значения на момент, пока инженер заполняет форму
+    tong_model = "Ручной ввод"
+    passport_length = new_tong_length
+else:
+    # Если выбран стандартный ключ или уже созданный ранее
+    tong_model = selected_key
+    passport_length = st.session_state.keys_db[selected_key]
 
 # --- 4. ВХОДНЫЕ ТЕХНОЛОГИЧЕСКИЕ ПАРАМЕТРЫ ---
 st.markdown("### ⚙️ Параметры замера резьбового соединения КНБК")
