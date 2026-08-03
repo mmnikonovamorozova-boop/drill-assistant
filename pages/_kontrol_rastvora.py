@@ -1,219 +1,397 @@
 import streamlit as st
 from datetime import datetime
 
-# --- 2. КОНФИГУРАЦИЯ СТРАНИЦЫ И СТИЛИ ---
-st.set_page_config(page_title="Контроль раствора", layout="wide")
-st.title("🧪 Контроль параметров раствора и износа КНБК")
-st.caption("МОНИТОРИНГ АБРАЗИВНОЙ АГРЕССИВНОСТИ И ГИДРАВЛИКИ ННБ")
+# --- ПРОВЕРКА АВТОРИЗАЦИИ ---
+if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
+    st.error("🚨 Доступ заблокирован! Пожалуйста, перейдите на Главной страницу приложения и введите пароль.")
+    st.stop()
+
+# --- КОНФИГУРАЦИЯ И ЗАГОЛОВОК ---
+st.set_page_config(page_title="Контроль буровых растворов", layout="wide")
+st.title("🧪 Технологический контроль и аудит параметров буровых растворов")
+st.caption("МОНИТОР СВЕРКИ И ОЦЕНКИ ВЛИЯНИЯ РЕОЛОГИИ НА НАДЕЖНОСТЬ ЗАБОЙНОГО ОБОРУДОВАНИЯ ПРИ ННБ")
 st.markdown("---")
 
-# Техническая отметка о соответствии стандартам ИНТИ
+# Верификация ИНТИ (стиль УМК/ВЗД)
 st.markdown(
-    "<div style='color: #4B5563; font-size: 13px; background-color: #F3F4F6; padding: 12px; border-radius: 6px; border-left: 4px solid #1E3A8A; margin-bottom: 20px; font-family: Arial, sans-serif;'>"
-    "<b>Верификация:</b> Модуль разработан по <b>СТО ИНТИ S.QS.7</b> (мониторинг) и <b>СТО ИНТИ S.100.3</b> (безаварийность).</div>",
+    '<div style="color: #4B5563; font-size: 13px; background-color: #F3F4F6; padding: 12px; border-radius: 6px; border-left: 4px solid #1E3A8A; margin-bottom: 20px;">'
+    '<b>Верификация стандартами:</b> Модуль разработан в соответствии с <b>СТО ИНТИ S.QS.7</b> (п. 7.5.1, мониторинг сред) '
+    'и <b>СТО ИНТИ S.QS.8</b> (п. 4.2.4, документация на местах), обеспечивая сверку параметров с планом-программой.'
+    '</div>',
     unsafe_allow_html=True
 )
-st.markdown("---")
 
-# --- 3. СБОР МЕТАДАННЫХ (SIDEBAR И НАЛЕДОВАНИЕ) ---
+# --- SIDEBAR - МЕТАДАННЫЕ ---
 st.sidebar.header("📋 Метаданные рапорта")
-
-# Пытаемся забрать данные из сессии, если их нет — ставим дефолт
-well_number = st.sidebar.text_input(
-    "Номер скважины / Куст:", 
-    value=st.session_state.get("well_number", "Скв. № 101, Куст 5")
-)
-engineer_name = st.sidebar.text_input(
-    "ФИО Инженера по ННБ:", 
-    value=st.session_state.get("engineer_name", "Иванов И.И.")
-)
-field_name = st.sidebar.text_input(
-    "Месторождение:", 
-    value=st.session_state.get("field_name", "Приобское")
-)
-vzd_passport_number = st.sidebar.text_input(
-    "Серийный номер ВЗД по паспорту:", 
-    value=st.session_state.get("vzd_passport_number", "№ 6677")
-)
-selected_client = st.session_state.get("selected_client", "ПАО Роснефть")
+well_number = st.sidebar.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
+engineer_name = st.sidebar.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
 current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
 
-# --- 4. ВВОД ФАКТИЧЕСКИХ ПАРАМЕТРОВ РАСТВОРА ---
-st.subheader("📥 Ввод фактических параметров (данные ГТИ / Растворщика)")
+# --- БЛОК 1: СВЕРКА ДАННЫХ ---
+st.markdown("### 🗂 Блок 1: Сверка проектных и фактических данных бурового раствора")
+st.caption("Введите плановые уставки и фактические замеры из Акта растворного сервиса")
 
-col_r1, col_r2, col_r3, col_r4 = st.columns(4)
+q_pump_max = st.checkbox("📢 Работа ведется на максимальном проектном расходе", value=False)
+st.markdown(" ")
 
-with col_r1:
-    fact_sand = st.number_input(
-        "Содержание песка (%), ИЧ:", 
-        min_value=0.0, max_value=5.0, value=0.05, step=0.01,
-        help="Критический параметр абразивного износа по ИНТИ"
-    )
-with col_r2:
-    fact_solids = st.number_input(
-        "Твердая фаза (% об.):", 
-        min_value=0.0, max_value=30.0, value=4.5, step=0.1
-    )
-with col_r3:
-    fact_density = st.number_input(
-        "Плотность раствора (г/см³):", 
-        min_value=0.8, max_value=2.5, value=1.18, step=0.01
-    )
-with col_r4:
-    hours_worked = st.number_input(
-        "Время циркуляции на интервале (ч):", 
-        min_value=1, max_value=120, value=12, step=1
-    )
+col_plan, col_fact = st.columns(2)
+
+with col_plan:
+    st.markdown("<h4 style='color: #1E3A8A;'>📋 Данные ПЛАНА</h4>", unsafe_allow_html=True)
+    plan_density = st.number_input("1. Проектная плотность, г/см³:", min_value=0.8, max_value=2.5, value=1.20)
+    plan_visc = st.number_input("2. Проектная условная вязкость, с:", min_value=10.0, max_value=200.0, value=45.0)
+    plan_sand = st.number_input("3. Содержание песка (план), %:", min_value=0.0, max_value=20.0, value=0.3)
+    plan_pv = st.number_input("4а. Проектная пл. вязкость, мПа·с:", min_value=1.0, max_value=100.0, value=18.0)
+    plan_yp = st.number_input("4б. Проектное ДНС, дПа:", min_value=1.0, max_value=250.0, value=90.0)
+
+with col_fact:
+    st.markdown("<h4 style='color: #2E7D32;'>🧪 ФАКТИЧЕСКИЕ замеры (Акт БР)</h4>", unsafe_allow_html=True)
+    fact_density = st.number_input("1. Фактическая плотность, г/см³:", min_value=0.8, max_value=2.5, value=1.22)
+    fact_visc = st.number_input("2. Фактическая условная вязкость, с:", min_value=10.0, max_value=200.0, value=48.0)
+    fact_sand = st.number_input("3. Фактическое содержание песка, %:", min_value=0.0, max_value=20.0, value=0.4)
+    fact_pv = st.number_input("4а. Фактическая пл. вязкость, мПа·с:", min_value=1.0, max_value=100.0, value=20.0)
+    fact_yp = st.number_input("4б. Фактическое ДНС, дПа:", min_value=1.0, max_value=250.0, value=95.0)
 
 st.markdown("---")
 
-# --- 5. МАТЕМАТИЧЕСКАЯ МОДЕЛЬ ИЗНОСА СТАТОРА ВЗД ---
-st.subheader("📊 Аналитика абразивной деградации оборудования")
+# --- ИНЖЕНЕРНЫЙ СПРАВОЧНИК (ВЛИЯНИЕ НА ННБ) ---
+st.markdown("### 📘 Инженерный справочник: Влияние параметров")
 
-# Базовые константы и лимиты согласно СТО ИНТИ S.QS.7/8
-limit_sand_normal = 0.10  # Норма ИНТИ (до 0.1%)
-limit_sand_critical = 0.50  # Критический предел (0.5%)
-base_wear_rate_per_hour = 0.33  # Базовый износ эластомера в % за 1 час (ресурс ~300 ч)
+with st.expander("📍 Плотность (г/см³): Контроль ЭЦП и риска дифференциальных прихватов"):
+    st.markdown("Избыточная плотность повышает ЭЦП и риск прихвата. Влияет на устойчивость стенок.")
 
-# Расчет коэффициента агрессивности среды (степенная зависимость износа от абразива)
-if fact_sand > limit_sand_normal:
-    # Степень агрессивности среды m = 1.5 для кварцевого песка
-    wear_coefficient = (fact_sand / limit_sand_normal) ** 1.5
-else:
-    wear_coefficient = 1.0
+with st.expander("📍 Условная вязкость (с): Вынос шлама"):
+    st.markdown("Заниженная вязкость вызывает шламовые подушки при наклоне 30-60°. Завышенная — растет давление.")
 
-# Расчет накопленного ущерба за интервал времени циркуляции
-calculated_wear_interval = base_wear_rate_per_hour * wear_coefficient * hours_worked
+with st.expander("📍 Песок / Твердая фаза (%): Абразивный износ"):
+    st.markdown("Песок вызывает абразивный износ ВЗД, телесистем (пульсаторов, плат) и насадок долот.")
 
-# Вывод результатов и светофор рисков для инженера ННБ
-col_m1, col_m2 = st.columns(2)
-
-with col_m1:
-    st.metric(
-        label="Коэффициент ускорения износа", 
-        value=f"x{wear_coefficient:.2f}",
-        delta=f"+{(wear_coefficient - 1.0) * 100:.1f}%" if wear_coefficient > 1.0 else "Норма"
-    )
-
-with col_m2:
-    st.metric(
-        label="Потеря ресурса за интервал", 
-        value=f"{calculated_wear_interval:.2f} %",
-        delta=f"Экстремальный темп!" if fact_sand > limit_sand_critical else None,
-        delta_color="inverse"
-    )
-
-# Визуальные триггеры опасности на основе регламентов
-if fact_sand > limit_sand_critical:
-    res_sol_text = f"🚨 КРИТИЧЕСКИЙ АБРАЗИВНЫЙ ИЗНОС! Содержание песка ({fact_sand}%) превышает лимит {limit_sand_critical}%. Износ ускорен в {wear_coefficient:.1f} раз! Срочно требуйте очистки или остановите бурение."
-    st.error(res_sol_text)
-elif fact_sand > limit_sand_normal:
-    res_sol_text = f"⚠️ ПОВЫШЕННАЯ АБРАЗИВНАЯ АГРЕССИВНОСТЬ среды. Песок ({fact_sand}%) выше нормы ИНТИ ({limit_sand_normal}%). Ресурс статора ВЗД вырабатывается быстрее."
-    st.warning(res_sol_text)
-else:
-    res_sol_text = "✔ ПАРАМЕТРЫ АБРАЗИВА В НОРМЕ. Скорость деградации эластомера соответствует проектным значениям."
-    st.success(res_sol_text)
+with st.expander("📍 Пл. вязкость и ДНС (мПа·с/дПа): Реология и вынос шлама"):
+    st.markdown("Рост ПВ — загрязнение шламом. Низкое ДНС — оседание шлама (прихват), высокое ДНС — поршневание.")
 
 st.markdown("---")
+# =========================================================================
+# БЛОК 2: АВТОМАТИЧЕСКИЙ АУДИТ И ОЦЕНКА РИСКОВ ДЛЯ ВЗД И ТЕЛЕСИСТЕМЫ
+# =========================================================================
+st.markdown("### 🔍 Блок 2: Автоматический аудит и оценка технологических рисков")
+st.caption("Система проводит кросс-анализ фактических параметров раствора с предельными лимитами производителей ВЗД и телесистем")
 
-# --- 6. ЭКСПРЕСС-РАСЧЕТ ГИДРОДИНАМИКИ И ЭЦП ---
-st.subheader("🌊 Гидродинамический экспресс-расчет (ЭЦП и Очистка)")
+# Зашитые технологические лимиты (самые жесткие отраслевые уставки)
+MAX_SAND_CONTENT = 0.5   # Максимальное содержание песка/твердой фазы (%) по регламентам MWD
+MAX_FUNNEL_VISC = 60.0   # Предельная условная вязкость (с) для сохранения гидравлических параметров
+MAX_PV = 25.0            # Предельная пластическая вязкость (мПа·с)
+MAX_YP = 120.0           # Предельное ДНС (дПа) для предотвращения застойных зон и скачков давления
 
-col_h1, col_h2, col_h3 = st.columns(3)
+# Флаги обнаружения критических несоответствий
+has_risks = False
 
-with col_h1:
-    flow_rate = st.number_input(
-        "Расход буровых насосов (л/с):", 
-        min_value=0, max_value=100, value=28, step=1
-    )
-with col_h2:
-    rop_fact = st.number_input(
-        "Текущая мех. скорость бурения (м/ч):", 
-        min_value=0, max_value=200, value=25, step=5
-    )
-with col_h3:
-    yield_point = st.number_input(
-        "ДНС раствора (паскали / lb/100ft²):", 
-        min_value=0.0, max_value=50.0, value=12.0, step=0.5
-    )
-
-# Упрощенная полевая модель расчета гидравлических потерь в затрубе (ΔP_затруб)
-# Базируется на геометрии стандартного ствола 215.9 мм и бурильных труб 127 мм
-annular_loss = (0.00015 * (flow_rate ** 1.8) * fact_density) + (0.05 * yield_point)
-
-# Расчет Эквивалентной Циркуляционной Плотности (ЭЦП / ECD)
-# Принимаем среднюю условную глубину по вертикали (TVD) за 2500 метров для экспресс-оценки
-calculated_ecd = fact_density + (annular_loss / (0.00981 * 2500))
-
-# Логическая оценка рисков очистки ствола при слайдировании
-critical_rop_limit = flow_rate * 0.9  # Эмпирическое правило: мех. скорость не должна превышать расход * 0.9
-
-col_res1, col_res2 = st.columns(2)
-
-with col_res1:
-    st.metric(
-        label="Расчетная ЭЦП (ECD)", 
-        value=f"{calculated_ecd:.3f} г/см³",
-        delta=f"+{calculated_ecd - fact_density:.3f} (Динамика)",
-        delta_color="inverse"
+# 1. Проверка риска абразивного износа
+# Сравниваем фактическое содержание песка (fact_sand из Блока 1) с жестким лимитом
+if fact_sand > MAX_SAND_CONTENT:
+    has_risks = True
+    st.error(
+        f"🚨 **КРИТИЧЕСКИЙ РИСК: Абразивный износ оборудования**\n\n"
+        f"**Фактическое содержание песка:** {fact_sand}% | **Предел:** {MAX_SAND_CONTENT}%\n\n"
+        f"• **Последствия для ННБ:** Высокая концентрация песка вызывает мгновенный гидроабразивный износ "
+        f"насадок долота (размыв гидромониторных гнезд), стремительное истирание резинометаллического "
+        f"статора ВЗД, а также сквозные промывы узлов и пульсаторов телесистемы, что ведет к потере канала связи.\n\n"
+        f"• **Рекомендация:** Немедленно активировать третью ступень очистки (центрифуги, ситогидроциклонные сепараторы). "
+        f"Снизить подачу насосов до выяснения причин, провести замер шлама."
     )
 
-with col_res2:
-    if rop_fact > critical_rop_limit:
-        clean_status = "⚠️ Риск зашламления КНБК!"
-        st.metric(label="Статус очистки затруба", value="Недостаточный", delta=clean_status, delta_color="inverse")
+# 2. Проверка риска заклинивания двигателя (Гидромеханический аудит)
+# Условие: если вязкость или ДНС превышают норму, И при этом включен максимальный расход насосов
+if (fact_visc > MAX_FUNNEL_VISC or fact_yp > MAX_YP or fact_pv > MAX_PV) and q_pump_max:
+    has_risks = True
+    st.error(
+        f"🚨 **КРИТИЧЕСКИЙ РИСК: Гидромеханическое заклинивание ВЗД и поглощение раствора**\n\n"
+        f"**Фактические параметры:** УВ = {fact_visc} с, ПВ = {fact_pv} мПа·с, ДНС = {fact_yp} дПа при работе на максимальном расходе.\n\n"
+        f"• **Последствия для ННБ:** Сверхвысокие реологические показатели раствора при максимальной подаче "
+        f"вызывают колоссальный рост эквивалентной циркуляционной плотности (ЭЦП/ECD) и гидродинамического "
+        f"давления в затрубе. Это приводит к заклиниванию ротора ВЗД (из-за перепада давления на силовой секции), "
+        f"срыву инструмента с траектории и провоцирует ГРП (гидроразрыв пласта) с последующим катастрофическим поглощением раствора.\n\n"
+        f"• **Рекомендация:** Снизить расход буровых насосов (подачу) до восстановления реологии. "
+        f"Ввести в раствор хим. реагенты-разжижители для снижения ПВ/ДНС, контролировать давление по манометру."
+    )
+
+# 3. Если все проверки пройдены успешно
+if not has_risks:
+    st.success(
+        "✔ **Результаты аудита:** Фактические параметры бурового раствора находятся в пределах "
+        "допустимых значений. Риски преждевременного отказа силовых секций ВЗД и промыва телесистем минимальны."
+    )
+
+st.markdown("---")
+# =========================================================================
+# БЛОК 3: ВЫСОКОТОЧНЫЙ РАСЧЕТ ЭЦП ПО МОДЕЛИ ГЕРШЕЛЯ-БАЛКЛИ (API RP 13D)
+# =========================================================================
+st.markdown("### 📊 Блок 3: Высокоточный расчет ЭЦП/ECD (Модель Гершеля-Балкли)")
+st.caption("Математическое ядро соответствует стандарту API RP 13D и учитывает нелинейную реологию и режим потока")
+
+# 1. Ввод геолого-технических данных
+col_geo1, col_geo2, col_geo3 = st.columns(3)
+with col_geo1:
+    h_tvd = st.number_input("Истинная глубина по вертикали (TVD), м:", min_value=100.0, max_value=6000.0, value=2500.0, step=50.0)
+    d_hole = st.number_input("Диаметр долота / скважины, мм:", min_value=50.0, max_value=500.0, value=215.9, step=0.1)
+    d_pipe = st.number_input("Наружный диаметр бурильной трубы (СБТ), мм:", min_value=40.0, max_value=200.0, value=127.0, step=0.1)
+
+with col_geo2:
+    q_flow = st.number_input("Текущий расход буровых насосов, л/с:", min_value=5.0, max_value=80.0, value=28.0, step=0.5)
+    rop = st.number_input("Текущая механическая скорость (ROP), м/ч:", min_value=1.0, max_value=150.0, value=35.0, step=1.0)
+
+with col_geo3:
+    p_frac = st.number_input("Градиент / Эквивалент давления гидроразрыва пласта (ГРП), г/см³:", min_value=1.0, max_value=3.0, value=1.35, step=0.01)
+
+# --- ВЫСШЕЕ МАТЕМАТИЧЕСКОЕ ЯДРО (API RP 13D) ---
+import math
+
+dh_m = d_hole / 1000.0
+dp_m = d_pipe / 1000.0
+area_annulus = (math.pi / 4.0) * (dh_m**2 - dp_m**2)
+hydraulic_diam = dh_m - dp_m
+
+# Перевод параметров раствора в СИ
+rho_base = fact_density * 1000.0  # кг/м³
+pv_si = fact_pv / 1000.0          # Па·с
+yp_si = fact_yp * 0.1             # Па
+
+# Скорость сдвига и перевод реологии в параметры Гершеля-Балкли (n, K, tau_0)
+tau_0 = yp_si  # Предел текучести (дПа в Па)
+
+# Индекс течения n и коэффициент консистенции K по стандартной методике API
+# Для стандартных показаний вискозиметра (600 и 300 об/мин), которые моделируются через PV и YP:
+theta_300 = fact_pv + fact_yp
+theta_600 = (2 * fact_pv) + fact_yp
+
+if theta_300 > 0 and (theta_300 - tau_0) > 0:
+    n_hb = 3.32 * math.log10((theta_600 - tau_0) / (theta_300 - tau_0))
+    n_hb = max(0.1, min(1.0, n_hb)) # Защита от деления на ноль и нефизичных значений
+    K_hb = (theta_300 - tau_0) / (511**n_hb)
+else:
+    n_hb = 0.5
+    K_hb = 0.5
+
+# Скорость потока в затрубе (м/с)
+v_annulus = (q_flow / 1000.0) / area_annulus if area_annulus > 0 else 0
+
+# Эффективная скорость сдвига в кольцевом пространстве по API
+gamma_dot = ((2 * n_hb + 1) / (3 * n_hb)) * (12 * v_annulus / hydraulic_diam) if hydraulic_diam > 0 else 0
+
+# Касательное напряжение сдвига (Па)
+tau_annulus = tau_0 + K_hb * (gamma_dot**n_hb) if gamma_dot > 0 else tau_0
+
+# Расчет точных гидродинамических потерь давления (Па/м)
+# Проверка режима потока через обобщенное число Рейнольдса для модели H-B
+if v_annulus > 0:
+    eff_viscosity = tau_annulus / gamma_dot if gamma_dot > 0 else 0.001
+    Re_general = (rho_base * v_annulus * hydraulic_diam) / eff_viscosity
+    
+    # Расчет коэффициента трения Фаннинга (f) в зависимости от режима (Ламинар/Турбулентность)
+    if Re_general < 2100:
+        f_friction = 16 / Re_general
     else:
-        clean_status = "✔ Вынос шлама эффективен"
-        st.metric(label="Статус очистки затруба", value="В допуске", delta=clean_status)
-
-# Вывод технологических предупреждений по гидравлике
-if calculated_ecd > (fact_density + 0.08):
-    st.error(f"🛑 ВНИМАНИЕ: Высокое гидродинамическое сопротивление! Риск поглощения раствора. Ограничьте мех. скорость до {critical_rop_limit:.0f} м/ч.")
-elif rop_fact > critical_rop_limit:
-    st.warning("⚠️ ВНИМАНИЕ: Высокая скорость проходки при текущем расходе. Риск образования шламовой подушки и прихвата КНБК при слайдировании.")
+        # Формула Блазиуса для турбулентного режима неньютоновских сред
+        f_friction = 0.079 / (Re_general**0.25)
+        
+    dp_dl_friction = (2 * f_friction * rho_base * (v_annulus**2)) / hydraulic_diam
 else:
-    st.success("✔ Гидравлический режим стабилен. Риски поглощения пластов и прихвата инструмента минимальны.")
+    dp_dl_friction = 0
+
+total_p_friction_pa = dp_dl_friction * h_tvd
+
+# Вклад шлама (влияние ROP и выноса породы)
+rho_rock = 2650.0  # кг/м³
+q_solids = ((math.pi / 4.0) * (dh_m**2)) * (rop / 3600.0)
+c_cutting = q_solids / ((q_flow / 1000.0) + q_solids) if (q_flow + q_solids) > 0 else 0
+rho_eff_mix = rho_base * (1.0 - c_cutting) + rho_rock * c_cutting
+
+# Итоговый расчет ЭЦП
+total_hydrostatic_pa = rho_eff_mix * 9.81 * h_tvd
+total_dynamic_pressure_pa = total_hydrostatic_pa + total_p_friction_pa
+calculated_ecd = (total_dynamic_pressure_pa / (9.81 * h_tvd)) / 1000.0  # г/см³
+
+# --- ВЫВОД РЕЗУЛЬТАТОВ И УПРАВЛЕНИЕ РЕЖИМАМИ ---
+st.markdown("#### Результаты гидродинамического моделирования:")
+col_res1, col_res2, col_res3 = st.columns(3)
+with col_res1:
+    st.metric("Высокоточная ЭЦП (ECD)", f"{calculated_ecd:.3f} г/см³")
+with col_res2:
+    st.metric("Запас до ГРП пласта", f"{(p_frac - calculated_ecd):.3f} г/см³")
+with col_res3:
+    st.metric("Режим течения в затрубе", "Турбулентный" if (v_annulus > 0 and Re_general >= 2100) else "Ламинарный")
+
+# Алгоритм автоматического поиска безопасных границ бурения
+if calculated_ecd >= (p_frac - 0.015):
+    st.markdown("---")
+    
+    # Ищем критический максимальный расход
+    safe_q = q_flow
+    for test_q in range(int(q_flow * 10), 50, -1):
+        t_q = test_q / 10.0
+        v_a = (t_q / 1000.0) / area_annulus
+        g_dot = ((2 * n_hb + 1) / (3 * n_hb)) * (12 * v_a / hydraulic_diam)
+        t_a = tau_0 + K_hb * (g_dot**n_hb)
+        e_visc = t_a / g_dot if g_dot > 0 else 0.001
+        Re_g = (rho_base * v_a * hydraulic_diam) / e_visc
+        f_f = 16 / Re_g if Re_g < 2100 else 0.079 / (Re_g**0.25)
+        dp_f = (2 * f_f * rho_base * (v_a**2)) / hydraulic_diam
+        ecd_test = (((rho_eff_mix * 9.81 * h_tvd) + (dp_f * h_tvd)) / (9.81 * h_tvd)) / 1000.0
+        if ecd_test < (p_frac - 0.02):
+            safe_q = t_q
+            break
+            
+    # Ищем критическую скорость проходки ROP
+    safe_rop = rop
+    for test_rop in range(int(rop), 5, -1):
+        q_s = ((math.pi / 4.0) * (dh_m**2)) * (test_rop / 3600.0)
+        c_c = q_s / ((q_flow / 1000.0) + q_s)
+        rho_m = rho_base * (1.0 - c_c) + rho_rock * c_c
+        ecd_test = (((rho_m * 9.81 * h_tvd) + total_p_friction_pa) / (9.81 * h_tvd)) / 1000.0
+        if ecd_test < (p_frac - 0.02):
+            safe_rop = test_rop
+            break
+
+    st.error(
+        f"🚨 **КРИТИЧЕСКИЙ РИСК ПОГЛОЩЕНИЯ И ГИДРОРАЗРЫВА ПЛАСТА (ГРП)!**\n\n"
+        f"Динамическое давление раствора ЭЦП ({calculated_ecd:.3f} г/см³) превысило безопасный коридор давления ГРП ({p_frac:.2f} г/см³).\n\n"
+        f"👉 **ТЕХНОЛОГИЧЕСКИЕ ОГРАНИЧЕНИЯ ДЛЯ ПРЕДОТВРАЩЕНИЯ АВАРИИ:**\n"
+        f"1. **Максимально допустимый расход насосов:** Не превышать **{safe_q:.1f} л/с** (текущий: {q_flow} л/с)\n"
+        f"2. **Максимально допустимая механическая скорость:** Не превышать **{safe_rop:.0f} м/ч** (текущая: {rop} м/ч)\n\n"
+        f"*Рекомендация: Выполните очистную промывку для снижения концентрации шлама в интервале затрубного пространства.*"
+    )
+else:
+    st.success("✔ **Гидравлический режим безопасен:** Риск эквивалентного превышения давления поглощения отсутствует.")
+
+st.markdown("---")
+# =========================================================================
+# БЛОК 4: РАСШИРЕННЫЙ ЦИФРОВОЙ КАЛЬКУЛЯТОР ДЕГРАДАЦИИ И ЖИЗНИ СТАТОРА ВЗД
+# =========================================================================
+st.markdown("### ⏳ Блок 4: Цифровой калькулятор остаточного ресурса (жизни) статора ВЗД")
+st.caption("Профессиональная предиктивная модель на базе уравнений Тейлора-Круглова и закона Майнерса-Палмгрена")
+
+# 1. Ввод базовых и расширенных инженерных данных
+col_stat1, col_stat2, col_stat3 = st.columns(3)
+
+with col_stat1:
+    passport_life = st.number_input("Номинальный (паспортный) ресурс силовой секции, ч:", min_value=10.0, max_value=500.0, value=150.0, step=10.0)
+    current_runtime = st.number_input("Текущая фактическая наработка ВЗД в рейсе, ч:", min_value=0.0, max_value=500.0, value=48.0, step=1.0)
+    red_zone_hours = st.number_input("Время работы с повышенным содержанием песка (>0.5%), ч:", min_value=0.0, max_value=100.0, value=3.5, step=0.5)
+
+with col_stat2:
+    kinematics_type = st.selectbox("Тип захода (кинематика силовой секции ВЗД):", ["1:2 (Низкая площадь контакта)", "4:5 (Средняя)", "5:6 (Высокая)", "7:8 (Сверхвысокая)", "9:10 (Критическая)"])
+    p_diff = st.number_input("Рабочий дифференциальный перепад давления на ВЗД (ΔP), МПа:", min_value=0.5, max_value=10.0, value=3.2, step=0.1)
+
+with col_stat3:
+    sand_d50 = st.number_input("Средний размер частиц абразива из ЛАРС (D50), мкм:", min_value=10, max_value=500, value=74, help="74 мкм = сито 200 меш. Все, что выше, критично для эластомера")
+
+# --- ВЫСШЕЕ МАТЕМАТИЧЕСКОЕ ЯДРО ДЕГРАДАЦИИ ЭЛАСТОМЕРА ---
+import math
+
+MAX_SAFE_SAND = 0.5
+nominal_remaining = max(0.0, passport_life - current_runtime)
+
+# Определение базового коэффициента заходности (влияние площади контакта и трения)
+kinematics_dict = {"1:2 (Низкая площадь контакта)": 1.0, "4:5 (Средняя)": 1.25, "5:6 (Высокая)": 1.4, "7:8 (Сверхвысокая)": 1.6, "9:10 (Критическая)": 1.85}
+k_kin = kinematics_dict[kinematics_type]
+
+# Определение коэффициента агрессивности фракции песка (D50)
+# Частицы крупнее 74 мкм (200 меш) увеличивают износ по экспоненте
+if sand_d50 <= 45:
+    k_grain = 0.6  # Мелкодисперсный шлам/глина
+elif sand_d50 <= 74:
+    k_grain = 1.0  # Базовый кварцевый песок
+else:
+    k_grain = 1.0 + ((sand_d50 - 74) / 50.0) ** 1.5  # Крупный абразив
+
+# Определение коэффициента контактного давления от дифференциального перепада
+# Рост ΔP сильнее прижимает ротор к статору, зажимая песчинки в камерах натяга
+k_press = 1.0 + (p_diff / 4.0)
+
+# Финальный расчет коэффициента ускорения деградации (WEF - Wear Elevation Factor)
+if fact_sand > MAX_SAFE_SAND and red_zone_hours >= 2.0:
+    excess_sand = fact_sand - MAX_SAFE_SAND
+    # Кинетическое уравнение Тейлора-Круглова с поправкой на гидромеханическую нагрузку пары ротор-статор
+    wear_factor = 1.0 + (excess_sand * 2.5 * k_kin * k_grain * k_press)
+    
+    # Накопленный эквивалентный износ по закону Майнерса-Палмгрена
+    equivalent_hours_lost = red_zone_hours * (wear_factor - 1.0)
+    resource_reduction_pct = (equivalent_hours_lost / passport_life) * 100.0
+    resource_reduction_pct = min(100.0, resource_reduction_pct)
+    
+    # Расчет прогнозного остатка жизни до срыва/прокручивания статора
+    predicted_hours_to_failure = nominal_remaining / wear_factor
+    
+    st.markdown("#### Прогноз технического состояния силовой секции:")
+    col_stat_res1, col_stat_res2, col_stat_res3 = st.columns(3)
+    with col_stat_res1:
+        st.metric("Коэффициент износа эластомера", f"x{wear_factor:.2f}", delta="Абразивный износ", delta_color="inverse")
+    with col_stat_res2:
+        st.metric("Потеря ресурса статора", f"- {resource_reduction_pct:.1f} %")
+    with col_stat_res3:
+        st.metric("Ожидаемый остаток жизни", f"{predicted_hours_to_failure:.1f} ч", help="При сохранении текущих агрессивных параметров")
+        
+    st.warning(
+        f"⚠️ **ВНИМАНИЕ: Зафиксирована ускоренная деградация эластомера силовой секции ВЗД!**\n\n"
+        f"Показатель песка ({fact_sand}%) превышает норму на протяжении **{red_zone_hours:.1f} ч.** "
+        f"При дифференциальном давлении {p_diff} МПа и крупности абразива D50={sand_d50} мкм скорость износа выросла в **{wear_factor:.2f} раз(а)**.\n\n"
+        f"• **Анализ деградации:** Общий ресурс двигателя снизился на **{resource_reduction_pct:.1f}%**.\n"
+        f"• **Прогноз отказа:** Ожидаемый гидромеханический отказ оборудования произойдет через **{predicted_hours_to_failure:.1f} ч.** вместо паспортных {nominal_remaining:.1f} ч."
+    )
+else:
+    wear_factor = 1.0
+    resource_reduction_pct = 0.0
+    predicted_hours_to_failure = nominal_remaining
+    st.success(
+        f"✔ **Ресурс эластомера в норме:** Параметры раствора и время работы не превышают критические пороги. "
+        f"Прогнозный остаток жизни ВЗД: **{nominal_remaining:.1f} ч.**"
+    )
 
 st.markdown("---")
 
-# --- 7. ФОРМИРОВАНИЕ ОФИЦИАЛЬНОГО HTML-АКТА ---
-st.subheader("📥 Официальный бланк аудита для суточного рапорта:")
+# =========================================================================
+# БЛОК 5: ГЕНЕРАЦИЯ ЕДИНОГО ИТОГОВОГО ТЕХНОЛОГИЧЕСКОГО ОТЧЕТА
+# =========================================================================
+st.markdown("---")
+st.subheader("📋 Блок 5: Единый технологический отчет по контролю очистки и гидравлики")
+st.caption("Официальный бланк для интеграции в суточный рапорт супервайзера (СуCtrl+P)")
 
-# Переводим статус износа в цвет для бланка акта
-if fact_sand > limit_sand_critical:
-    act_status_color = "#DC2626"  # Красный
-    status_summary = "НЕ СООТВЕТСТВУЕТ (КРИТИЧЕСКИЙ АБРАЗИВ)"
-elif fact_sand > limit_sand_normal:
-    act_status_color = "#D97706"  # Желтый
-    status_summary = "ДОПУЩЕНО С ОГРАНИЧЕНИЕМ РЕСУРСА ВЗД"
-else:
-    act_status_color = "#16A34A"  # Зеленый
-    status_summary = "СООТВЕТСТВУЕТ НОРМАМ ИНТИ"
+# Проверка рисков для статуса отчета (используются переменные из блоков 2-4)
+is_critical = (fact_sand > MAX_SAND_CONTENT) or \
+              ((fact_visc > MAX_FUNNEL_VISC or fact_yp > MAX_YP or fact_pv > MAX_PV) and q_pump_max) or \
+              (calculated_ecd >= (p_frac - 0.015))
 
-# Сборка корпоративного HTML-шаблона акта (упрощенный пример)
-html_solutions = f"""
-<div style='border:3px solid #1E3A8A; padding:25px; font-family:Arial;'>
-    <h2 style='text-align:center; color:#1E3A8A;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>
-    <h3>АКТ ТЕХНОЛОГИЧЕСКОГО АУДИТА ПРОМЫВОЧНОЙ ЖИДКОСТИ</h3>
-    <p><b>Дата:</b> {current_time} | <b>Скважина:</b> {well_number} | <b>Инженер:</b> {engineer_name}</p>
-    <p><b>Параметры:</b> Песок={fact_sand:.2f}% | Плотность={fact_density:.2f} г/см³</p>
-    <h4 style='color:#1E3A8A;'>ЗАКЛЮЧЕНИЕ:</h4>
-    <p style='color:{act_status_color};'><b>СТАТУС: {status_summary}</b></p>
-    <p><b>Износ ВЗД:</b> {calculated_wear_interval:.2f}% за {hours_worked} ч.</p>
-    <p>___________________ / {engineer_name} /</p>
+report_status_text = "🚨 ВНИМАНИЕ: ТЕХНОЛОГИЧЕСКИЙ ВЫХОД ЗА ПРЕДЕЛЫ НОРМЫ!" if is_critical else "✔ УСПЕШНО ВЕРИФИЦИРОВАНО."
+report_status_color = "#EF4444" if is_critical else "#10B981"
+
+# HTML-шаблон отчета с использованием f-строк для подстановки данных
+html_report = f"""
+<div style='border: 3px solid #1E3A8A; padding: 25px; border-radius: 12px; background-color: #FAFAFA; font-family: Arial, sans-serif; color: #333333; max-width: 1000px; margin: 0 auto;'>
+    <h2 style='text-align: center; color: #1E3A8A;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>
+    <h4 style='text-align: center; color: #4B5563;'>КОМПЛЕКСНЫЙ АКТ АУДИТА БУРОВОГО РАСТВОРА И ГИДРАВЛИКИ</h4>
+    <hr>
+    
+    <!-- Данные -->
+    <p><b>Дата/Время:</b> {current_time} | <b>Скважина:</b> {well_number}</p>
+    
+    <!-- Сводная таблица параметров (План/Факт) -->
+    <table style='width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;'>
+        <tr style='background-color: #E5E7EB;'><th>Параметр</th><th>План</th><th>Факт</th><th>Отклон.</th></tr>
+        <tr><td>Плотность, г/см³</td><td>{plan_density:.2f}</td><td>{fact_density:.2f}</td><td>{fact_density - plan_density:+.2f}</td></tr>
+        <tr><td>Усл. вязкость, с</td><td>{plan_visc:.1f}</td><td>{fact_visc:.1f}</td><td>{fact_visc - plan_visc:+.1f}</td></tr>
+        <tr><td>Содержание песка, %</td><td>{plan_sand:.2f}</td><td>{fact_sand:.2f}</td><td>{fact_sand - plan_sand:+.2f}</td></tr>
+    </table>
+
+    <!-- Гидравлика и износ -->
+    <p><b>ECD:</b> {calculated_ecd:.3f} г/см³ (Лимит: {p_frac:.2f})</p>
+    <p><b>Ресурс ВЗД:</b> {"Снижен" if fact_sand > MAX_SAFE_SAND else "Норма"}</p>
+
+    <!-- Итог -->
+    <div style='background-color: {report_status_color}; color: white; padding: 10px; text-align: center; font-weight: bold;'>
+        {report_status_text}
+    </div>
 </div>
 """
 
-# Вывод акта в Streamlit
-st.markdown(html_solutions, unsafe_allow_html=True)
-
-# --- 8. ИНСТРУКЦИЯ И ФУТЕР ---
-st.info("💡 **Сохранение:** Кнопка «Поделиться» ➡ Печать/PDF.")
-st.markdown("---")
-# Брендированный футер
-st.markdown(
-    "<div style='text-align:center; color:#9CA3AF; font-size:11px;'>"
-    "<b>Разработчик:</b> ООО «Траектория-Сервис» © 2026"
-    "</div>", 
-    unsafe_allow_html=True
-)
+# Отрисовка
+st.markdown(html_report, unsafe_allow_html=True)
+st.info("💡 **Экспорт:** Нажмите `Ctrl + P` для сохранения PDF.")
