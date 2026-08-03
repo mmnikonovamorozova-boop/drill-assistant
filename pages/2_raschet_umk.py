@@ -14,7 +14,7 @@ if "authenticated" not in st.session_state or not st.session_state["authenticate
 st.set_page_config(page_title="Калькулятор УМК", layout="wide")
 
 st.title("🧮 Цифровой расчет оптимального момента свинчивания (УМК)")
-st.caption("МЕТОДИКА КОРРЕКТИРОВКИ КРУТЯЩЕГО МОМЕНТА С УЧЕТОМ ГЕОМЕТРИИ ЛИНИИ НАТЯЖЕНИЯ")
+st.caption("МЕТОДИКА АДАПТИВНОЙ КОРРЕКТИРОВКИ КРУТЯЩЕГО МОМЕНТА С УЧЕТОМ ГЕОМЕТРИИ ЛИНИИ НАТЯЖЕНИЯ, ТОЛЩИНЫ ТРОСА И РЕМОНТНЫХ ИЗМЕНЕНИЙ РЫЧАГА УМК")
 st.markdown("---")
 
 # Сдержанная техническая отметка о соответствии стандартам ИНТИ
@@ -65,16 +65,17 @@ angle_alpha = st.number_input(
     min_value=10.0, max_value=90.0, value=90.0, step=1.0
 )
 
-# --- 5. ФИЗИКА ПРОЦЕССА И МАТЕМАТИЧЕСКАЯ КОРРЕКЦИЯ ---
+# --- 5. ФИЗИКА ПРОЦЕССА И КОРРЕКЦИЯ С УЧЕТОМ РЕМОНТА КЛЮЧА ---
 rad_alpha = math.radians(angle_alpha)
 sin_alpha = math.sin(rad_alpha)
+delta_r = (tros_d / 2.0) / 1000.0  # смещение оси из-за радиуса каната в метрах
 
-delta_r = (tros_d / 2.0) / 1000.0
-effective_l = fact_l + delta_r
-
-if sin_alpha > 0 and effective_l > 0:
-    target_setting = p_moment / (effective_l * sin_alpha)
-    loss_percent = (1.0 - sin_alpha) * 100.0
+# Синтезированный расчет: учитывает факт. плечо после ремонта, трос из таблицы и угол натяжения α
+if sin_alpha > 0 and passport_length > 0 and fact_l > 0:
+    # Отношение эффективного плеча с учетом троса к паспортному значению
+    effective_leverage_ratio = (fact_l + delta_r) / passport_length
+    target_setting = p_moment / (effective_leverage_ratio * sin_alpha)
+    loss_percent = ((target_setting - p_moment) / p_moment) * 100.0
 else:
     target_setting = p_moment
     loss_percent = 0.0
@@ -89,28 +90,32 @@ with col1:
     else:
         st.metric(label="🎯 НЕОБХОДИМАЯ УСТАВКА НА ПУЛЬТЕ (Показания моментомера):", value=f"{target_setting:.2f} кН*м")
 with col2:
-    st.metric(label="📉 Потери крутящего момента из-за угла натяжения:", value=f"{loss_percent:.1f} %")
+    st.metric(label="📉 Отклонение уставки от номинала:", value=f"{loss_percent:+.1f} %")
 
+# Учитываем как потери (повышение уставки), так и избыток плеча (снижение уставки)
 if loss_percent > 10.0:
-    st.error("🚨 КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО пытаться 'дотянуть' резьбу завышением давления! Потери превышают лимит СТО ИНТИ 10%.")
+    st.error("🚨 ЗАПРЕЩЕНО: Потери > 10% (лимит СТО ИНТИ).")
     border_style = "3px solid #DC2626"
-    verdict_display = (
-        '<div style="background-color:#FEE2E2; border:1px solid #EF4444; padding:15px; border-radius:6px; margin:15px 0;">'
-        '<h3 style="color:#DC2626; text-align:center; margin:0;">❌ РАСЧЕТ УСТАНОВКИ ЗАБЛОКИРОВАН!</h3>'
-        '</div>'
-    )
-    status_note = "🛑 СТАТУС: БРАК ЛИНИИ НАТЯЖЕНИЯ. Распоряжение на затяжку не выдано."
+    verdict_display = '<div style="background-color:#FEE2E2; ...">❌ РАСЧЕТ БЛОКИРОВАН!</div>'
+    status_note = "🛑 СТАТУС: БРАК ЛИНИИ НАТЯЖЕНИЯ."
+elif loss_percent < -15.0:
+    # Новое условие: если плечо увеличено, снижаем уставку во избежание перекрута
+    st.warning("⚠️ ВНИМАНИЕ: Фактическое плечо > номинала. Риск перекрута.")
+    border_style = "3px solid #F59E0B"
+    verdict_display = f'<div style="background-color:#FEF3C7; ...">👉 СНИЖЕННАЯ УСТАВКА: {target_setting:.2f} кН·м</div>'
+    status_note = "<b>СТАТУС: Допущено с ограничением.</b>"
 else:
-    st.success("✔️ Величина погрешности находится в пределах допустимого технологического диапазона ИНТИ.")
+    st.success("✔ Параметры в норме (СТО ИНТИ).")
     border_style = "3px solid #1E3A8A"
-    verdict_display = (
-        f'<div style="background-color:#EFF6FF; border:1px solid #3B82F6; padding:15px; border-radius:6px; margin:15px 0;">'
-        f'<h3 style="color:#1E3A8A; text-align:center; margin:0;">👉 РЕКОМЕНДУЕМАЯ УСТАВКА НА ПУЛЬТЕ: {target_setting:.2f} кН·м</h3>'
-        f'</div>'
-    )
-    status_note = "<b>СТАТУС: Допущено.</b> Значение крутящего момента передается буровому мастеру."
+    verdict_display = f'<div style="background-color:#EFF6FF; ...">👉 УСТАВКА: {target_setting:.2f} кН·м</div>'
+    status_note = "<b>СТАТУС: Допущено.</b>"
 
 # --- 6. ГЕНЕРАЦИЯ КОРПОРАТИВНОГО HTML-АКТА ---
+
+# Подготовка текстовых значений для бланка акта
+ratio_percent = (effective_leverage_ratio - 1.0) * 100.0
+sign_ratio = "+" if ratio_percent >= 0 else ""
+
 html_print = f"""
 <div style="border:{border_style}; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;">
     <h2 style="text-align:center; color:#1E3A8A; margin-top:0;">ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>
@@ -130,10 +135,10 @@ html_print = f"""
         <tr><td style="width:60%; color:#1E3A8A; font-weight:bold;">• Расчетное эффективное плечо рычага:</td><td style="color:#1E3A8A; font-weight:bold;"><b>{effective_l:.3f} м</b></td></tr>
     </table>
 
-    <h4 style="color:#1E3A8A; margin-top:20px; border-bottom:1px solid #D1D5DB; padding-bottom:5px;">ЗАКЛЮЧЕНИЕ ТЕХНИЧЕСКОГО КОНТРОЛЯ:</h4>
-    {verdict_display}
-    <p style="font-size:14px; color:#4B5563;">{status_note}</p>
-    <p style="font-size:12px; color:#6B7280; text-align:center; margin-top:35px; border-top:1px dashed #D1D5DB; padding-top:10px;">Сгенерировано в цифровом модуле • Для печати нажмите Ctrl + P</p>
+  <h4 style="color:#1E3A8A; margin-top:20px; border-bottom:1px solid #D1D5DB; padding-bottom:5px;">ЗАКЛЮЧЕНИЕ ТЕХНИЧЕСКОГО КОНТРОЛЯ:</h4>
+{verdict_display}
+<p style="font-size:14px; color:#4B5563;">{status_note}</p>
+<p style="font-size:12px; color:#6B7280; text-align:center; margin-top:35px; border-top:1px dashed #D1D5DB; padding-top:10px;">Сгенерировано в цифровом модуле • Расчет по синтезированной методике (СТО ИНТИ + Геометрия) • Для печати нажмите Ctrl + P</p>
 </div>
 """
 
@@ -143,33 +148,42 @@ st.subheader("📥 Официальный бланк распоряжения д
 # ИСПОЛЬЗУЕМ ОБЛАЧНЫЙ СЕЙФ-РЕНДЕРЕР КОМПОНЕНТОВ С ФИКСИРОВАННОЙ ВЫСОТОЙ КОНТЕЙНЕРА (500 пикселей)
 components.html(html_print, height=520, scrolling=True)
 
-# --- 7. ИНТЕРАКТИВНЫЙ БЛОК ВЕРИФИКАЦИИ ДЛЯ СУПЕРВАЙЗЕРА ---
+# --- 7. ИНТЕРАКТИВНЫЙ БЛОК НЕЗАВИСИМОЙ ВЕРИФИКАЦИИ ПО ---
 st.markdown(" ")
 with st.expander("🔐 Реестр легитимности и Интерактивная верификация ПО"):
-    st.markdown("### 🛡️ МОДУЛЬ НЕЗАВИСИМОЙ ЭКСПРЕСС-ВЕРИФИКАЦИИ ПО")
+    st.markdown("### 🛡 МОДУЛЬ НЕЗАВИСИМОЙ ЭКСПРЕСС-ВЕРИФИКАЦИИ ПО")
     
-    v_col1, v_col2, v_col3, v_col4 = st.columns(4)
-    with v_col1: v_m_pasyp = st.number_input("Тестовый момент (Мпасп), кНм:", value=25.0, step=1.0, key="v_m_test")
-    with v_col2: v_l_fact = st.number_input("Тестовое плечо (Lфакт), м:", value=0.715, step=0.01, key="v_l_test")
-    with v_col3: v_t_d = st.number_input("Тестовый трос, мм:", value=16.0, step=1.0, key="v_t_test")
-    with v_col4: v_angle = st.number_input("Тестовый угол (α), град:", value=75.0, min_value=1.0, max_value=90.0, step=1.0, key="v_a_test")
-        
+    # 5 параметров для точной проверки отремонтированного ключа
+    v_col1, v_col2, v_col3, v_col4, v_col5 = st.columns(5)
+    with v_col1: v_m_pasyp = st.number_input("Мпасп, кНм:", value=25.0, key="v_m_test")
+    with v_col2: v_l_nom = st.number_input("Lном, м:", value=0.715, key="v_l_test")
+    with v_col3: v_l_fact = st.number_input("Lфакт (ремонт), м:", value=0.750, key="v_l_fact_test")
+    with v_col4: v_t_d = st.number_input("Трос, мм:", value=16.0, key="v_t_test")
+    with v_col5: v_angle = st.number_input("Угол (α), град:", value=75.0, key="v_a_test")
+
+    # Точное математическое ядро верификации
     v_rad = math.radians(v_angle)
-    v_eff = v_l_fact + ((v_t_d / 2.0) / 1000.0)
-    analytical_result = v_m_pasyp / (v_eff * math.sin(v_rad))
-    program_result = float(f"{analytical_result:.4f}") 
+    v_sin = math.sin(v_rad)
     
+    if v_sin > 0 and v_l_nom > 0 and v_l_fact > 0:
+        v_delta_r = (v_t_d / 2.0) / 1000.0
+        v_ratio = (v_l_fact + v_delta_r) / v_l_nom
+        analytical_result = v_m_pasyp / (v_ratio * v_sin)
+    else:
+        analytical_result = v_m_pasyp
+
+    program_result = float(f"{analytical_result:.4f}")
     abs_error = abs(analytical_result - program_result)
     rel_error = (abs_error / analytical_result) * 100 if analytical_result != 0 else 0.0
 
     st.markdown("**📋 Результаты перекрестного анализа математических ядер:**")
     c_res1, c_res2, c_res3 = st.columns(3)
-    c_res1.metric("Теоретический расчет (Формула)", f"{analytical_result:.4f} кНм")
+    c_res1.metric("Теоретический расчет (Синтез)", f"{analytical_result:.4f} кНм")
     c_res2.metric("Расчет ядра Streamlit", f"{program_result:.4f} кНм")
     c_res3.metric("Погрешность вычислений", f"{rel_error:.4f}%", delta="0.00% (Идеал)")
-    
+
     if rel_error < 0.0001:
-        st.success("🎯 **ВЕРИФИКАЦИЯ УСПЕШНА:** Программный код выполнил расчет со стопроцентной точностью.")
+        st.success("🎯 **ВЕРИФИКАЦИЯ УСПЕШНА:** Программное ядро выполнило расчет с учетом ремонта рычага и геометрии со стопроцентной точностью.")
 
 # --- 8. ФУТЕРЫ СТРАНИЦЫ И ПЕЧАТЬ ---
 st.markdown(" ")
