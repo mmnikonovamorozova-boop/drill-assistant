@@ -11,25 +11,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# Проверка авторизации (если внедрили пароли из прошлого шага)
-if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
-    st.error("🚨 Доступ заблокирован! Пожалуйста, авторизуйтесь на Главной странице.")
-    st.stop()
-
-# 2. Красивое сервисное уведомление для буровой бригады
-st.title("🧪 5. Мониторинг параметров бурового раствора")
-st.markdown("<style>a[href*='vhodnoy_kontrol'] span, a[href*='raschet_umk'] span, a[href*='tech_cards'] span, a[href*='lyuft_vzd'] span, a[href*='kontrol_rastvora'] span, a[href='/'] span { font-size: 0 !important; } a[href='/'] span::before { content: '🧭 Главная страница'; font-size: 14px !important; font-weight: bold; } a[href*='vhodnoy_kontrol'] span::before { content: '📋 1. Входной контроль'; font-size: 14px !important; } a[href*='raschet_umk'] span::before { content: '🧮 2. Расчет УМК'; font-size: 14px !important; } a[href*='tech_cards'] span::before { content: '🔨 3. Технологические карты'; font-size: 14px !important; } a[href*='lyuft_vzd'] span::before { content: '📏 4. Люфт ВЗД'; font-size: 14px !important; } a[href*='kontrol_rastvora'] span::before { content: '🧪 5. Контроль раствора'; font-size: 14px !important; }</style>", unsafe_allow_html=True)
-st.markdown("---")
-
-# Выводим серый баннер, как в калькуляторе
-st.markdown("<div style='color: #4B5563; font-size: 14px; background-color: #F3F4F6; padding: 25px; border-radius: 8px; border-left: 4px solid #6b7280; text-align: center; font-family: Arial, sans-serif;'><b>🚧 МОДУЛЬ НАХОДИТСЯ НА СТАДИИ РАЗРАБОТКИ И ТЕСТИРОВАНИЯ</b><br><br>Инженерные расчеты гидравлики, контроля плотности и фильтрации бурового раствора по стандартам ИНТИ временно недоступны.<br>Ориентировочный запуск модуля: 3-й квартал 2026 года.</div>", unsafe_allow_html=True)
-
-st.markdown("---")
-st.caption("ООО «Траектория-Сервис» • Отдел систем менеджмента качества (ОСМК) 2026")
-
-# 🚨 СТОП-КРАН: Добавьте эту строчку обязательно! 
-st.stop() 
-
 # ПРОВЕРКА: Если инженер не залогинился на главной странице — выкидываем его назад
 if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
     st.error("🚨 Доступ заблокирован! Пожалуйста, перейдите на Главную страницу приложения и введите пароль.")
