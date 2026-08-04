@@ -16,34 +16,31 @@ def logout_page():
 def check_password():
     if "authenticated" not in st.session_state:
         st.session_state["authenticated"] = False
-
     if st.session_state["authenticated"]:
         return True
 
     st.title("🔐 Авторизация в системе ННБ")
     st.caption("ООО «Траектория-Сервис» • Защищенный корпоративный доступ")
-    
+
     input_user = st.text_input("Введите логин (Username):")
     input_pass = st.text_input("Введите пароль (Password):", type="password")
-    
+
     if st.button("Войти в систему"):
         allowed_users = st.secrets["credentials"]["usernames"]
         allowed_passwords = st.secrets["credentials"]["passwords"]
-        
+
         if input_user in allowed_users:
             user_index = allowed_users.index(input_user)
             if input_pass == allowed_passwords[user_index]:
                 st.session_state["authenticated"] = True
                 st.rerun()
-                return True
-                
+            return True
         st.error("❌ Неверный логин или пароль. Доступ заблокирован.")
-        return False
+    return False
 
 # 3. ЗАПУСК НАВИГАЦИИ ПОСЛЕ АВТОРИЗАЦИИ
 if check_password():
-    
-    # Задаем структуру меню (Главная страница теперь ссылается на main_page.py)
+    # Задаем структуру меню (Добавлен пункт 7 с иконкой прогноза)
     pages = [
         st.Page("main_page.py", title="Главная страница", icon="🧭"),
         st.Page("pages/1_vhodnoy_kontrol.py", title="1. Входной контроль", icon="📋"),
@@ -52,9 +49,10 @@ if check_password():
         st.Page("pages/4_lyuft_vzd.py", title="4. Люфт ВЗД", icon="📏"),
         st.Page("pages/_kontrol_rastvora.py", title="5. Контроль раствора", icon="🧪"),
         st.Page("pages/6_baza_znaniy.py", title="6. База знаний", icon="📚"),
+        st.Page("pages/7_prognoz_traektorii.py", title="7. Прогноз траектории и СПР", icon="🔮"),
         st.Page(logout_page, title="Выйти из аккаунта", icon="🔒")
     ]
-    
+
     # Запускаем навигационный движок
     pg = st.navigation(pages)
     pg.run()
