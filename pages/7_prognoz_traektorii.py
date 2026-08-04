@@ -39,7 +39,7 @@ def save_calibration_to_yandex(formation_name, calibrated_value):
         st.error("Токен Яндекс Диска отсутствует.")
         return
     try:
-        # 1. Пробуем создать папку
+        # 1. Создаем папку (проверяем, чтобы слэш перед параметром path был на месте)
         requests.put("https://yandex.net", headers=get_yandex_headers())
         
         # 2. Запрашиваем ссылку на загрузку
@@ -57,7 +57,7 @@ def save_calibration_to_yandex(formation_name, calibrated_value):
             else:
                 st.error(f"🔴 Код ответа Яндекса при записи файла: {put_response.status_code}")
         else:
-            st.error(f"🔴 Ошибка авторизации Диска. Код: {response.status_code}. Ответ: {response.text}")
+            st.error(f"🔴 Ошибка API Яндекс Диска. Код: {response.status_code}. Ответ: {response.text}")
     except Exception as e:
         st.error(f"❌ Сбой сети: {str(e)}")
 
