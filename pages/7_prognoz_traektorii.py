@@ -19,16 +19,43 @@ def get_yandex_headers():
     }
 
 def load_calibration_from_yandex(formation_name):
-    # Упрощенная загрузка, ищет в папке drill_memory
-    path_on_disk = f"drill_memory/{formation_name}_calibrated.json"
-    # ... логика запроса к API Яндекса ...
+    """Загрузка калибровки с обработкой ошибок."""
+    if not YANDEX_TOKEN or "ВАШ" in YANDEX_TOKEN: return None
+    try:
+        path = f"drill_memory/{formation_name}_calibrated.json"
+        url = f"https://yandex.net{path}"
+        r = requests.get(url, headers=get_yandex_headers())
+        if r.status_code == 200:
+            file_r = requests.get(r.json().get("href"))
+            return float(file_r.json().get("calibrated_ani", 1.02))
+    except: pass
     return None
 
 def save_calibration_to_yandex(formation_name, calibrated_value):
-    # Упрощенное сохранение с overwrite=true
-    path_on_disk = f"drill_memory/{formation_name}_calibrated.json"
-    # ... логика PUT запроса ...
-    st.toast("💾 Калибровка сохранена!", icon="☁️")
+    """Сохранение с детальным контролем ошибок API."""
+    if not YANDEX_TOKEN or "ВАШ" in YANDEX_TOKEN:
+        st.error("Токен Яндекс Диска отсутствует.")
+        return
+    try:
+        path = f"drill_memory/{formation_name}_calibrated.json"
+        url = f"https://yandex.net{path}&overwrite=true"
+        r = requests.get(url, headers=get_yandex_headers())
+        
+        if r.status_code == 200:
+            up_url = r.json().get("href")
+            data = {"formation": formation_name, "calibrated_ani": calibrated_value}
+            # Отправка файла
+            put_r = requests.put(up_url, data=json.dumps(data))
+            if put_r.status_code == 201:
+                st.toast("💾 Калибровка сохранена!", icon="✅")
+            else:
+                st.error(f"🔴 Ошибка записи. Код: {put_r.status_code}")
+        else:
+            st.error(f"🔴 Ошибка Яндекс API ({r.status_code})")
+            if r.status_code == 401: st.warning("🔐 Обновите токен")
+            elif r.status_code == 404: st.warning("📂 Создайте папку 'drill_memory'")
+    except Exception as e:
+        st.error(f"❌ Ошибка: {str(e)}")
 
 # ==============================================================================
 # БЛОК 1: БАЗА НЕОДРОПОЛЬЗОВАТЕЛЕЙ (ШТРАФНЫЕ ЛИМИТЫ СМК)
