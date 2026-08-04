@@ -54,5 +54,5 @@ if check_password():
     ]
 
     # Запускаем навигационный движок
-    pg = st.navigation(pages)
+pg = st.navigation(pages)
     pg.run()
