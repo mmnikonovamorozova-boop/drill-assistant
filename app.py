@@ -1,58 +1,65 @@
 import streamlit as st
 
-# 1. НАСТРОЙКА СТРАНИЦЫ
+# ==============================================================================
+# 1. КОНФИГУРАЦИЯ СТРАНИЦЫ И СТИЛИЗАЦИЯ ИНТЕРФЕЙСА
+# ==============================================================================
 st.set_page_config(
-    page_title="Помощник инженера «Траектория-Сервис»",
-    page_icon="🧭",
-    layout="wide"
+    page_title="Помощник инженера ННБ",
+    page_icon="🏗️",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# Функция для логаута
-def logout_page():
-    st.session_state["authenticated"] = False
-    st.rerun()
+# Инициализация состояния авторизации (если еще не создано)
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
 
-# 2. ФУНКЦИЯ АВТОРИЗАЦИИ ПЕРСОНАЛА
-def check_password():
-    if "authenticated" not in st.session_state:
-        st.session_state["authenticated"] = False
-    if st.session_state["authenticated"]:
-        return True
-
-    st.title("🔐 Авторизация в системе ННБ")
+# ==============================================================================
+# 2. ФУНКЦИЯ ЭКРАНА АВТОРИЗАЦИИ
+# ==============================================================================
+def login_screen():
+    st.title("🔒 Авторизация в системе ННБ")
     st.caption("ООО «Траектория-Сервис» • Защищенный корпоративный доступ")
-
-    input_user = st.text_input("Введите логин (Username):")
-    input_pass = st.text_input("Введите пароль (Password):", type="password")
-
-    if st.button("Войти в систему"):
-        allowed_users = st.secrets["credentials"]["usernames"]
-        allowed_passwords = st.secrets["credentials"]["passwords"]
-
-        if input_user in allowed_users:
-            user_index = allowed_users.index(input_user)
-            if input_pass == allowed_passwords[user_index]:
-                st.session_state["authenticated"] = True
+    
+    with st.container(border=True):
+        username = st.text_input("Введите логин (Username):")
+        password = st.text_input("Введите пароль (Password):", type="password")
+        
+        if st.button("Войти в систему", type="primary"):
+            # Простейшая заглушка для теста (замените на ваши реальные логины/пароли)
+            if username == "admin" and password == "nnb2026":
+                st.session_state.authenticated = True
+                st.success("Успешный вход! Перенаправление...")
                 st.rerun()
-            return True
-        st.error("❌ Неверный логин или пароль. Доступ заблокирован.")
-    return False
+            else:
+                st.error("Неверный логин или пароль. Пожалуйста, повторите ввод.")
 
-# 3. ЗАПУСК НАВИГАЦИИ ПОСЛЕ АВТОРИЗАЦИИ
-if check_password():
-        # Задаем структуру меню (Все пути проверены и синхронизированы)
-        pages = [
-        st.Page("main_page.py", title="Главная страница", icon="🧭"),
-        st.Page("pages/1_vhodnoy_kontrol.py", title="1. Входной контроль", icon="📋"),
-        st.Page("pages/2_raschet_umk.py", title="2. Расчет УМК", icon="🧮"),
-        st.Page("pages/3_tech_cards.py", title="3. Технологические карты", icon="🔨"),
-        st.Page("pages/4_lyuft_vzd.py", title="4. Люфт ВЗД", icon="📏"),
-        st.Page("pages/5_kontrol_rastvora.py", icon="🧪"),
-        st.Page("pages/6_baza_znaniy.py", title="6. База знаний", icon="📚"),
-        st.Page("pages/7_prognoz_traektorii.py", title="7. Прогноз траектории", icon="🔮"),
-        st.Page(logout_page, title="Выйти из аккаунта", icon="🔒")
+# ==============================================================================
+# 3. ОСНОВНАЯ ЛОГИКА И СИСТЕМА НАВИГАЦИИ (ДЛЯ STREAMLIT >= 1.35)
+# ==============================================================================
+if not st.session_state.authenticated:
+    # Если пользователь не авторизован — показываем только экран входа
+    login_screen()
+else:
+    # Кнопка выхода в боковом меню (для удобства СМК)
+    if st.sidebar.button("🚪 Выйти из системы"):
+        st.session_state.authenticated = False
+        st.rerun()
+
+    st.sidebar.markdown("---")
+
+    # Объявляем список страниц (переменная 'pages'), строго соответствующий вашему меню
+    # ПРИМЕЧАНИЕ: Файлы .py должны лежать в той же корневой папке репозитория
+    pages = [
+        st.Page("vhodnoy_kontrol.py", title="Входной контроль", icon="📋"),
+        st.Page("raschet_umk.py", title="Расчет УМК", icon="🔧"),
+        st.Page("tech_cards.py", title="Техкарты", icon="📄"),
+        st.Page("lyuft_vzd.py", title="Люфты ВЗД", icon="⚙️"),
+        st.Page("kontrol_rastvora.py", title="Контроль раствора", icon="🧪"),
+        st.Page("baza_znaniy.py", title="База знаний", icon="📚"),
+        st.Page("prognoz_traektorii.py", title="Прогноз траектории", icon="📈"),
     ]
 
-    # Запускаем навигационный движок
-pg = st.navigation(pages)
-pg.run()
+    # Инициализация и запуск навигации (строго без лишних отступов в начале строк)
+    pg = st.navigation(pages)
+    pg.run()
