@@ -23,7 +23,6 @@ def load_calibration_from_yandex(formation_name):
         return None
     try:
         path_on_disk = f"drill_assistant_memory/{formation_name}_calibrated.json"
-        # ИСПРАВЛЕНО: Добавлен полный рабочий адрес cloud-api.yandex.net
         url = f"https://yandex.net{path_on_disk}"
         response = requests.get(url, headers=get_yandex_headers())
         if response.status_code == 200:
@@ -37,11 +36,11 @@ def load_calibration_from_yandex(formation_name):
 
 def save_calibration_to_yandex(formation_name, calibrated_value):
     if not YANDEX_TOKEN or "ВАШ" in YANDEX_TOKEN:
-        st.error("Токен Яндекс Диска отсутствует или не заполнен.")
+        st.error("Токен Яндекс Диска отсутствует.")
         return
     try:
-        # 1. Пробуем создать папку и смотрим код ответа
-        dir_res = requests.put("https://yandex.net", headers=get_yandex_headers())
+        # 1. Пробуем создать папку
+        requests.put("https://yandex.net", headers=get_yandex_headers())
         
         # 2. Запрашиваем ссылку на загрузку
         path_on_disk = f"drill_assistant_memory/{formation_name}_calibrated.json"
@@ -52,34 +51,15 @@ def save_calibration_to_yandex(formation_name, calibrated_value):
             upload_url = response.json().get("href")
             data_to_save = {"formation": formation_name, "calibrated_ani": calibrated_value}
             put_response = requests.put(upload_url, data=json.dumps(data_to_save))
-            if put_response.status_code in:
-                st.toast("💾 Калибровка успешно записана на ваш Яндекс Диск!", icon="☁️")
-            else:
-                st.error(f"🔴 Ошибка загрузки файла! Код: {put_response.status_code}. Текст: {put_response.text}")
-        else:
-            # Выводим точный ответ сервера, если токен просрочен или заблокирован
-            st.error(f"🔴 Ошибка API Яндекс Диска! Код: {response.status_code}. Ответ: {response.text}")
-            st.info("Попробуйте обновить токен на yandex.ru/dev/disk/poligon")
-    except Exception as e:
-        st.error(f"❌ Критический сбой сети: {str(e)}")
-    return None
-
-def save_calibration_to_yandex(formation_name, calibrated_value):
-    if not YANDEX_TOKEN or "ВАШ" in YANDEX_TOKEN:
-        return
-    try:
-        requests.put("https://yandex.net", headers=get_yandex_headers())
-        path_on_disk = f"drill_assistant_memory/{formation_name}_calibrated.json"
-        url = f"https://yandex.net{path_on_disk}&overwrite=true"
-        response = requests.get(url, headers=get_yandex_headers())
-        if response.status_code == 200:
-            upload_url = response.json().get("href")
-            data_to_save = {"formation": formation_name, "calibrated_ani": calibrated_value}
-            put_response = requests.put(upload_url, data=json.dumps(data_to_save))
+            
             if put_response.status_code == 201:
                 st.toast("💾 Калибровка успешно записана на ваш Яндекс Диск!", icon="☁️")
-    except:
-        pass
+            else:
+                st.error(f"🔴 Код ответа Яндекса при записи файла: {put_response.status_code}")
+        else:
+            st.error(f"🔴 Ошибка авторизации Диска. Код: {response.status_code}. Ответ: {response.text}")
+    except Exception as e:
+        st.error(f"❌ Сбой сети: {str(e)}")
 
 # ==============================================================================
 # БЛОК 1: БАЗА НЕОДРОПОЛЬЗОВАТЕЛЕЙ (ШТРАФНЫЕ ЛИМИТЫ СМК)
