@@ -36,7 +36,7 @@ gno_limit = CLIENT_LIMITS[client]["gno_zone_limit"]
 st.info(f"📋 **Регламент Заказчика:** {client} | **Макс. допуск:** {max_allowed_dls}°/10м | **Лимит в зоне ГНО:** {gno_limit}°/10м")
 
 # ==============================================================================
-# БЛОК 2: ПОДКЛЮЧЕНИЕ СТРАТИГРАФИИ ИЗ НАШЕЙ ПАПКИ CONFIG (ВСЕЯДНЫЙ ПАРСЕР)
+# БЛОК 2: ПОДКЛЮЧЕНИЕ СТРАТИГРАФИИ С ФИЛЬТРАЦИЕЙ И ПОИСКОМ (РЕШЕНИЕ ПРОБЛЕМЫ СКРОЛЛА)
 # ==============================================================================
 config_path = os.path.join("config", "formations_config.json")
 base_ani = 1.02
@@ -47,37 +47,63 @@ if os.path.exists(config_path):
         geo_db = json.load(f)
         
     if geo_db and isinstance(geo_db, list):
-        # 1. Автоматически ищем, как называются ключи в вашем JSON
-        first_row = geo_db[0]
+        # Автоматический поиск ключей в JSON
+        first_row = geo_db[0] if isinstance(geo_db, list) else geo_db
         region_key = next((k for k in first_row.keys() if "регион" in k.lower()), "Регион")
-        
-        # Ищем ключ свиты (он может называться "Свита", "Стратиграфиче", "Горизонт" и т.д.)
         formation_key = next((k for k in first_row.keys() if "стратигр" in k.lower() or "свита" in k.lower() or "горизонт" in k.lower()), "Стратиграфиче")
         litho_key = next((k for k in first_row.keys() if "литолог" in k.lower() or "состав" in k.lower()), "Типичная литолог")
         ani_key = next((k for k in first_row.keys() if "ani" in k.lower() or "анизотр" in k.lower() or "базовый" in k.lower() or "h_an" in k.lower()), "Базовый I(H_an")
 
-        # 2. Собираем уникальные регионы
+        # 1. Выбор региона
         regions = list(set([str(row.get(region_key, "Не указан")).strip() for row in geo_db if row.get(region_key)]))
         selected_region = st.sidebar.selectbox("Регион бурения:", regions)
         
-        # 3. Собираем горизонты для выбранного региона (убираем дубликаты и пустые)
-        formations = list(set([str(row.get(formation_key, "Не указана")).strip() for row in geo_db if str(row.get(region_key)).strip() == selected_region]))
-        formations = [f for f in formations if f and f != "None" and f != "Не указана"]
+        # 2. Получаем ВСЕ свиты для этого региона
+        all_formations = list(set([str(row.get(formation_key, "Не указана")).strip() for row in geo_db if str(row.get(region_key)).strip() == selected_region]))
+        all_formations = sorted([f for f in all_formations if f and f != "None" and f != "Не указана"])
         
-        if formations:
-            selected_formation = st.sidebar.selectbox("Стратиграфический горизонт:", formations)
+        if all_formations:
+            st.sidebar.markdown("**🔍 Фильтрация списка свит:**")
             
-            # Ищем данные по выбранной свите
-            current_data = next((row for row in geo_db if str(row.get(region_key)).strip() == selected_region and str(row.get(formation_key)).strip() == selected_formation), {})
-            lithology = current_data.get(litho_key, "Данные отсутствуют")
+            # Поле для быстрого текстового поиска (введите буквы)
+            search_query = st.sidebar.text_input("Введите название для поиска:", "", help="Начните писать название свиты, чтобы отфильтровать список")
             
-            # Парсим диапазон анизотропии
-            ani_str = str(current_data.get(ani_key, "1.02"))
-            try:
-                bounds = [float(x.strip()) for x in ani_str.split("-") if x.strip()]
-                base_ani = sum(bounds) / len(bounds) if bounds else 1.02
-            except:
-                base_ani = 1.02
+            # Фильтруем список по поисковому запросу
+            if search_query:
+                filtered_formations = [f for f in all_formations if search_query.lower() in f.lower()]
+            else:
+                filtered_formations = all_formations
+                
+            # Ограничение объема вывода через постраничную разбивку (если свит все еще слишком много)
+            items_per_page = 15
+            if len(filtered_formations) > items_per_page:
+                total_pages = (len(filtered_formations) - 1) // items_per_page + 1
+                page = st.sidebar.number_input(f"Страница списка (из {total_pages}):", min_value=1, max_value=total_pages, value=1)
+                start_idx = (page - 1) * items_per_page
+                end_idx = start_idx + items_per_page
+                display_formations = filtered_formations[start_idx:end_idx]
+                st.sidebar.caption(f"Показаны свиты {start_idx+1}–{min(end_idx, len(filtered_formations))} из {len(filtered_formations)}")
+            else:
+                display_formations = filtered_formations
+
+            # Финальный компактный выпадающий список
+            if display_formations:
+                selected_formation = st.sidebar.selectbox("Стратиграфический горизонт:", display_formations)
+                
+                # Ищем данные по выбранной свите
+                current_data = next((row for row in geo_db if str(row.get(region_key)).strip() == selected_region and str(row.get(formation_key)).strip() == selected_formation), {})
+                lithology = current_data.get(litho_key, "Данные отсутствуют")
+                
+                # Парсим диапазон анизотропии
+                ani_str = str(current_data.get(ani_key, "1.02"))
+                try:
+                    bounds = [float(x.strip()) for x in ani_str.split("-") if x.strip()]
+                    base_ani = sum(bounds) / len(bounds) if bounds else 1.02
+                except:
+                    base_ani = 1.02
+            else:
+                st.sidebar.warning("Свиты по запросу не найдены")
+                lithology = "Данные отсутствуют"
         else:
             st.sidebar.warning("Свиты для региона не найдены")
             lithology = "Данные отсутствуют"
