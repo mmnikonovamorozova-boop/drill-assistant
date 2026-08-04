@@ -41,7 +41,7 @@ def save_calibration_to_yandex(formation_name, calibrated_value):
     try:
         # Прямой запрос ссылки на запись файла в готовую папку drill_memory
         path_on_disk = f"drill_memory/{formation_name}_calibrated.json"
-        url = f"https://yandex.net{path_on_disk}&overwrite=true"
+        url = f"https://yandex.net{path_on_disk}"
         response = requests.get(url, headers=get_yandex_headers())
         
         if response.status_code == 200:
