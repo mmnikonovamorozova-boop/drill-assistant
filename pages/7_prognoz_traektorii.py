@@ -3,67 +3,82 @@ import json
 import os
 import numpy as np
 import requests
+from datetime import datetime
 
 st.title("📈 Модуль пространственной интенсивности (Регламент Р-ТС-12)")
-st.caption("Адаптивный СМК-контроль траектории ствола ООО «Траектория-Сервис» с учетом реологии Гершеля-Балкли")
-# ==============================================================================
-# ИНИЦИАЛИЗАЦИЯ СОСТОЯНИЯ СЕССИИ (ЗАЩИТА ОТ ATTRIBUTEERROR)
-# ==============================================================================
+st.caption("Адаптивный СМК-контроль траектории ствола ООО «Траектория-Сервис» на базе распределенного хранилища GitOps")
+
+# ИНИЦИАЛИЗАЦИЯ ПЕРЕМЕННЫХ СЕССИИ (ЗАЩИТА ОТ ATTRIBUTEERROR)
 if "calibrated_ani" not in st.session_state:
     st.session_state.calibrated_ani = 1.02
-
 if "cloud_cache" not in st.session_state:
     st.session_state.cloud_cache = {}
 
 # ==============================================================================
-# СЕРВИСНЫЙ ОБЛАЧНЫЙ БЛОК: СИНХРОНИЗАЦИЯ С ВАШЕЙ ПАПКОЙ DRILL_MEMORY
+# СЕРВИСНЫЙ БЛОК GITOPS: РАБОТА С ВЕЧНОЙ БАЗОЙ ДАННЫХ НА GITHUB
 # ==============================================================================
-YANDEX_TOKEN = "y0__wgBEOCakoMCGNuWAyDes4rGGDCG7NP5B4UnkGMyCzsQsaLAS58perqQMUtu"
+GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
+# Автоматически определяем имя пользователя и репозиторий из окружения Streamlit Cloud
+REPO_URL = "https://github.com"
 
-def get_yandex_headers():
+def get_github_headers():
     return {
-        "Authorization": f"OAuth {YANDEX_TOKEN}",
-        "Accept": "application/json"
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json"
     }
 
-def load_calibration_from_yandex(formation_name):
-    if not YANDEX_TOKEN or "ВАШ" in YANDEX_TOKEN: 
-        return None
+def load_all_calibrations_from_github():
+    """Считывание всего массива исторических калибровок от всех пользователей"""
     try:
-        path = f"drill_memory/{formation_name}_calibrated.json"
-        # ИСПРАВЛЕНО: Указан правильный и полный адрес API Яндекса
-        url = f"https://yandex.net{path}"
-        r = requests.get(url, headers=get_yandex_headers())
+        r = requests.get(REPO_URL, headers=get_github_headers())
         if r.status_code == 200:
-            file_r = requests.get(r.json().get("href"))
-            return float(file_r.json().get("calibrated_ani", 1.02))
-    except: 
-        pass
-    return None
-
-def save_calibration_to_yandex(formation_name, calibrated_value):
-    if not YANDEX_TOKEN or "ВАШ" in YANDEX_TOKEN:
-        return
-    try:
-        path = f"drill_memory/{formation_name}_calibrated.json"
-        # ИСПРАВЛЕНО: Исправлен слипшийся адрес запроса на загрузку файла
-        url = f"https://yandex.net{path}&overwrite=true"
-        r = requests.get(url, headers=get_yandex_headers())
-        
-        if r.status_code == 200:
-            up_url = r.json().get("href")
-            data = {"formation": formation_name, "calibrated_ani": calibrated_value}
-            # ИСПРАВЛЕНО: Прямая отправка файла в облако
-            requests.put(up_url, data=json.dumps(data))
-            st.toast("💾 Калибровка успешно записана на ваш Яндекс Диск!", icon="☁️")
+            content = r.json()
+            # Декодируем base64 текст, отправленный гитхабом
+            import base64
+            file_content = base64.b64decode(content["content"]).decode("utf-8")
+            return json.loads(file_content), content["sha"]
     except:
         pass
+    return [], None
+
+def save_calibration_to_github(formation_name, calibrated_value, current_wob, current_angle):
+    """Автоматический двухфазный коммит новой записи в репозиторий GitHub API"""
+    try:
+        history, sha = load_all_calibrations_from_github()
+        
+        # Формируем СМК-паспорт нового замера
+        new_record = {
+            "formation": formation_name,
+            "calibrated_ani": float(calibrated_value),
+            "wob": float(current_wob),
+            "angle": float(current_angle),
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        history.append(new_record)
+        
+        # Кодируем обновленный массив обратно в Base64 для коммита
+        import base64
+        updated_content = base64.b64encode(json.dumps(history, indent=2, ensure_ascii=False).encode("utf-8")).decode("utf-8")
+        
+        payload = {
+            "message": f"СМК-Автокоммит: Добавлена калибровка по свите {formation_name}",
+            "content": updated_content,
+            "sha": sha
+        }
+        
+        put_r = requests.put(REPO_URL, headers=get_github_headers(), data=json.dumps(payload))
+        if put_r.status_code in:
+            st.toast("💾 Данные успешно синхронизированы с глобальным репозиторием GitHub!", icon="🚀")
+        else:
+            st.sidebar.error(f"GitHub отклонил запись. Код: {put_r.status_code}")
+    except Exception as e:
+        st.sidebar.error(f"Сбой GitOps контура: {str(e)}")
 
 # ==============================================================================
 # БЛОК 1: БАЗА НЕОДРОПОЛЬЗОВАТЕЛЕЙ (ШТРАФНЫЕ ЛИМИТЫ СМК)
 # ==============================================================================
 CLIENT_LIMITS = {
-    "ПАО «НК «Роснефть»": {"max_dls": 2.5, "penalty_risk": "Высокий (Штраф за превышение DLS на одиночную свечу)", "gno_zone_limit": 1.2},
+    "ПАО «НК «Роснефть»": {"max_dls": 2.5, "penalty_risk": "Высокий (Штраф за превышение DLS на свечу)", "gno_zone_limit": 1.2},
     "ПАО «Газпром нефть»": {"max_dls": 3.0, "penalty_risk": "Критический (Снижение суточной ставки бурения)", "gno_zone_limit": 1.5},
     "ПАО «ЛУКОЙЛ»": {"max_dls": 2.0, "penalty_risk": "Высокий (Запрет спуска хвостовика, отказ ОТК)", "gno_zone_limit": 1.0}
 }
@@ -76,7 +91,7 @@ gno_limit = CLIENT_LIMITS[client]["gno_zone_limit"]
 st.info(f"📋 **Регламент Заказчика:** {client} | **Макс. допуск:** {max_allowed_dls}°/10м | **Лимит в зоне ГНО:** {gno_limit}°/10м")
 
 # ==============================================================================
-# БЛОК 2: ВИЗУАЛЬНЫЙ СМК-ФИЛЬТР СВИТ ПО ЛИТОЛОГИИ И ТВЕРДОСТИ (ДЛЯ СПИСКОВ JSON)
+# БЛОК 2: УЛУЧШЕННЫЙ СМК-ФИЛЬТР С КНТУРОМ «НОВАЯ СВИТА»
 # ==============================================================================
 config_path = os.path.join("config", "formations_config.json")
 base_ani = 1.02
@@ -88,12 +103,10 @@ if os.path.exists(config_path):
         geo_db = json.load(f)
         
     if geo_db and isinstance(geo_db, list):
-        # Защита от AttributeError: берем первый элемент (словарь) из списка
-        first_row = geo_db[0] if len(geo_db) > 0 else {}
+        first_row = geo_db if len(geo_db) > 0 else {}
         region_key = next((k for k in first_row.keys() if "регион" in k.lower()), "Регион")
         formation_key = next((k for k in first_row.keys() if "стратигр" in k.lower() or "свита" in k.lower() or "горизонт" in k.lower()), "Стратиграфиче")
         litho_key = next((k for k in first_row.keys() if "литолог" in k.lower() or "состав" in k.lower() or "тип" in k.lower()), "Типичная литолог")
-        ani_key = next((k for k in first_row.keys() if "ani" in k.lower() or "анизотр" in k.lower() or "базовый" in k.lower() or "h_an" in k.lower()), "Базовый I(H_an")
         category_key = next((k for k in first_row.keys() if "категор" in k.lower() or "тверд" in k.lower() or "класс" in k.lower()), "Категория бури")
 
         selected_region = st.sidebar.selectbox("1. Регион бурения:", list(set([str(row.get(region_key, "Не указан")).strip() for row in geo_db if row.get(region_key)])))
@@ -113,49 +126,50 @@ if os.path.exists(config_path):
 
         display_formations = sorted(list(set([str(row.get(formation_key, "Не указана")).strip() for row in filtered_rows])))
         display_formations = [f for f in display_formations if f and f != "None" and f != "Не указана"]
+        
+        # ➕ ИНТЕГРАЦИЯ РИСКА НЕОПРЕДЕЛЕННОСТИ: Добавляем опцию ручного ввода новой свиты
+        display_formations.append("➕ Своя свита (нет в списке)")
 
         st.sidebar.markdown("---")
         if display_formations:
-            selected_formation = st.sidebar.selectbox("🎯 Подходящий горизонт из Базы:", display_formations)
-            current_data = next((row for row in geo_db if str(row.get(region_key)).strip() == selected_region and str(row.get(formation_key)).strip() == selected_formation), {})
-            lithology = current_data.get(litho_key, "Данные отсутствуют")
-            ani_str = str(current_data.get(ani_key, "1.02"))
-            try:
-                bounds = [float(x.strip()) for x in ani_str.split("-") if x.strip()]
-                base_ani = sum(bounds) / len(bounds) if bounds else 1.02
-            except:
-                base_ani = 1.02
-        else:
-            st.sidebar.warning("Свиты не найдены. Сбросьте фильтры.")
+            choice = st.sidebar.selectbox("🎯 Подходящий горизонт из Базы:", display_formations)
+            
+            if choice == "➕ Своя свита (нет в списке)":
+                # Включаем ручной ввод для неизвестного горизонта
+                selected_formation = st.sidebar.text_input("Впишите название новой свиты:", "Малоизвестная свита")
+                lithology = st.sidebar.text_input("Укажите её литологический состав:", "Литология не изучена")
+                base_ani = 1.020 # Базовый дефолтный старт
+            else:
+                selected_formation = choice
+                current_data = next((row for row in geo_db if str(row.get(region_key)).strip() == selected_region and str(row.get(formation_key)).strip() == selected_formation), {})
+                lithology = current_data.get(litho_key, "Данные отсутствуют")
+                ani_str = str(current_data.get("Базовый I(H_an", "1.02"))
+                try:
+                    bounds = [float(x.strip()) for x in ani_str.split("-") if x.strip()]
+                    base_ani = sum(bounds) / len(bounds) if bounds else 1.02
+                except:
+                    base_ani = 1.02
 
-# ==============================================================================
-# КОНТУР ОБУЧЕНИЯ (ОБРАТНАЯ ЗАДАЧА)
-# ==============================================================================
-st.subheader("🔄 Контур обучения ядра (Обратная задача по ГГИ/ГТИ)")
-st.caption("Введите фактические параметры последнего пробуренного интервала для калибровки и отправки на Яндекс Диск")
-
-col_ob1, col_ob2, col_ob3 = st.columns(3)
-with col_ob1:
-    fact_wob = st.number_input("Фактическая нагрузка на долото (т):", min_value=1.0, max_value=40.0, value=12.0)
-with col_ob2:
-    fact_angle = st.number_input("Фактический зенитный угол на интервале (°):", min_value=0.0, max_value=90.0, value=30.0)
-with col_ob3:
-    fact_dls = st.number_input("Фактическая полученная интенсивность (°/10м):", min_value=0.0, max_value=6.0, value=1.4)
-
-if st.button("🔄 Запустить самообучение системы", type="primary"):
-    theta_rad = np.radians(fact_angle)
-    calculated_pb = abs(65.0 * (fact_wob / 9.0) * np.cos(theta_rad))
-    if calculated_pb > 0:
-        raw_k_ani = (fact_dls * 400.0) / calculated_pb
-        new_ani = max(1.0, min(raw_k_ani, 1.4))
-        st.session_state.calibrated_ani = new_ani
-        st.session_state.cloud_cache[selected_formation] = new_ani
-        save_calibration_to_yandex(selected_formation, new_ani)
-        st.success(f"🎯 Ядро обучено! Индекс анизотропии пласта скорректирован до **{new_ani:.3f}**")
+# КРАУДСОРСИНГ И АВТОМАТИЧЕСКОЕ УСРЕДНЕНИЕ ЗНАНИЙ ИЗ РЕПОЗИТОРИЯ GITHUB
+if selected_formation != "Не выбрана" and selected_formation not in st.session_state.cloud_cache:
+    history_records, _ = load_all_calibrations_from_github()
+    
+    # Ищем все исторические замеры по имени текущей свиты (от всех инженеров)
+    matching_values = [r["calibrated_ani"] for r in history_records if r["formation"].strip().lower() == selected_formation.strip().lower()]
+    
+    if matching_values:
+        # Если данные есть — берем среднее значение опыта всей компании
+        mean_cloud_ani = float(np.mean(matching_values))
+        st.session_state.cloud_cache[selected_formation] = mean_cloud_ani
+        st.session_state.calibrated_ani = mean_cloud_ani
+        st.sidebar.success(f"🤖 Найдено замеров на GitHub: {len(matching_values)}. Средний исторический коэффициент: **{mean_cloud_ani:.3f}**")
     else:
-        st.error("Ошибка расчета боковой силы КНБК.")
+        # Если свита новая — стартуем с дефолта литературных данных
+        st.session_state.cloud_cache[selected_formation] = base_ani
+        st.session_state.calibrated_ani = base_ani
+        st.sidebar.info("🆕 Новая свита. Накопленный опыт в репозитории отсутствует.")
 
-st.info(f"🤖 **Текущий статус ИИ-ядра:** Используется коэффициент анизотропии породы = **{st.session_state.get('calibrated_ani', base_ani):.3f}**")
+st.info(f"📋 **Текущий СМК-контур:** {selected_formation} | **Состав:** {lithology} | **Используемая анизотропия пласта:** {st.session_state.calibrated_ani:.3f}")
 st.markdown("---")
 
 # ==============================================================================
