@@ -1,64 +1,40 @@
 import streamlit as st
 
-# ==============================================================================
-# 1. КОНФИГУРАЦИЯ СТРАНИЦЫ И СТИЛИЗАЦИЯ ИНТЕРФЕЙСА
-# ==============================================================================
-st.set_page_config(
-    page_title="Помощник инженера ННБ",
-    page_icon="🏗️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# 1. КОНФИГУРАЦИЯ
+st.set_page_config(page_title="Помощник инженера ННБ", layout="wide")
 
-# Инициализация состояния авторизации (если еще не создано)
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
-# ==============================================================================
-# 2. ФУНКЦИЯ ЭКРАНА АВТОРИЗАЦИИ
-# ==============================================================================
+# 2. АВТОРИЗАЦИЯ
 def login_screen():
-    st.title("🔒 Авторизация в системе ННБ")
-    st.caption("ООО «Траектория-Сервис» • Защищенный корпоративный доступ")
-    
-    with st.container(border=True):
-        username = st.text_input("Введите логин (Username):")
-        password = st.text_input("Введите пароль (Password):", type="password")
-        
-        if st.button("Войти в систему", type="primary"):
-            # Простейшая заглушка для теста (замените на ваши реальные логины/пароли)
-            if username == "admin" and password == "nnb2026":
-                st.session_state.authenticated = True
-                st.success("Успешный вход! Перенаправление...")
-                st.rerun()
-            else:
-                st.error("Неверный логин или пароль. Пожалуйста, повторите ввод.")
+    st.title("🔒 Авторизация")
+    username = st.text_input("Логин:")
+    password = st.text_input("Пароль:", type="password")
+    if st.button("Войти"):
+        # Использование указанных данных
+        if username == "engineer_nnb" and password == "Traektoriya 2026":
+            st.session_state.authenticated = True
+            st.rerun()
+        else:
+            st.error("Неверные данные")
 
-# ==============================================================================
-# 3. ОСНОВНАЯ ЛОГИКА И СИСТЕМА НАВИГАЦИИ (ДЛЯ STREAMLIT >= 1.35)
-# ==============================================================================
+# 3. НАВИГАЦИЯ (исправленные пути)
 if not st.session_state.authenticated:
-    # Если пользователь не авторизован — показываем только экран входа
     login_screen()
 else:
-    # Кнопка выхода в боковом меню (для удобства СМК)
-    if st.sidebar.button("🚪 Выйти из системы"):
+    if st.sidebar.button("🚪 Выйти"):
         st.session_state.authenticated = False
         st.rerun()
-
-    st.sidebar.markdown("---")
-
-       # Универсальное объявление путей к файлам модулей
-    pages = [
-        st.Page("pages/vhodnoy_kontrol.py", title="Входной контроль", icon="📋"),
-        st.Page("pages/raschet_umk.py", title="Расчет УМК", icon="🔧"),
-        st.Page("pages/tech_cards.py", title="Техкарты", icon="📄"),
-        st.Page("pages/lyuft_vzd.py", title="Люфты ВЗД", icon="⚙️"),
-        st.Page("pages/kontrol_rastvora.py", title="Контроль раствора", icon="🧪"),
-        st.Page("pages/baza_znaniy.py", title="База знаний", icon="📚"),
-        st.Page("pages/prognoz_traektorii.py", title="Прогноз траектории", icon="📈"),
-    ]
-
-    # Инициализация и запуск навигации (строго без лишних отступов в начале строк)
-    pg = st.navigation(pages)
+    
+    # Файлы лежат в корне, папка pages/ убрана
+    pg = st.navigation([
+        st.Page("vhodnoy_kontrol.py", title="Входной контроль"),
+        st.Page("raschet_umk.py", title="Расчет УМК"),
+        st.Page("tech_cards.py", title="Техкарты"),
+        st.Page("lyuft_vzd.py", title="Люфты ВЗД"),
+        st.Page("kontrol_rastvora.py", title="Контроль раствора"),
+        st.Page("baza_znaniy.py", title="База знаний"),
+        st.Page("prognoz_traektorii.py", title="Прогноз траектории"),
+    ])
     pg.run()
