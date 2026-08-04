@@ -47,7 +47,7 @@ if check_password():
         st.Page("pages/2_raschet_umk.py", title="2. Расчет УМК", icon="🧮"),
         st.Page("pages/3_tech_cards.py", title="3. Технологические карты", icon="🔨"),
         st.Page("pages/4_lyuft_vzd.py", title="4. Люфт ВЗД", icon="📏"),
-        st.Page("pages/kontrol_rastvora.py", title="5. Контроль раствора", icon="🧪"),
+        st.Page("pages/5_kontrol_rastvora.py", icon="🧪"),
         st.Page("pages/6_baza_znaniy.py", title="6. База знаний", icon="📚"),
         st.Page("pages/7_prognoz_traektorii.py", title="7. Прогноз траектории", icon="🔮"),
         st.Page(logout_page, title="Выйти из аккаунта", icon="🔒")
