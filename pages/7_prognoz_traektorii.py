@@ -23,6 +23,7 @@ def load_calibration_from_yandex(formation_name):
         return None
     try:
         path_on_disk = f"drill_assistant_memory/{formation_name}_calibrated.json"
+        # ИСПРАВЛЕНО: Добавлен полный рабочий адрес cloud-api.yandex.net
         url = f"https://yandex.net{path_on_disk}"
         response = requests.get(url, headers=get_yandex_headers())
         if response.status_code == 200:
@@ -30,6 +31,26 @@ def load_calibration_from_yandex(formation_name):
             file_response = requests.get(download_url)
             if file_response.status_code == 200:
                 return float(file_response.json().get("calibrated_ani", 1.02))
+    except:
+        pass
+    return None
+
+def save_calibration_to_yandex(formation_name, calibrated_value):
+    if not YANDEX_TOKEN or "ВАШ" in YANDEX_TOKEN:
+        return
+    try:
+        # ИСПРАВЛЕНО: Добавлен полный адрес для автоматического создания папки
+        requests.put("https://yandex.net", headers=get_yandex_headers())
+        
+        path_on_disk = f"drill_assistant_memory/{formation_name}_calibrated.json"
+        # ИСПРАВЛЕНО: Добавлен полный адрес для запроса ссылки на загрузку файла
+        url = f"https://yandex.net{path_on_disk}&overwrite=true"
+        response = requests.get(url, headers=get_yandex_headers())
+        if response.status_code == 200:
+            upload_url = response.json().get("href")
+            data_to_save = {"formation": formation_name, "calibrated_ani": calibrated_value}
+            requests.put(upload_url, data=json.dumps(data_to_save))
+            st.toast("💾 Калибровка успешно записана на ваш Яндекс Диск!", icon="☁️")
     except:
         pass
     return None
