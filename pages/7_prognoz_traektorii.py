@@ -61,7 +61,7 @@ def save_calibration_to_github(formation_name, calibrated_value, current_wob, cu
             "sha": sha
         }
         put_r = requests.put(REPO_URL, headers=get_github_headers(), data=json.dumps(payload))
-        if put_r.status_code in:
+        if put_r.status_code in [200, 201]:
             st.toast("💾 Данные успешно синхронизированы с глобальным репозиторием GitHub!", icon="🚀")
         else:
             st.sidebar.error(f"GitHub отклонил запись. Код: {put_r.status_code}")
