@@ -38,14 +38,10 @@ def save_calibration_to_yandex(formation_name, calibrated_value):
     if not YANDEX_TOKEN or "ВАШ" in YANDEX_TOKEN:
         return
     try:
-        # Создание изолированной папки в облаке
         requests.put("https://yandex.net", headers=get_yandex_headers())
-        
-        # Получение точного адреса для загрузки
         path_on_disk = f"drill_assistant_memory/{formation_name}_calibrated.json"
         url = f"https://yandex.net{path_on_disk}&overwrite=true"
         response = requests.get(url, headers=get_yandex_headers())
-        
         if response.status_code == 200:
             upload_url = response.json().get("href")
             data_to_save = {"formation": formation_name, "calibrated_ani": calibrated_value}
@@ -85,8 +81,8 @@ if os.path.exists(config_path):
         geo_db = json.load(f)
         
     if geo_db and isinstance(geo_db, list):
-        first_row = geo_db[0] if isinstance(geo_db, list) else geo_db
-        region_key = next((k for k in first_row.keys() if "регион" in k.lower()), "Регион")
+        first_row = geo_db
+        region_key = next((k for k in first_row.keys() if "регион" in k.lower()), "Региion")
         formation_key = next((k for k in first_row.keys() if "стратигр" in k.lower() or "свита" in k.lower() or "горизонт" in k.lower()), "Стратиграфиче")
         litho_key = next((k for k in first_row.keys() if "литолог" in k.lower() or "состав" in k.lower() or "тип" in k.lower()), "Типичная литолог")
         ani_key = next((k for k in first_row.keys() if "ani" in k.lower() or "анизотр" in k.lower() or "базовый" in k.lower() or "h_an" in k.lower()), "Базовый I(H_an")
@@ -179,8 +175,8 @@ with col_p1:
     knbc_type = st.selectbox("Тип КНБК:", ["Стабилизирующая", "Маятниковая", "Комбинированная"])
     gno_zone = st.checkbox("Бурение в зоне установки ГНО")
 with col_p2:
-    target_wob = st.number_input("Планируемая осевая нагрузка (WOB), тонн:", min_value=1.0, max_value=40.0, value=14.0)
-    target_angle = st.number_input("Планируемый зенитный угол, градусов:", min_value=0.0, max_value=90.0, value=25.0)
+        target_wob = st.number_input("Планируемая осевая нагрузка (WOB), тонн:", min_value=1.0, max_value=40.0, value=14.0)
+        target_angle = st.number_input("Планируемый зенитный угол, градусов:", min_value=0.0, max_value=90.0, value=25.0)
 with col_p3:
     reactive_drop = st.number_input("Реактивный момент ВЗД (отброс при ΔР=15 атм), град:", min_value=0, max_value=180, value=30)
     gtf_target = st.number_input("Плановое положение отклонителя (GTF), град:", min_value=0, max_value=360, value=0)
@@ -206,7 +202,7 @@ with col_s2:
     ppi_last = st.number_input("Полученная интенсивность на последнем замере (ППИ), °:", min_value=0.1, max_value=5.0, value=0.6)
     kms_last = st.number_input("Количество метров слайда на последнем замере (КМС), м:", min_value=1.0, max_value=30.0, value=5.0)
 
-if st.button("📈 Рассчитать параметры прогноза на забой", type="secondary"):
+if st.button("📈 Рассчитать параметры прогноза на забой", type="primary"):
     dls_per_meter = ppi_last / kms_last
     slide_length_needed = dls_needed / dls_per_meter if dls_per_meter > 0 else 0.0
         
@@ -243,4 +239,3 @@ if st.button("📈 Рассчитать параметры прогноза на
         st.warning(f"⚠️ **Предупредительный коридор.** Ожидаемая интенсивность: {predicted_dls_10m:.2f}°/10м.")
     else:
         st.success(f"✅ **ПРОЦЕСС СТАБИЛЕН.** Прогнозная интенсивность ({predicted_dls_10m:.2f}°/10м) в допуске. Параметры КНБК, режимы ГТИ и реологические свойства раствора утверждены к применению.")
-
