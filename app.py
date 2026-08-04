@@ -60,7 +60,6 @@ else:
         st.Page("pages/prognoz_traektorii.py", title="Прогноз траектории", icon="📈"),
     ]
 
-
     # Инициализация и запуск навигации (строго без лишних отступов в начале строк)
     pg = st.navigation(pages)
     pg.run()
