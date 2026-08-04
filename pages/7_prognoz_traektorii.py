@@ -8,7 +8,7 @@ st.title("📈 Модуль пространственной интенсивн�
 st.caption("Адаптивный СМК-контроль траектории ствола ООО «Траектория-Сервис» с учетом реологии Гершеля-Балкли")
 
 # ==============================================================================
-# СЕРВИСНЫЙ ОБЛАЧНЫЙ БЛОК: СИНХРОНИЗАЦИЯ С ЯНДЕКС ДИСКОМ
+# СЕРВИСНЫЙ ОБЛАЧНЫЙ БЛОК: СИНХРОНИЗАЦИЯ С ВАШЕЙ ПАПКОЙ DRILL_MEMORY
 # ==============================================================================
 YANDEX_TOKEN = "y0__wgBEOCakoMCGNuWAyDes4rGGDCG7NP5B4UnkGMyCzsQsaLAS58perqQMUtu"
 
@@ -22,7 +22,8 @@ def load_calibration_from_yandex(formation_name):
     if not YANDEX_TOKEN or "ВАШ" in YANDEX_TOKEN:
         return None
     try:
-        path_on_disk = f"drill_assistant_memory/{formation_name}_calibrated.json"
+        # Чтение напрямую из вашей созданной вручную папки drill_memory
+        path_on_disk = f"drill_memory/{formation_name}_calibrated.json"
         url = f"https://yandex.net{path_on_disk}"
         response = requests.get(url, headers=get_yandex_headers())
         if response.status_code == 200:
@@ -38,17 +39,23 @@ def save_calibration_to_yandex(formation_name, calibrated_value):
     if not YANDEX_TOKEN or "ВАШ" in YANDEX_TOKEN:
         return
     try:
-        requests.put("https://yandex.net", headers=get_yandex_headers())
-        path_on_disk = f"drill_assistant_memory/{formation_name}_calibrated.json"
+        # Прямой запрос ссылки на запись файла в готовую папку drill_memory
+        path_on_disk = f"drill_memory/{formation_name}_calibrated.json"
         url = f"https://yandex.net{path_on_disk}&overwrite=true"
         response = requests.get(url, headers=get_yandex_headers())
+        
         if response.status_code == 200:
             upload_url = response.json().get("href")
             data_to_save = {"formation": formation_name, "calibrated_ani": calibrated_value}
-            requests.put(upload_url, data=json.dumps(data_to_save))
-            st.toast("💾 Калибровка успешно записана на ваш Яндекс Диск!", icon="☁️")
+            
+            # Отправка файла на Яндекс Диск без создания промежуточных папок
+            put_response = requests.put(upload_url, data=json.dumps(data_to_save))
+            if put_response.status_code == 201:
+                st.toast("💾 Калибровка успешно записана на ваш Яндекс Диск!", icon="☁️")
+            else:
+                st.error(f"🔴 Ошибка загрузки файла на Диск. Код Яндекса: {put_response.status_code}")
         else:
-            st.error(f"🔴 Ошибка API Яндекс Диска. Код: {response.status_code}. Ответ: {response.text}")
+            st.error(f"🔴 Ошибка авторизации API Яндекс Диска. Код: {response.status_code}. Ответ: {response.text}")
     except Exception as e:
         st.error(f"❌ Сбой сети: {str(e)}")
 
@@ -69,7 +76,7 @@ gno_limit = CLIENT_LIMITS[client]["gno_zone_limit"]
 st.info(f"📋 **Регламент Заказчика:** {client} | **Макс. допуск:** {max_allowed_dls}°/10м | **Лимит в зоне ГНО:** {gno_limit}°/10м")
 
 # ==============================================================================
-# БЛОК 2: ВИЗУАЛЬНЫЙ СМК-ФИЛЬТР СВИТ ПО ЛИТОЛОГИИ И ТВЕРДОСТИ (ДЛЯ СПИСКОВ JSON)
+# БЛОК 2: ВИЗУАЛЬНЫЙ СМК-ФИЛЬТР СВИТ ПО ЛИТОЛОГИИ И ТВЕРДОСТИ
 # ==============================================================================
 config_path = os.path.join("config", "formations_config.json")
 base_ani = 1.02
@@ -81,8 +88,7 @@ if os.path.exists(config_path):
         geo_db = json.load(f)
         
     if geo_db and isinstance(geo_db, list):
-        # Исправление AttributeError: берем первый элемент списка для поиска имен колонок
-        first_row = geo_db[0]
+        first_row = geo_db
         region_key = next((k for k in first_row.keys() if "регион" in k.lower()), "Регион")
         formation_key = next((k for k in first_row.keys() if "стратигр" in k.lower() or "свита" in k.lower() or "горизонт" in k.lower()), "Стратиграфиче")
         litho_key = next((k for k in first_row.keys() if "литолог" in k.lower() or "состав" in k.lower() or "тип" in k.lower()), "Типичная литолог")
@@ -120,6 +126,21 @@ if os.path.exists(config_path):
                 base_ani = 1.02
         else:
             st.sidebar.warning("Свиты не найдены. Сбросьте фильтры.")
+
+if "cloud_cache" not in st.session_state:
+    st.session_state.cloud_cache = {}
+
+if selected_formation != "Не выбрана" and selected_formation not in st.session_state.cloud_cache:
+    cloud_val = load_calibration_from_yandex(selected_formation)
+    if cloud_val:
+        st.session_state.cloud_cache[selected_formation] = cloud_val
+        st.session_state.calibrated_ani = cloud_val
+    else:
+        st.session_state.cloud_cache[selected_formation] = base_ani
+        st.session_state.calibrated_ani = base_ani
+
+st.info(f"📋 **СМК-подбор:** {selected_formation} | **Состав:** {lithology} | **Базовая анизотропия:** {base_ani:.3f}")
+st.markdown("---")
 
 # ==============================================================================
 # КОНТУР ОБУЧЕНИЯ (ОБРАТНАЯ ЗАДАЧА)
@@ -161,8 +182,8 @@ with col_p1:
     knbc_type = st.selectbox("Тип КНБК:", ["Стабилизирующая", "Маятниковая", "Комбинированная"])
     gno_zone = st.checkbox("Бурение в зоне установки ГНО")
 with col_p2:
-        target_wob = st.number_input("Планируемая осевая нагрузка (WOB), тонн:", min_value=1.0, max_value=40.0, value=14.0)
-        target_angle = st.number_input("Планируемый зенитный угол, градусов:", min_value=0.0, max_value=90.0, value=25.0)
+    target_wob = st.number_input("Планируемая осевая нагрузка (WOB), тонн:", min_value=1.0, max_value=40.0, value=14.0)
+    target_angle = st.number_input("Планируемый зенитный угол, градусов:", min_value=0.0, max_value=90.0, value=25.0)
 with col_p3:
     reactive_drop = st.number_input("Реактивный момент ВЗД (отброс при ΔР=15 атм), град:", min_value=0, max_value=180, value=30)
     gtf_target = st.number_input("Плановое положение отклонителя (GTF), град:", min_value=0, max_value=360, value=0)
@@ -225,3 +246,4 @@ if st.button("📈 Рассчитать параметры прогноза на
         st.warning(f"⚠️ **Предупредительный коридор.** Ожидаемая интенсивность: {predicted_dls_10m:.2f}°/10м.")
     else:
         st.success(f"✅ **ПРОЦЕСС СТАБИЛЕН.** Прогнозная интенсивность ({predicted_dls_10m:.2f}°/10м) в допуске. Параметры КНБК, режимы ГТИ и реологические свойства раствора утверждены к применению.")
+
