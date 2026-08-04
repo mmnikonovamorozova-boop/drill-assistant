@@ -50,13 +50,13 @@ else:
 
        # Универсальное объявление путей к файлам модулей
     pages = [
-        st.Page("./vhodnoy_kontrol.py", title="Входной контроль", icon="📋"),
-        st.Page("./raschet_umk.py", title="Расчет УМК", icon="🔧"),
-        st.Page("./tech_cards.py", title="Техкарты", icon="📄"),
-        st.Page("./lyuft_vzd.py", title="Люфты ВЗД", icon="⚙️"),
-        st.Page("./kontrol_rastvora.py", title="Контроль раствора", icon="🧪"),
-        st.Page("./baza_znaniy.py", title="База знаний", icon="📚"),
-        st.Page("./prognoz_traektorii.py", title="Прогноз траектории", icon="📈"),
+        st.Page("pages/vhodnoy_kontrol.py", title="Входной контроль", icon="📋"),
+        st.Page("pages/raschet_umk.py", title="Расчет УМК", icon="🔧"),
+        st.Page("pages/tech_cards.py", title="Техкарты", icon="📄"),
+        st.Page("pages/lyuft_vzd.py", title="Люфты ВЗД", icon="⚙️"),
+        st.Page("pages/kontrol_rastvora.py", title="Контроль раствора", icon="🧪"),
+        st.Page("pages/baza_znaniy.py", title="База знаний", icon="📚"),
+        st.Page("pages/prognoz_traektorii.py", title="Прогноз траектории", icon="📈"),
     ]
 
     # Инициализация и запуск навигации (строго без лишних отступов в начале строк)
