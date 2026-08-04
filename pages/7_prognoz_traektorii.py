@@ -17,8 +17,7 @@ if "cloud_cache" not in st.session_state:
 # ==============================================================================
 # СЕРВИСНЫЙ БЛОК GITOPS: РАБОТА С ВЕЧНОЙ БАЗОЙ ДАННЫХ НА GITHUB
 # ==============================================================================
-GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
-# Автоматически определяем имя пользователя и репозиторий из окружения Streamlit Cloud
+GITHUB_TOKEN = "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"
 REPO_URL = "https://github.com"
 
 def get_github_headers():
@@ -28,12 +27,10 @@ def get_github_headers():
     }
 
 def load_all_calibrations_from_github():
-    """Считывание всего массива исторических калибровок от всех пользователей"""
     try:
         r = requests.get(REPO_URL, headers=get_github_headers())
         if r.status_code == 200:
             content = r.json()
-            # Декодируем base64 текст, отправленный гитхабом
             import base64
             file_content = base64.b64decode(content["content"]).decode("utf-8")
             return json.loads(file_content), content["sha"]
@@ -42,11 +39,8 @@ def load_all_calibrations_from_github():
     return [], None
 
 def save_calibration_to_github(formation_name, calibrated_value, current_wob, current_angle):
-    """Автоматический двухфазный коммит новой записи в репозиторий GitHub API"""
     try:
         history, sha = load_all_calibrations_from_github()
-        
-        # Формируем СМК-паспорт нового замера
         new_record = {
             "formation": formation_name,
             "calibrated_ani": float(calibrated_value),
@@ -55,17 +49,13 @@ def save_calibration_to_github(formation_name, calibrated_value, current_wob, cu
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
         history.append(new_record)
-        
-        # Кодируем обновленный массив обратно в Base64 для коммита
         import base64
         updated_content = base64.b64encode(json.dumps(history, indent=2, ensure_ascii=False).encode("utf-8")).decode("utf-8")
-        
         payload = {
             "message": f"СМК-Автокоммит: Добавлена калибровка по свите {formation_name}",
             "content": updated_content,
             "sha": sha
         }
-        
         put_r = requests.put(REPO_URL, headers=get_github_headers(), data=json.dumps(payload))
         if put_r.status_code in:
             st.toast("💾 Данные успешно синхронизированы с глобальным репозиторием GitHub!", icon="🚀")
@@ -91,7 +81,7 @@ gno_limit = CLIENT_LIMITS[client]["gno_zone_limit"]
 st.info(f"📋 **Регламент Заказчика:** {client} | **Макс. допуск:** {max_allowed_dls}°/10м | **Лимит в зоне ГНО:** {gno_limit}°/10м")
 
 # ==============================================================================
-# БЛОК 2: УЛУЧШЕННЫЙ СМК-ФИЛЬТР С КНТУРОМ «НОВАЯ СВИТА»
+# БЛОК 2: УЛУЧШЕННЫЙ СМК-ФИЛЬТР С КОНТУРОМ «НОВАЯ СВИТА»
 # ==============================================================================
 config_path = os.path.join("config", "formations_config.json")
 base_ani = 1.02
@@ -127,7 +117,6 @@ if os.path.exists(config_path):
         display_formations = sorted(list(set([str(row.get(formation_key, "Не указана")).strip() for row in filtered_rows])))
         display_formations = [f for f in display_formations if f and f != "None" and f != "Не указана"]
         
-        # ➕ ИНТЕГРАЦИЯ РИСКА НЕОПРЕДЕЛЕННОСТИ: Добавляем опцию ручного ввода новой свиты
         display_formations.append("➕ Своя свита (нет в списке)")
 
         st.sidebar.markdown("---")
@@ -135,10 +124,9 @@ if os.path.exists(config_path):
             choice = st.sidebar.selectbox("🎯 Подходящий горизонт из Базы:", display_formations)
             
             if choice == "➕ Своя свита (нет в списке)":
-                # Включаем ручной ввод для неизвестного горизонта
                 selected_formation = st.sidebar.text_input("Впишите название новой свиты:", "Малоизвестная свита")
                 lithology = st.sidebar.text_input("Укажите её литологический состав:", "Литология не изучена")
-                base_ani = 1.020 # Базовый дефолтный старт
+                base_ani = 1.020
             else:
                 selected_formation = choice
                 current_data = next((row for row in geo_db if str(row.get(region_key)).strip() == selected_region and str(row.get(formation_key)).strip() == selected_formation), {})
@@ -150,26 +138,50 @@ if os.path.exists(config_path):
                 except:
                     base_ani = 1.02
 
-# КРАУДСОРСИНГ И АВТОМАТИЧЕСКОЕ УСРЕДНЕНИЕ ЗНАНИЙ ИЗ РЕПОЗИТОРИЯ GITHUB
 if selected_formation != "Не выбрана" and selected_formation not in st.session_state.cloud_cache:
     history_records, _ = load_all_calibrations_from_github()
-    
-    # Ищем все исторические замеры по имени текущей свиты (от всех инженеров)
     matching_values = [r["calibrated_ani"] for r in history_records if r["formation"].strip().lower() == selected_formation.strip().lower()]
-    
     if matching_values:
-        # Если данные есть — берем среднее значение опыта всей компании
         mean_cloud_ani = float(np.mean(matching_values))
         st.session_state.cloud_cache[selected_formation] = mean_cloud_ani
         st.session_state.calibrated_ani = mean_cloud_ani
-        st.sidebar.success(f"🤖 Найдено замеров на GitHub: {len(matching_values)}. Средний исторический коэффициент: **{mean_cloud_ani:.3f}**")
+        st.sidebar.success(f"🤖 Найдено замеров на GitHub: {len(matching_values)}. Средний коэффициент: **{mean_cloud_ani:.3f}**")
     else:
-        # Если свита новая — стартуем с дефолта литературных данных
         st.session_state.cloud_cache[selected_formation] = base_ani
         st.session_state.calibrated_ani = base_ani
         st.sidebar.info("🆕 Новая свита. Накопленный опыт в репозитории отсутствует.")
 
 st.info(f"📋 **Текущий СМК-контур:** {selected_formation} | **Состав:** {lithology} | **Используемая анизотропия пласта:** {st.session_state.calibrated_ani:.3f}")
+st.markdown("---")
+
+# ==============================================================================
+# КОНТУР ОБУЧЕНИЯ (ОБРАТНАЯ ЗАДАЧА)
+# ==============================================================================
+st.subheader("🔄 Контур обучения ядра (Обратная задача по ГГИ/ГТИ)")
+st.caption("Введите фактические параметры последнего пробуренного интервала для калибровки и отправки на Яндекс Диск")
+
+col_ob1, col_ob2, col_ob3 = st.columns(3)
+with col_ob1:
+    fact_wob = st.number_input("Фактическая нагрузка на долото (т):", min_value=1.0, max_value=40.0, value=12.0)
+with col_ob2:
+    fact_angle = st.number_input("Фактический зенитный угол на интервале (°):", min_value=0.0, max_value=90.0, value=30.0)
+with col_ob3:
+    fact_dls = st.number_input("Фактическая полученная интенсивность (°/10м):", min_value=0.0, max_value=6.0, value=1.4)
+
+if st.button("🔄 Запустить самообучение системы", type="primary"):
+    theta_rad = np.radians(fact_angle)
+    calculated_pb = abs(65.0 * (fact_wob / 9.0) * np.cos(theta_rad))
+    if calculated_pb > 0:
+        raw_k_ani = (fact_dls * 400.0) / calculated_pb
+        new_ani = max(1.0, min(raw_k_ani, 1.4))
+        st.session_state.calibrated_ani = new_ani
+        st.session_state.cloud_cache[selected_formation] = new_ani
+        save_calibration_to_github(selected_formation, new_ani, fact_wob, fact_angle)
+        st.success(f"🎯 Ядро обучено! Индекс анизотропии пласта скорректирован до **{new_ani:.3f}**")
+    else:
+        st.error("Ошибка расчета боковой силы КНБК.")
+
+st.info(f"🤖 **Текущий статус ИИ-ядра:** Используется коэффициент анизотропии породы = **{st.session_state.get('calibrated_ani', base_ani):.3f}**")
 st.markdown("---")
 
 # ==============================================================================
@@ -209,7 +221,7 @@ with col_s2:
     ppi_last = st.number_input("Полученная интенсивность на последнем замере (ППИ), °:", min_value=0.1, max_value=5.0, value=0.6)
     kms_last = st.number_input("Количество метров слайда на последнем замере (КМС), м:", min_value=1.0, max_value=30.0, value=5.0)
 
-if st.button("📈 Рассчитать параметры прогноза на забой", type="primary"):
+if st.button("📈 Рассчитать параметры прогноза на забой", type="secondary"):
     dls_per_meter = ppi_last / kms_last
     slide_length_needed = dls_needed / dls_per_meter if dls_per_meter > 0 else 0.0
         
@@ -253,65 +265,23 @@ if st.button("📈 Рассчитать параметры прогноза на
     st.markdown("---")
     st.subheader("📝 Цифровой след СМК: Верификация и Отчетность")
     
-    # 1. Расчет онлайн-верификации математического ядра (метрика сходимости)
-    # Сравниваем базовую интенсивность, факт и наш прогноз
-    if ppi_last > 0:
-        error_rate = abs(predicted_dls_10m - ppi_last) / ppi_last * 100
-        convergence_index = max(0.0, 100.0 - error_rate)
-    else:
-        convergence_index = 100.0
+    error_rate = abs(predicted_dls_10m - ppi_last) / ppi_last * 100 if ppi_last > 0 else 0
+    convergence_index = max(0.0, 100.0 - error_rate)
         
     v_col1, v_col2 = st.columns(2)
     with v_col1:
-        st.metric(
-            label="🤖 Индекс сходимости математического ядра (Онлайн-верификация):", 
-            value=f"{convergence_index:.1f} %",
-            help="Показывает точность настройки предиктивной модели относительно фактических данных ГТИ"
-        )
+        st.metric(label="🤖 Индекс сходимости ядра (Онлайн-верификация):", value=f"{convergence_index:.1f} %")
     with v_col2:
         if convergence_index >= 85:
-            st.success("🎯 Высокая адекватность модели. Дополнительная калибровка не требуется.")
+            st.success("🎯 Высокая адекватность модели.")
         else:
-            st.warning("⚠️ Сходимость ниже 85%. Рекомендуется повторить цикл Back-Analysis в контуре обучения.")
+            st.warning("⚠️ Сходимость ниже 85%. Рекомендуется повторить цикл Back-Analysis.")
 
-    # 2. Формирование текстового бланка рекомендаций (протокола)
-    report_text = f"""==================================================================
-           ПРОТОКОЛ ПРЕДИКТИВНОГО УПРАВЛЕНИЯ ТРАЕКТОРИЕЙ СТВОЛА
-               ООО «ТРАЕКТОРИЯ-СЕРВИС» • СМК-КОНТУР АУДИТА
-==================================================================
-Дата/Время расчета: Автоматическая фиксация в ИС
-Заказчик (Недропользователь): {client}
-Стратиграфический горизонт: {selected_formation}
-Литологический состав пласта: {lithology}
-Расчетный индекс механической анизотропии пород: {st.session_state.get('calibrated_ani', base_ani):.3f}
-
-1. ТЕКУЩИЕ ПАРАМЕТРЫ И РЕОЛОГИЯ (ГЕРШЕЛЬ-БАЛКЛИ):
-- Планируемая осевая нагрузка (WOB): {target_wob} тонн
-- Зенитный угол секции: {target_angle} град.
-- Плотность бурового раствора: {mud_density} г/см3
-- Динамическое напряжение сдвига (tau_0): {yield_stress} дПа
-- Индекс течения раствора (n): {flow_index}
-
-2. РЕЗУЛЬТАТЫ МАТЕМАТИЧЕСКОГО МОДЕЛИРОВАНИЯ И ВЕРИФИКАЦИИ:
-- Тип применяемой КНБК: {knbc_type}
-- Расчетный истинный угол установки отклонителя: GTF {true_gtf} град.
-- Необходимый метраж слайда для коррекции профиля: {slide_length_needed:.1f} метров
-- Прогнозная пространственная интенсивность (ПИИС): {predicted_dls_10m:.2f} град/10м
-- Действующий регламентный лимит Заказчика: {current_limit:.2f} град/10м
-- Индекс онлайн-верификации сходимости ядра: {convergence_index:.1f} %
-
-3. УПРАВЛЯЮЩЕЕ ВОЗДЕЙСТВИЕ ЭКСПЕРТНОЙ СИСТЕМЫ:
-{"[НАРУШЕНИЕ ЛИМИТА] Снизить плановые режимы бурения / изменить жесткость КНБК." if predicted_dls_10m > current_limit else "[НОРМА] Параметры КНБК и режимы ГТИ утверждены к применению."}
-
-Ответственный инженер ННБ: Системная авторизация
-=================================================================="""
-
-    # 3. Кнопка скачивания бланка в один клик
+    report_text = f"ПРОТОКОЛ СМК\nЗаказчик: {client}\nСвита: {selected_formation}\nПрогноз ПИИС: {predicted_dls_10m:.2f} °/10м"
     st.download_button(
         label="📥 Скачать официальный Бланк рекомендаций (TXT)",
         data=report_text,
         file_name=f"SMK_Report_{selected_formation.replace(' ', '_')}.txt",
         mime="text/plain",
-        type="secondary",
         use_container_width=True
     )
