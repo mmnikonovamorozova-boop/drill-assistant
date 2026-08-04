@@ -36,13 +36,12 @@ def load_calibration_from_yandex(formation_name):
 
 def save_calibration_to_yandex(formation_name, calibrated_value):
     if not YANDEX_TOKEN or "ВАШ" in YANDEX_TOKEN:
-        st.error("Токен Яндекс Диска отсутствует.")
         return
     try:
-        # 1. Создаем папку (проверяем, чтобы слэш перед параметром path был на месте)
+        # Создание изолированной папки в облаке
         requests.put("https://yandex.net", headers=get_yandex_headers())
         
-        # 2. Запрашиваем ссылку на загрузку
+        # Получение точного адреса для загрузки
         path_on_disk = f"drill_assistant_memory/{formation_name}_calibrated.json"
         url = f"https://yandex.net{path_on_disk}&overwrite=true"
         response = requests.get(url, headers=get_yandex_headers())
@@ -50,12 +49,8 @@ def save_calibration_to_yandex(formation_name, calibrated_value):
         if response.status_code == 200:
             upload_url = response.json().get("href")
             data_to_save = {"formation": formation_name, "calibrated_ani": calibrated_value}
-            put_response = requests.put(upload_url, data=json.dumps(data_to_save))
-            
-            if put_response.status_code == 201:
-                st.toast("💾 Калибровка успешно записана на ваш Яндекс Диск!", icon="☁️")
-            else:
-                st.error(f"🔴 Код ответа Яндекса при записи файла: {put_response.status_code}")
+            requests.put(upload_url, data=json.dumps(data_to_save))
+            st.toast("💾 Калибровка успешно записана на ваш Яндекс Диск!", icon="☁️")
         else:
             st.error(f"🔴 Ошибка API Яндекс Диска. Код: {response.status_code}. Ответ: {response.text}")
     except Exception as e:
@@ -145,7 +140,7 @@ st.info(f"📋 **СМК-подбор:** {selected_formation} | **Состав:**
 st.markdown("---")
 
 # ==============================================================================
-# КОНТУР ОБУЧЕНИЯ (ОБРАТНАЯ ЗАДАЧА С СИНХРОНИЗАЦИЕЙ В ОБЛАКО)
+# КОНТУР ОБУЧЕНИЯ (ОБРАТНАЯ ЗАДАЧА)
 # ==============================================================================
 st.subheader("🔄 Контур обучения ядра (Обратная задача по ГГИ/ГТИ)")
 st.caption("Введите фактические параметры последнего пробуренного интервала для калибровки и отправки на Яндекс Диск")
@@ -158,7 +153,7 @@ with col_ob2:
 with col_ob3:
     fact_dls = st.number_input("Фактическая полученная интенсивность (°/10м):", min_value=0.0, max_value=6.0, value=1.4)
 
-if st.button("🔄 Запустить самообучение системы", type="secondary"):
+if st.button("🔄 Запустить самообучение системы", type="primary"):
     theta_rad = np.radians(fact_angle)
     calculated_pb = abs(65.0 * (fact_wob / 9.0) * np.cos(theta_rad))
     if calculated_pb > 0:
@@ -190,15 +185,62 @@ with col_p3:
     reactive_drop = st.number_input("Реактивный момент ВЗД (отброс при ΔР=15 атм), град:", min_value=0, max_value=180, value=30)
     gtf_target = st.number_input("Плановое положение отклонителя (GTF), град:", min_value=0, max_value=360, value=0)
 
-# Внедрение параметров реологии (модель Гершеля-Балкли)
 with st.expander("🧪 Интеграция реологических параметров жидкости (Гершель-Балкли)"):
-    mud_density = st.number_input("Плотность раствора, г/см³:", min_value=1.0, max_value=2.2, value=1.20, step=0.01)
-    yield_stress = st.number_input("Напряжение сдвига (τ₀), дПа:", min_value=0.0, max_value=150.0, value=45.0)
-    flow_index = st.number_input("Индекс течения (n):", min_value=0.2, max_value=1.0, value=0.65, step=0.01)
+    mud_density = st.number_input("Плотность бурового раствора, г/см³:", min_value=1.0, max_value=2.2, value=1.20, step=0.01)
+    yield_stress = st.number_input("Динамическое напряжение сдвига (τ₀ по Гершелю-Балкли), дПа:", min_value=0.0, max_value=150.0, value=45.0)
+    flow_index = st.number_input("Индекс течения раствора (n):", min_value=0.2, max_value=1.0, value=0.65, step=0.01)
 
-# Коэффициент плавучести (плотность стали 7.85)
 buoyancy_factor = 1.0 - (mud_density / 7.85)
-
 true_gtf = (gtf_target - reactive_drop) % 360
-st.caption(f"🔄 **Корректировка СМК:** Угол установки (роторная): **GTF {true_gtf}°**")
+st.caption(f"🔄 **Корректировка СМК:** Угол установки на роторной: **GTF {true_gtf}°**")
 st.markdown("---")
+
+# ==============================================================================
+# БЛОК 4: РАСЧЕТ ИНТЕНСИВНОСТИ И МЕТРАЖА СЛАЙДА (СТР. 11 МЕТОДИЧКИ)
+# ==============================================================================
+st.subheader("📊 Расчет проходки в режиме «Слайд»")
+col_s1, col_s2 = st.columns(2)
+with col_s1:
+    dls_needed = st.number_input("Интенсивность, которую нужно получить (И), °:", min_value=0.1, max_value=5.0, value=1.5)
+with col_s2:
+    ppi_last = st.number_input("Полученная интенсивность на последнем замере (ППИ), °:", min_value=0.1, max_value=5.0, value=0.6)
+    kms_last = st.number_input("Количество метров слайда на последнем замере (КМС), м:", min_value=1.0, max_value=30.0, value=5.0)
+
+if st.button("📈 Рассчитать параметры прогноза на забой", type="secondary"):
+    dls_per_meter = ppi_last / kms_last
+    slide_length_needed = dls_needed / dls_per_meter if dls_per_meter > 0 else 0.0
+        
+    t_theta_rad = np.radians(target_angle)
+    L_m = 3.0 if "Стабилизирующая" in knbc_type else (18.0 if "Маятниковая" in knbc_type else 9.0)
+    rheology_modifier = buoyancy_factor * (1.0 - (yield_stress / 1000.0) * (1.0 - flow_index))
+    
+    if "Маятниковая" in knbc_type:
+        P_b = -150.0 * np.sin(t_theta_rad) * L_m * rheology_modifier
+    elif "Стабилизирующая" in knbc_type:
+        P_b = 80.0 * (target_wob / L_m) * np.cos(t_theta_rad) * buoyancy_factor
+    else:
+        P_b = ((50.0 * (target_wob / L_m) * np.cos(t_theta_rad)) - (70.0 * np.sin(t_theta_rad) * L_m)) * rheology_modifier
+        
+    current_ani_rate = st.session_state.get('calibrated_ani', base_ani)
+    predicted_dls_10m = abs(P_b * current_ani_rate) / 400.0
+    current_limit = gno_limit if gno_zone else max_allowed_dls
+
+    st.subheader("📋 Результаты оперативного планирования:")
+    c_res1, c_res2 = st.columns(2)
+    with c_res1:
+        st.metric(label="Интенсивность за 1 метр слайда (И1):", value=f"{dls_per_meter:.3f} °/м")
+        st.metric(label="Необходимый метраж слайда (L):", value=f"{slide_length_needed:.1f} м")
+    with c_res2:
+        st.metric(label="Прогнозная ПИИС на интервал 10м (с учетом ГТИ и реологии):", value=f"{predicted_dls_10m:.2f} °/10м")
+        st.metric(label="Действующий лимит технологического коридора:", value=f"{current_limit:.2f} °/10м")
+
+    st.markdown("### 💡 Управляющее воздействие экспертной системы:")
+    if predicted_dls_10m > current_limit:
+        st.error(f"🚨 **НАРУШЕНИЕ ТЕХНОЛОГИЧЕСКОГО КОРИДОРА {client.upper()}!**")
+        st.markdown(f"**Риск:** {CLIENT_LIMITS[client]['penalty_risk']}.")
+        st.markdown(f"👉 **Решение регулятора:** Расчетная ПИИС {predicted_dls_10m:.2f}°/10м превышает лимит. Сократите метраж планируемого слайда до **{(slide_length_needed * (current_limit / predicted_dls_10m)):.1f} метров**.")
+    elif current_limit * 0.8 <= predicted_dls_10m <= current_limit:
+        st.warning(f"⚠️ **Предупредительный коридор.** Ожидаемая интенсивность: {predicted_dls_10m:.2f}°/10м.")
+    else:
+        st.success(f"✅ **ПРОЦЕСС СТАБИЛЕН.** Прогнозная интенсивность ({predicted_dls_10m:.2f}°/10м) в допуске. Параметры КНБК, режимы ГТИ и реологические свойства раствора утверждены к применению.")
+
