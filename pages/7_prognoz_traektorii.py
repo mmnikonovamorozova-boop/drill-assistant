@@ -96,7 +96,7 @@ if os.path.exists(config_path):
     with open(config_path, "r", encoding="utf-8") as f:
         geo_db = json.load(f)
         
-        first_row = geo_db if len(geo_db) > 0 else {}
+        first_row = geo_db[0] if len(geo_db) > 0 else {}
         region_key = next((k for k in first_row.keys() if "регион" in k.lower()), "Регион")
         formation_key = next((k for k in first_row.keys() if "стратигр" in k.lower() or "свита" in k.lower() or "горизонт" in k.lower()), "Стратиграфиче")
         litho_key = next((k for k in first_row.keys() if "литолог" in k.lower() or "состав" in k.lower() or "тип" in k.lower()), "Типичная литолог")
