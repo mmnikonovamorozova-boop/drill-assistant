@@ -1,4 +1,5 @@
 import streamlit as st
+import os
 
 # 1. КОНФИГУРАЦИЯ
 st.set_page_config(page_title="Помощник инженера ННБ", layout="wide")
@@ -12,14 +13,13 @@ def login_screen():
     username = st.text_input("Логин:")
     password = st.text_input("Пароль:", type="password")
     if st.button("Войти"):
-        # Использование указанных данных
         if username == "engineer_nnb" and password == "Traektoriya 2026":
             st.session_state.authenticated = True
             st.rerun()
         else:
             st.error("Неверные данные")
 
-# 3. НАВИГАЦИЯ (исправленные пути)
+# 3. НАВИГАЦИЯ С АВТО-ПОДБОРОМ ПУТИ
 if not st.session_state.authenticated:
     login_screen()
 else:
@@ -27,14 +27,16 @@ else:
         st.session_state.authenticated = False
         st.rerun()
     
-    # Файлы лежат в корне, папка pages/ убрана
+    # Автоматическое определение префикса папки
+    prefix = "pages/" if os.path.exists("pages/vhodnoy_kontrol.py") else ""
+    
     pg = st.navigation([
-        st.Page("vhodnoy_kontrol.py", title="Входной контроль"),
-        st.Page("raschet_umk.py", title="Расчет УМК"),
-        st.Page("tech_cards.py", title="Техкарты"),
-        st.Page("lyuft_vzd.py", title="Люфты ВЗД"),
-        st.Page("kontrol_rastvora.py", title="Контроль раствора"),
-        st.Page("baza_znaniy.py", title="База знаний"),
-        st.Page("prognoz_traektorii.py", title="Прогноз траектории"),
+        st.Page(f"{prefix}vhodnoy_kontrol.py", title="Входной контроль"),
+        st.Page(f"{prefix}raschet_umk.py", title="Расчет УМК"),
+        st.Page(f"{prefix}tech_cards.py", title="Техкарты"),
+        st.Page(f"{prefix}lyuft_vzd.py", title="Люфты ВЗД"),
+        st.Page(f"{prefix}kontrol_rastvora.py", title="Контроль раствора"),
+        st.Page(f"{prefix}baza_znaniy.py", title="База знаний"),
+        st.Page(f"{prefix}prognoz_traektorii.py", title="Прогноз траектории"),
     ])
     pg.run()
