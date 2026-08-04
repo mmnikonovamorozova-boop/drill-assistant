@@ -40,16 +40,16 @@ def check_password():
 
 # 3. ЗАПУСК НАВИГАЦИИ ПОСЛЕ АВТОРИЗАЦИИ
 if check_password():
-    # Задаем структуру меню (Добавлен пункт 7 с иконкой прогноза)
+        # Задаем структуру меню (Все пути проверены и синхронизированы)
     pages = [
         st.Page("main_page.py", title="Главная страница", icon="🧭"),
         st.Page("pages/1_vhodnoy_kontrol.py", title="1. Входной контроль", icon="📋"),
         st.Page("pages/2_raschet_umk.py", title="2. Расчет УМК", icon="🧮"),
         st.Page("pages/3_tech_cards.py", title="3. Технологические карты", icon="🔨"),
         st.Page("pages/4_lyuft_vzd.py", title="4. Люфт ВЗД", icon="📏"),
-        st.Page("pages/_kontrol_rastvora.py", title="5. Контроль раствора", icon="🧪"),
+        st.Page("pages/5_kontrol_rastvora.py", title="5. Контроль раствора", icon="🧪"), # Исправлено имя файла
         st.Page("pages/6_baza_znaniy.py", title="6. База знаний", icon="📚"),
-        st.Page("pages/7_prognoz_traektorii.py", title="7. Прогноз траектории и СПР", icon="🔮"),
+        st.Page("pages/7_prognoz_traektorii.py", title="7. Прогноз траектории и СПР", icon="🔮"), # Новый модуль
         st.Page(logout_page, title="Выйти из аккаунта", icon="🔒")
     ]
 
