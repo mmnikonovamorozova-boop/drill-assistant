@@ -29,27 +29,38 @@ def load_calibration_from_yandex(formation_name):
             download_url = response.json().get("href")
             file_response = requests.get(download_url)
             if file_response.status_code == 200:
-                data = file_response.json()
-                return float(data.get("calibrated_ani", 1.02))
-    except:
-        pass
+                return float(file_response.json().get("calibrated_ani", 1.02))
+    except Exception as e:
+        st.sidebar.error(f"Ошибка чтения с Яндекса: {str(e)}")
     return None
 
 def save_calibration_to_yandex(formation_name, calibrated_value):
     if not YANDEX_TOKEN or "ВАШ" in YANDEX_TOKEN:
+        st.error("Токен не указан или остался дефолтным.")
         return
     try:
-        requests.put("https://yandex.net", headers=get_yandex_headers())
+        # 1. Пробуем создать папку
+        dir_res = requests.put("https://yandex.net", headers=get_yandex_headers())
+        
+        # 2. Запрашиваем ссылку на загрузку файла
         path_on_disk = f"drill_assistant_memory/{formation_name}_calibrated.json"
         url = f"https://yandex.net{path_on_disk}&overwrite=true"
         response = requests.get(url, headers=get_yandex_headers())
+        
         if response.status_code == 200:
             upload_url = response.json().get("href")
             data_to_save = {"formation": formation_name, "calibrated_ani": calibrated_value}
-            requests.put(upload_url, data=json.dumps(data_to_save))
-            st.toast("💾 Калибровка успешно записана на ваш Яндекс Диск!", icon="☁️")
-    except:
-        pass
+            put_response = requests.put(upload_url, data=json.dumps(data_to_save))
+            if put_response.status_code in:
+                st.toast("💾 Калибровка успешно записана на ваш Яндекс Диск!", icon="☁️")
+            else:
+                st.error(f"Яндекс не принял файл. Код: {put_response.status_code}, Ответ: {put_response.text}")
+        else:
+            # Если Яндекс выдал 401 или 403 — токен нерабочий
+            st.error(f"🔴 Ошибка авторизации Яндекс Диска! Код: {response.status_code}. Ответ: {response.text}")
+            st.warning("👉 Получите новый OAuth-токен на yandex.ru/dev/disk/poligon и обновите строку YANDEX_TOKEN.")
+    except Exception as e:
+        st.error(f"Критический сбой сети при отправке в облако: {str(e)}")
 
 # ==============================================================================
 # БЛОК 1: БАЗА НЕОДРОПОЛЬЗОВАТЕЛЕЙ (ШТРАФНЫЕ ЛИМИТЫ СМК)
