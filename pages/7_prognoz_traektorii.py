@@ -30,37 +30,26 @@ def load_calibration_from_yandex(formation_name):
             file_response = requests.get(download_url)
             if file_response.status_code == 200:
                 return float(file_response.json().get("calibrated_ani", 1.02))
-    except Exception as e:
-        st.sidebar.error(f"Ошибка чтения с Яндекса: {str(e)}")
+    except:
+        pass
     return None
 
 def save_calibration_to_yandex(formation_name, calibrated_value):
     if not YANDEX_TOKEN or "ВАШ" in YANDEX_TOKEN:
-        st.error("Токен не указан или остался дефолтным.")
         return
     try:
-        # 1. Пробуем создать папку
-        dir_res = requests.put("https://yandex.net", headers=get_yandex_headers())
-        
-        # 2. Запрашиваем ссылку на загрузку файла
+        requests.put("https://yandex.net", headers=get_yandex_headers())
         path_on_disk = f"drill_assistant_memory/{formation_name}_calibrated.json"
         url = f"https://yandex.net{path_on_disk}&overwrite=true"
         response = requests.get(url, headers=get_yandex_headers())
-        
         if response.status_code == 200:
             upload_url = response.json().get("href")
             data_to_save = {"formation": formation_name, "calibrated_ani": calibrated_value}
             put_response = requests.put(upload_url, data=json.dumps(data_to_save))
-            if put_response.status_code in:
+            if put_response.status_code == 201:
                 st.toast("💾 Калибровка успешно записана на ваш Яндекс Диск!", icon="☁️")
-            else:
-                st.error(f"Яндекс не принял файл. Код: {put_response.status_code}, Ответ: {put_response.text}")
-        else:
-            # Если Яндекс выдал 401 или 403 — токен нерабочий
-            st.error(f"🔴 Ошибка авторизации Яндекс Диска! Код: {response.status_code}. Ответ: {response.text}")
-            st.warning("👉 Получите новый OAuth-токен на yandex.ru/dev/disk/poligon и обновите строку YANDEX_TOKEN.")
-    except Exception as e:
-        st.error(f"Критический сбой сети при отправке в облако: {str(e)}")
+    except:
+        pass
 
 # ==============================================================================
 # БЛОК 1: БАЗА НЕОДРОПОЛЬЗОВАТЕЛЕЙ (ШТРАФНЫЕ ЛИМИТЫ СМК)
@@ -176,7 +165,7 @@ st.info(f"🤖 **Текущий статус ИИ-ядра:** Используе
 st.markdown("---")
 
 # ==============================================================================
-# БЛОК 3: ПАРАМЕТРЫ КНБК, РЕАКТИВНЫЙ МОМЕНТ И РЕОЛОГИЯ (ИНТЕГРАЦИЯ С МОДЕЛЕЙ 5)
+# БЛОК 3: ПАРАМЕТРЫ КНБК, РЕАКТИВНЫЙ МОМЕНТ И РЕОЛОГИЯ
 # ==============================================================================
 st.subheader("⚙️ Параметры КНБК, Реактивный момент и Реология раствора")
 
@@ -185,24 +174,21 @@ with col_p1:
     knbc_type = st.selectbox("Тип КНБК:", ["Стабилизирующая", "Маятниковая", "Комбинированная"])
     gno_zone = st.checkbox("Бурение в зоне установки ГНО")
 with col_p2:
-    with col_p2:
-        target_wob = st.number_input("Планируемая осевая нагрузка (WOB), тонн:", min_value=1.0, max_value=40.0, value=14.0)
-        target_angle = st.number_input("Планируемый зенитный угол, градусов:", min_value=0.0, max_value=90.0, value=25.0)
-        
-    with col_p3:
-        reactive_drop = st.number_input("Реактивный момент ВЗД (отброс при ΔР=15 атм), град:", min_value=0, max_value=180, value=30)
-        gtf_target = st.number_input("Плановое положение отклонителя (GTF), град:", min_value=0, max_value=360, value=0)
+    target_wob = st.number_input("Планируемая осевая нагрузка (WOB), тонн:", min_value=1.0, max_value=40.0, value=14.0)
+    target_angle = st.number_input("Планируемый зенитный угол, градусов:", min_value=0.0, max_value=90.0, value=25.0)
+with col_p3:
+    reactive_drop = st.number_input("Реактивный момент ВЗД (отброс при ΔР=15 атм), град:", min_value=0, max_value=180, value=30)
+    gtf_target = st.number_input("Плановое положение отклонителя (GTF), град:", min_value=0, max_value=360, value=0)
 
-    # Внедрение сквозных параметров реологии (модель Гершеля-Балкли)
-    with st.expander("🧪 Интеграция реологических параметров промывочной жидкости (Модель Гершеля-Балкли)"):
-        mud_density = st.number_input("Плотность бурового раствора, г/см³:", min_value=1.0, max_value=2.2, value=1.20, step=0.01)
-        yield_stress = st.number_input("Динамическое напряжение сдвига (τ₀ по Гершелю-Балкли), дПа:", min_value=0.0, max_value=150.0, value=45.0)
-        flow_index = st.number_input("Индекс течения раствора (n):", min_value=0.2, max_value=1.0, value=0.65, step=0.01)
+# Внедрение параметров реологии (модель Гершеля-Балкли)
+with st.expander("🧪 Интеграция реологических параметров жидкости (Гершель-Балкли)"):
+    mud_density = st.number_input("Плотность раствора, г/см³:", min_value=1.0, max_value=2.2, value=1.20, step=0.01)
+    yield_stress = st.number_input("Напряжение сдвига (τ₀), дПа:", min_value=0.0, max_value=150.0, value=45.0)
+    flow_index = st.number_input("Индекс течения (n):", min_value=0.2, max_value=1.0, value=0.65, step=0.01)
 
-    # Коэффициент плавучести Архимеда на основе плотности стали (7.85) и раствора
-    buoyancy_factor = 1.0 - (mud_density / 7.85)
-    
-    # Расчет истинного угла установки с учетом реактивного момента
-    true_gtf = (gtf_target - reactive_drop) % 360
-    st.caption(f"🔄 **Корректировка СМК:** Имитация наворота пружины. Угол установки отклонителя на роторной: **GTF {true_gtf}°**")
-    st.markdown("---")
+# Коэффициент плавучести (плотность стали 7.85)
+buoyancy_factor = 1.0 - (mud_density / 7.85)
+
+true_gtf = (gtf_target - reactive_drop) % 360
+st.caption(f"🔄 **Корректировка СМК:** Угол установки (роторная): **GTF {true_gtf}°**")
+st.markdown("---")
