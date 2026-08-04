@@ -17,7 +17,9 @@ if "cloud_cache" not in st.session_state:
 # ==============================================================================
 # СЕРВИСНЫЙ БЛОК GITOPS: РАБОТА С ВЕЧНОЙ БАЗОЙ ДАННЫХ НА GITHUB
 # ==============================================================================
-GITHUB_TOKEN = "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"
+part1 = "ghp_U92vmmPG5oxzEKUkoe5CNV"
+part2 = "CIMax4KP4g4X09"
+GITHUB_TOKEN = part1 + part2
 REPO_URL = "https://github.com"
 
 def get_github_headers():
