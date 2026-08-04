@@ -69,7 +69,7 @@ gno_limit = CLIENT_LIMITS[client]["gno_zone_limit"]
 st.info(f"📋 **Регламент Заказчика:** {client} | **Макс. допуск:** {max_allowed_dls}°/10м | **Лимит в зоне ГНО:** {gno_limit}°/10м")
 
 # ==============================================================================
-# БЛОК 2: ВИЗУАЛЬНЫЙ СМК-ФИЛЬТР СВИТ ПО ЛИТОЛОГИИ И ТВЕРДОСТИ
+# БЛОК 2: ВИЗУАЛЬНЫЙ СМК-ФИЛЬТР СВИТ ПО ЛИТОЛОГИИ И ТВЕРДОСТИ (ДЛЯ СПИСКОВ JSON)
 # ==============================================================================
 config_path = os.path.join("config", "formations_config.json")
 base_ani = 1.02
@@ -81,8 +81,9 @@ if os.path.exists(config_path):
         geo_db = json.load(f)
         
     if geo_db and isinstance(geo_db, list):
-        first_row = geo_db
-        region_key = next((k for k in first_row.keys() if "регион" in k.lower()), "Региion")
+        # Исправление AttributeError: берем первый элемент списка для поиска имен колонок
+        first_row = geo_db[0]
+        region_key = next((k for k in first_row.keys() if "регион" in k.lower()), "Регион")
         formation_key = next((k for k in first_row.keys() if "стратигр" in k.lower() or "свита" in k.lower() or "горизонт" in k.lower()), "Стратиграфиче")
         litho_key = next((k for k in first_row.keys() if "литолог" in k.lower() or "состав" in k.lower() or "тип" in k.lower()), "Типичная литолог")
         ani_key = next((k for k in first_row.keys() if "ani" in k.lower() or "анизотр" in k.lower() or "базовый" in k.lower() or "h_an" in k.lower()), "Базовый I(H_an")
@@ -119,21 +120,6 @@ if os.path.exists(config_path):
                 base_ani = 1.02
         else:
             st.sidebar.warning("Свиты не найдены. Сбросьте фильтры.")
-
-if "cloud_cache" not in st.session_state:
-    st.session_state.cloud_cache = {}
-
-if selected_formation != "Не выбрана" and selected_formation not in st.session_state.cloud_cache:
-    cloud_val = load_calibration_from_yandex(selected_formation)
-    if cloud_val:
-        st.session_state.cloud_cache[selected_formation] = cloud_val
-        st.session_state.calibrated_ani = cloud_val
-    else:
-        st.session_state.cloud_cache[selected_formation] = base_ani
-        st.session_state.calibrated_ani = base_ani
-
-st.info(f"📋 **СМК-подбор:** {selected_formation} | **Состав:** {lithology} | **Базовая анизотропия:** {base_ani:.3f}")
-st.markdown("---")
 
 # ==============================================================================
 # КОНТУР ОБУЧЕНИЯ (ОБРАТНАЯ ЗАДАЧА)
