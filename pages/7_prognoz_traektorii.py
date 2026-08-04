@@ -36,7 +36,7 @@ gno_limit = CLIENT_LIMITS[client]["gno_zone_limit"]
 st.info(f"📋 **Регламент Заказчика:** {client} | **Макс. допуск:** {max_allowed_dls}°/10м | **Лимит в зоне ГНО:** {gno_limit}°/10м")
 
 # ==============================================================================
-# БЛОК 2: ПОДКЛЮЧЕНИЕ СТРАТИГРАФИИ ИЗ НАШЕЙ ПАПКИ CONFIG
+# БЛОК 2: ПОДКЛЮЧЕНИЕ СТРАТИГРАФИИ ИЗ НАШЕЙ ПАПКИ CONFIG (ВСЕЯДНЫЙ ПАРСЕР)
 # ==============================================================================
 config_path = os.path.join("config", "formations_config.json")
 base_ani = 1.02
@@ -45,25 +45,54 @@ selected_formation = "Не выбрана"
 if os.path.exists(config_path):
     with open(config_path, "r", encoding="utf-8") as f:
         geo_db = json.load(f)
+        
     if geo_db and isinstance(geo_db, list):
-        regions = list(set([row.get("Регион", "Не указан") for row in geo_db if row.get("Регион")]))
+        # 1. Автоматически ищем, как называются ключи в вашем JSON
+        first_row = geo_db[0]
+        region_key = next((k for k in first_row.keys() if "регион" in k.lower()), "Регион")
+        
+        # Ищем ключ свиты (он может называться "Свита", "Стратиграфиче", "Горизонт" и т.д.)
+        formation_key = next((k for k in first_row.keys() if "стратигр" in k.lower() or "свита" in k.lower() or "горизонт" in k.lower()), "Стратиграфиче")
+        litho_key = next((k for k in first_row.keys() if "литолог" in k.lower() or "состав" in k.lower()), "Типичная литолог")
+        ani_key = next((k for k in first_row.keys() if "ani" in k.lower() or "анизотр" in k.lower() or "базовый" in k.lower() or "h_an" in k.lower()), "Базовый I(H_an")
+
+        # 2. Собираем уникальные регионы
+        regions = list(set([str(row.get(region_key, "Не указан")).strip() for row in geo_db if row.get(region_key)]))
         selected_region = st.sidebar.selectbox("Регион бурения:", regions)
-        formations = [row.get("Стратиграфиче", "Не указана") for row in geo_db if row.get("Регион") == selected_region]
-        selected_formation = st.sidebar.selectbox("Стратиграфический горизонт:", formations)
-        current_data = next((row for row in geo_db if row.get("Регион") == selected_region and row.get("Стратиграфиче") == selected_formation), {})
-        ani_str = str(current_data.get("Базовый I(H_an", "1.02"))
-        try:
-            bounds = [float(x.strip()) for x in ani_str.split("-") if x.strip()]
-            base_ani = sum(bounds) / len(bounds) if bounds else 1.02
-        except:
-            base_ani = 1.02
-        st.sidebar.caption(f"Выбрана свита: {selected_formation} (Дефолтная анизотропия: {base_ani})")
+        
+        # 3. Собираем горизонты для выбранного региона (убираем дубликаты и пустые)
+        formations = list(set([str(row.get(formation_key, "Не указана")).strip() for row in geo_db if str(row.get(region_key)).strip() == selected_region]))
+        formations = [f for f in formations if f and f != "None" and f != "Не указана"]
+        
+        if formations:
+            selected_formation = st.sidebar.selectbox("Стратиграфический горизонт:", formations)
+            
+            # Ищем данные по выбранной свите
+            current_data = next((row for row in geo_db if str(row.get(region_key)).strip() == selected_region and str(row.get(formation_key)).strip() == selected_formation), {})
+            lithology = current_data.get(litho_key, "Данные отсутствуют")
+            
+            # Парсим диапазон анизотропии
+            ani_str = str(current_data.get(ani_key, "1.02"))
+            try:
+                bounds = [float(x.strip()) for x in ani_str.split("-") if x.strip()]
+                base_ani = sum(bounds) / len(bounds) if bounds else 1.02
+            except:
+                base_ani = 1.02
+        else:
+            st.sidebar.warning("Свиты для региона не найдены")
+            lithology = "Данные отсутствуют"
+            
+        st.sidebar.caption(f"Выбран индекс анизотропии: {base_ani:.3f}")
+    else:
+        # Для древовидной структуры JSON
+        if geo_db:
+            selected_region = st.sidebar.selectbox("Регион бурения:", list(geo_db.keys()))
+            selected_formation = st.sidebar.selectbox("Стратиграфический горизонт (свита):", list(geo_db[selected_region].keys()))
+            current_data = geo_db[selected_region][selected_formation]
+            lithology = current_data.get("lithology", "Данные отсутствуют")
+            base_ani = current_data.get("base_ani", 1.02)
 
-# Инициализируем рабочую анизотропию дефолтным значением
-if "calibrated_ani" not in st.session_state:
-    st.session_state.calibrated_ani = base_ani
-
-st.markdown("---")
+    st.info(f"📋 **Текущий горизонт:** {selected_formation} | **Литология:** {lithology} | **Дефолтная анизотропия пласта:** {base_ani:.3f}")
 
 # ==============================================================================
 # КОНТУР ОБУЧЕНИЯ (ОБРАТНАЯ ЗАДАЧА / ПРЯМОЙ АНАЛИТИЧЕСКИЙ ВЫВОД)
