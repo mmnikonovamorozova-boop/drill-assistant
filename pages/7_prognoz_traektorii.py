@@ -1,9 +1,82 @@
-import streamlit as st
+import base64
 import json
-import os
-import numpy as np
 import requests
+import streamlit as st
 from datetime import datetime
+
+def load_all_calibrations_from_github():
+    """Загружает БД через API с выводом отладочной информации в сайдбар."""
+    try:
+        api_url = "https://github.com"
+        r = requests.get(api_url, headers=get_github_headers())
+        
+        # Выводим статус загрузки в сайдбар для контроля
+        st.sidebar.write(f"🔍 Статус GET-запроса базы: {r.status_code}")
+        
+        if r.status_code == 200:
+            content_json = r.json()
+            file_content = base64.b64decode(content_json["content"]).decode("utf-8")
+            st.sidebar.write(f"📄 Текущее содержимое файла: {file_content}")
+            
+            if not file_content.strip() or file_content.strip() == "[]":
+                return [], content_json["sha"]
+            return json.loads(file_content), content_json["sha"]
+            
+        return [], None
+    except Exception as e:
+        st.sidebar.error(f"Ошибка загрузки: {str(e)}")
+        return [], None
+
+def save_calibration_to_github(formation_name, calibrated_value, current_wob, current_angle):
+    """Обновляет JSON на GitHub и печатает отправляемый payload на экран."""
+    try:
+        st.sidebar.write("🚀 Запуск функции сохранения...")
+        history, sha = load_all_calibrations_from_github()
+        
+        if not isinstance(history, list):
+            history = []
+            
+        # Формируем запись
+        new_record = {
+            "formation": str(formation_name),
+            "calibrated_ani": float(calibrated_value),
+            "wob": float(current_wob),
+            "angle": float(current_angle),
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        history.append(new_record)
+        
+        # Печатаем массив, который МЫ ПЫТАЕМСЯ ОТПРАВИТЬ, чтобы увидеть, не пустой ли он
+        st.sidebar.write(f"📦 Сформированный массив для отправки: {history}")
+        st.sidebar.write(f"🔑 Актуальный SHA файла: {sha}")
+        
+        # Подготовка контента
+        json_string = json.dumps(history, indent=2, ensure_ascii=False)
+        encoded_content = base64.b64encode(json_string.encode("utf-8")).decode("utf-8")
+        
+        target_url = "https://github.com"
+        payload = {
+            "message": f"СМК-Автокоммит: {formation_name}",
+            "content": encoded_content,
+            "branch": "main"
+        }
+        
+        if sha:
+            payload["sha"] = sha
+            
+        put_r = requests.put(target_url, headers=get_github_headers(), json=payload)
+        
+        st.sidebar.write(f"📡 Статус ответа PUT от GitHub: {put_r.status_code}")
+        
+        if put_r.status_code == 200 or put_r.status_code == 201:
+            st.toast("💾 Данные успешно синхронизированы с GitHub!", icon="🚀")
+            st.sidebar.success("Коммит успешно отправлен сервером!")
+        else:
+            st.sidebar.error(f"GitHub отклонил запись! Код: {put_r.status_code}")
+            st.sidebar.write(put_r.json())
+            
+    except Exception as e:
+        st.sidebar.error(f"Сбой контура сохранения: {str(e)}")
 
 st.title("📈 Модуль пространственной интенсивности (Регламент Р-ТС-12)")
 st.caption("Адаптивный СМК-контроль траектории ствола ООО «Траектория-Сервис» на базе распределенного хранилища GitOps")
