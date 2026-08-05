@@ -86,10 +86,9 @@ def save_calibration_to_github(formation_name, calibrated_value, current_wob, cu
         
         if put_r.status_code == 200 or put_r.status_code == 201:
             st.toast("💾 Данные успешно синхронизированы с GitHub!", icon="🚀")
-        else:
-            # Показываем причину прямо по центру экрана главного окна
-            st.error(f"GitHub отклонил запись! Код: {put_r.status_code}")
-            st.code(put_r.text, language="json")
+               else:
+            st.sidebar.error(f"GitHub отклонил запись! Код: {put_r.status_code}")
+
             
     except Exception as e:
         st.error(f"Критический сбой функции сохранения: {str(e)}")
