@@ -86,7 +86,7 @@ def save_calibration_to_github(formation_name, calibrated_value, current_wob, cu
         
         if put_r.status_code == 200 or put_r.status_code == 201:
             st.toast("💾 Данные успешно синхронизированы с GitHub!", icon="🚀")
-               else:
+        else:
             st.sidebar.error(f"GitHub отклонил запись! Код: {put_r.status_code}")
 
             
