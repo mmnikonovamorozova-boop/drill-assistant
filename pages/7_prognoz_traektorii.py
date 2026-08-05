@@ -1,7 +1,9 @@
-import base64
-import json
-import requests
 import streamlit as st
+import json
+import os  # ГАРАНТИРУЕМ ИМПОРТ МОДУЛЯ OS, ЧТОБЫ УБРАТЬ NAMEERROR!
+import numpy as np
+import requests
+import base64  # Добавляем сразу сюда для надежности работы с GitHub API
 from datetime import datetime
 
 def load_all_calibrations_from_github():
