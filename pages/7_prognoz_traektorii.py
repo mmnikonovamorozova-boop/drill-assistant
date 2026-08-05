@@ -25,8 +25,9 @@ GITHUB_TOKEN = part1 + part2
 REPO_URL = "https://github.com"
 
 def load_all_calibrations_from_github():
+    """Загружает список калибровок из JSON файла на GitHub."""
     try:
-        # Запрос к конкретному файлу БД, а не к корню репозитория
+        # Запрос к конкретному файлу базы данных через GitHub API
         target_url = "https://github.com"
         r = requests.get(target_url, headers=get_github_headers())
         
@@ -36,17 +37,21 @@ def load_all_calibrations_from_github():
             file_content = base64.b64decode(content["content"]).decode("utf-8")
             return json.loads(file_content), content["sha"]
         elif r.status_code == 404:
-            # Если файла еще нет, возвращаем пустой список без ошибки
+            # Если файла на GitHub ещё нет, возвращаем пустой массив
             return [], None
     except Exception as e:
-        st.sidebar.error(f"Ошибка чтения БД: {str(e)}")
+        st.sidebar.error(f"Сбой чтения из GitHub: {str(e)}")
     return [], None
 
 def save_calibration_to_github(formation_name, calibrated_value, current_wob, current_angle):
+    """Обновляет JSON файл на GitHub с новой калибровкой."""
     try:
-        # Загружаем существующую историю и актуальный sha из файла json
+        # Загружаем текущую историю и SHA-хэш последней версии файла
         history, sha = load_all_calibrations_from_github()
         
+        if not isinstance(history, list):
+            history = []
+            
         # Формируем новую запись
         new_record = {
             "formation": formation_name,
@@ -57,31 +62,34 @@ def save_calibration_to_github(formation_name, calibrated_value, current_wob, cu
         }
         history.append(new_record)
         
-        # Кодируем обновленный массив в base64
+        # Подготовка данных (base64 кодирование)
         import base64
-        updated_content = base64.b64encode(json.dumps(history, indent=2, ensure_ascii=False).encode("utf-8")).decode("utf-8")
+        json_string = json.dumps(history, indent=2, ensure_ascii=False)
+        updated_content = base64.b64encode(json_string.encode("utf-8")).decode("utf-8")
         
-        # URL до нашего файла базы данных
+        # Адрес файла
         target_url = "https://github.com"
         
         payload = {
-            "message": f"СМК-Автокоммит: Добавлена калибровка {formation_name}",
+            "message": f"СМК-Автокоммит: Добавлена калибровка по свите {formation_name}",
             "content": updated_content
         }
         
-        # Если файл в репозитории не пустой — передаем его sha для перезаписи
+        # Передаем sha-ключ для перезаписи
         if sha:
             payload["sha"] = sha
             
+        # Отправляем PUT-запрос
         put_r = requests.put(target_url, headers=get_github_headers(), data=json.dumps(payload))
         
+        # Проверка ответа
         if put_r.status_code in [200, 201]:
-            st.toast("💾 Данные успешно синхронизированы!", icon="🚀")
+            st.toast("💾 Данные успешно синхронизированы с GitHub!", icon="🚀")
         else:
             st.sidebar.error(f"GitHub отклонил запись. Код: {put_r.status_code}")
             
     except Exception as e:
-        st.sidebar.error(f"Сбой GitOps контура: {str(e)}")
+        st.sidebar.error(f"Сбой GitOps: {str(e)}")
 
 # ==============================================================================
 # БЛОК 1: БАЗА НЕОДРОПОЛЬЗОВАТЕЛЕЙ (ШТРАФНЫЕ ЛИМИТЫ СМК)
