@@ -21,69 +21,69 @@ if "cloud_cache" not in st.session_state:
 # Получение токена из секретов Streamlit Cloud
 GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
 
-def get_github_headers():
-    return {
-        "Authorization": f"token {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github.v3+json",
-        "Content-Type": "application/json"  # ЖЕСТКО УКАЗЫВАЕМ ФОРМАТ ДЛЯ ИСКЛЮЧЕНИЯ ОШИБКИ 406
-    }
+import base64
+import json
+import requests
+import streamlit as st
+from datetime import datetime
 
-# Замените старые функции load_all_calibrations_from_github 
 def load_all_calibrations_from_github():
-    """Загружает БД через RAW-ссылку, используя корректный API путь."""
+    """Загружает БД через API, получая актуальный SHA."""
     try:
-        raw_url = "https://githubusercontent.com"
         api_url = "https://github.com"
-        
-        r = requests.get(raw_url)
+        r = requests.get(api_url, headers=get_github_headers())
         if r.status_code == 200:
-            api_r = requests.get(api_url, headers=get_github_headers())
-            sha = api_r.json().get("sha") if api_r.status_code == 200 else None
-            return r.json(), sha
-    except Exception:
-        pass
-    return [], None
+            content_json = r.json()
+            file_content = base64.b64decode(content_json["content"]).decode("utf-8")
+            if not file_content.strip():
+                return [], content_json["sha"]
+            return json.loads(file_content), content_json["sha"]
+        return [], None
+    except Exception as e:
+        st.sidebar.error(f"Ошибка загрузки: {str(e)}")
+        return [], None
 
 def save_calibration_to_github(formation_name, calibrated_value, current_wob, current_angle):
-    """Обновляет JSON на GitHub, используя корректный API путь."""
+    """Обновляет JSON, принудительно передавая SHA."""
     try:
         history, sha = load_all_calibrations_from_github()
-        if not isinstance(history, list): 
+        
+        if not isinstance(history, list):
             history = []
             
-        new_record = {
+        # Добавление данных
+        history.append({
             "formation": str(formation_name),
             "calibrated_ani": float(calibrated_value),
             "wob": float(current_wob),
             "angle": float(current_angle),
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }
-        history.append(new_record)
+        })
         
-        import base64
+        # Подготовка контента
         json_string = json.dumps(history, indent=2, ensure_ascii=False)
-        content = base64.b64encode(json_string.encode("utf-8")).decode("utf-8")
+        encoded_content = base64.b64encode(json_string.encode("utf-8")).decode("utf-8")
         
+        # Отправка PUT-запроса
         target_url = "https://github.com"
-        
         payload = {
-            "message": f"СМК-Автокоммит: Добавлена калибровка {formation_name}",
-            "content": content,
-            "branch": "main"
+            "message": f"СМК-Автокоммит: {formation_name}",
+            "content": encoded_content,
+            "branch": "main",
+            "sha": sha
         }
         
-        if sha:
-            payload["sha"] = sha
-            
         put_r = requests.put(target_url, headers=get_github_headers(), json=payload)
         
-        # Альтернативная синтаксическая проверка без квадратных скобок
+        # Надежная проверка без списков и скрытых символов
         if put_r.status_code == 200 or put_r.status_code == 201:
-            st.toast("💾 Данные успешно синхронизированы!", icon="🚀")
+            st.toast("💾 Данные успешно синхронизированы с GitHub!", icon="🚀")
         else:
             st.sidebar.error(f"GitHub отклонил запись! Код: {put_r.status_code}")
+            st.sidebar.write(put_r.json())
+            
     except Exception as e:
-        st.sidebar.error(f"Сбой GitOps контура: {str(e)}")
+        st.sidebar.error(f"Сбой контура сохранения: {str(e)}")
 
 # ==============================================================================
 # БЛОК 1: БАЗА НЕОДРОПОЛЬЗОВАТЕЛЕЙ (ШТРАФНЫЕ ЛИМИТЫ СМК)
