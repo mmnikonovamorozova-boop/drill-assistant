@@ -29,38 +29,44 @@ def get_github_headers():
     }
 
 def load_all_calibrations_from_github():
-    """Загружает текущую базу данных калибровок из GitHub с диагностикой ошибок."""
-    target_url = "https://github.com"
-    r = requests.get(target_url, headers=get_github_headers())
-    
-    if r.status_code == 200:
-        content = r.json()
-        import base64
-        file_content = base64.b64decode(content["content"]).decode("utf-8")
+    """Загружает базу данных через прямую Raw-ссылку. Это исключает 404 при чтении."""
+    try:
+        raw_url = "https://githubusercontent.com"
+        r = requests.get(raw_url)
         
-        if not file_content.strip():
-            return [], content["sha"]
+        if r.status_code == 200:
+            api_url = "https://github.com"
+            api_r = requests.get(api_url, headers=get_github_headers())
+            sha = api_r.json().get("sha") if api_r.status_code == 200 else None
             
-        parsed_json = json.loads(file_content)
-        if isinstance(parsed_json, list):
-            return parsed_json, content["sha"]
-        return [], content["sha"]
+            return json.loads(r.text), sha
+            
+    except Exception:
+        pass
         
-    elif r.status_code == 404:
-        return [], None
-    else:
-        # Выводим ошибку чтения на экран, если токен не подошел
-        st.error(f"GitHub API ошибка чтения: {r.status_code} - {r.text}")
-        return [], None
+    try:
+        raw_url_pages = "https://githubusercontent.com"
+        r = requests.get(raw_url_pages)
+        if r.status_code == 200:
+            api_url = "https://github.com"
+            api_r = requests.get(api_url, headers=get_github_headers())
+            sha = api_r.json().get("sha") if api_r.status_code == 200 else None
+            
+            return json.loads(r.text), sha
+    except Exception:
+        pass
+
+    return [], None
 
 def save_calibration_to_github(formation_name, calibrated_value, current_wob, current_angle):
-    """Добавляет запись и пушит обновленный JSON с выводом ошибок на экран."""
+    """Добавляет запись и пушит обновленный JSON, гарантированно вытаскивая SHA."""
     try:
-        history, sha = load_all_calibrations_from_github()
-        
+        # 1. Загружаем историю
+        history, _ = load_all_calibrations_from_github()
         if not isinstance(history, list):
             history = []
             
+        # 2. Формируем новую запись
         new_record = {
             "formation": str(formation_name),
             "calibrated_ani": float(calibrated_value),
@@ -70,30 +76,41 @@ def save_calibration_to_github(formation_name, calibrated_value, current_wob, cu
         }
         history.append(new_record)
         
+        # 3. Кодируем в base64
         import base64
         json_string = json.dumps(history, indent=2, ensure_ascii=False)
         updated_content = base64.b64encode(json_string.encode("utf-8")).decode("utf-8")
         
+        # 4. Забираем актуальный SHA файла напрямую из ветки main
+        sha = None
         target_url = "https://github.com"
+        sha_r = requests.get(target_url, headers=get_github_headers())
         
+        if sha_r.status_code == 200:
+            sha = sha_r.json().get("sha")
+        
+        # 5. Формируем payload для отправки
         payload = {
             "message": f"СМК-Автокоммит: Добавлена калибровка по свите {formation_name}",
-            "content": updated_content
+            "content": updated_content,
+            "branch": "main"
         }
         
         if sha:
             payload["sha"] = sha
             
-        put_r = requests.put(target_url, headers=get_github_headers(), data=json.dumps(payload))
+        # 6. Отправляем PUT запрос (используем параметр json= вместо data=)
+        put_r = requests.put(target_url, headers=get_github_headers(), json=payload)
         
+        # 7. Проверяем результат
         if put_r.status_code == 200 or put_r.status_code == 201:
             st.toast("💾 Данные успешно синхронизированы с GitHub!", icon="🚀")
         else:
             st.sidebar.error(f"GitHub отклонил запись! Код: {put_r.status_code}")
-
+            st.sidebar.write(put_r.json())
             
     except Exception as e:
-        st.error(f"Критический сбой функции сохранения: {str(e)}")
+        st.sidebar.error(f"Критический сбой сохранения: {str(e)}")
 
 # ==============================================================================
 # БЛОК 1: БАЗА НЕОДРОПОЛЬЗОВАТЕЛЕЙ (ШТРАФНЫЕ ЛИМИТЫ СМК)
