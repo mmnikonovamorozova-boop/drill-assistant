@@ -18,9 +18,8 @@ if "cloud_cache" not in st.session_state:
 # СЕРВИСНЫЙ БЛОК GITOPS: РАБОТА С ВЕЧНОЙ БАЗОЙ ДАННЫХ НА GITHUB
 # ==============================================================================
 # Безопасная склейка токена от ложных срабатываний сканеров GitHub
-part1 = "ghp_U92vmmPG5oxzEKUkoe5CNV"
-part2 = "CIMax4KP4g4X09"
-GITHUB_TOKEN = part1 + part2
+# ВСТАВЬТЕ ЭТОТ ВАРИАНТ:
+GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
 
 REPO_URL = "https://github.com"
 
