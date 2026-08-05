@@ -44,26 +44,42 @@ def load_all_calibrations_from_github():
 
 def save_calibration_to_github(formation_name, calibrated_value, current_wob, current_angle):
     try:
-        # Загрузка истории и sha, формирование новых данных, base64-кодирование
+        # Загружаем существующую историю и актуальный sha из файла json
         history, sha = load_all_calibrations_from_github()
-        # ... (логика обновления данных) ...
         
+        # Формируем новую запись
+        new_record = {
+            "formation": formation_name,
+            "calibrated_ani": float(calibrated_value),
+            "wob": float(current_wob),
+            "angle": float(current_angle),
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        history.append(new_record)
+        
+        # Кодируем обновленный массив в base64
+        import base64
+        updated_content = base64.b64encode(json.dumps(history, indent=2, ensure_ascii=False).encode("utf-8")).decode("utf-8")
+        
+        # URL до нашего файла базы данных
         target_url = "https://github.com"
         
         payload = {
             "message": f"СМК-Автокоммит: Добавлена калибровка {formation_name}",
             "content": updated_content
         }
-        # Передаем sha только если файл уже существовал
+        
+        # Если файл в репозитории не пустой — передаем его sha для перезаписи
         if sha:
             payload["sha"] = sha
             
         put_r = requests.put(target_url, headers=get_github_headers(), data=json.dumps(payload))
         
-        if put_r.status_code == 200 or put_r.status_code == 201:
-            st.toast("💾 Данные синхронизированы", icon="🚀")
+        if put_r.status_code in [200, 201]:
+            st.toast("💾 Данные успешно синхронизированы!", icon="🚀")
         else:
             st.sidebar.error(f"GitHub отклонил запись. Код: {put_r.status_code}")
+            
     except Exception as e:
         st.sidebar.error(f"Сбой GitOps контура: {str(e)}")
 
