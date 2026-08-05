@@ -18,12 +18,14 @@ if "cloud_cache" not in st.session_state:
 # СЕРВИСНЫЙ БЛОК GITOPS: РАБОТА С ВЕЧНОЙ БАЗОЙ ДАННЫХ НА GITHUB
 # ==============================================================================
 # Получение токена из секретов Streamlit Cloud
+# Получение токена из секретов Streamlit Cloud
 GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
 
 def get_github_headers():
     return {
         "Authorization": f"token {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github.v3+json"
+        "Accept": "application/vnd.github.v3+json",
+        "Content-Type": "application/json"  # ЖЕСТКО УКАЗЫВАЕМ ФОРМАТ ДЛЯ ИСКЛЮЧЕНИЯ ОШИБКИ 406
     }
 
 def load_all_calibrations_from_github():
