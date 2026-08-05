@@ -82,7 +82,7 @@ def save_calibration_to_github(formation_name, calibrated_value, current_wob, cu
         # Отправляем PUT-запрос
         put_r = requests.put(target_url, headers=get_github_headers(), data=json.dumps(payload))
         
-        # Проверка ответа (теперь коды на месте)
+        # Проверка ответа (список кодов теперь на месте)
         if put_r.status_code in:
             st.toast("💾 Данные успешно синхронизированы с GitHub!", icon="🚀")
         else:
