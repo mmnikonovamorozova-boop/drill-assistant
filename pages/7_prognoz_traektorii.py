@@ -28,45 +28,29 @@ def get_github_headers():
         "Content-Type": "application/json"  # ЖЕСТКО УКАЗЫВАЕМ ФОРМАТ ДЛЯ ИСКЛЮЧЕНИЯ ОШИБКИ 406
     }
 
+# Замените старые функции load_all_calibrations_from_github 
 def load_all_calibrations_from_github():
-    """Загружает базу данных через прямую Raw-ссылку. Это исключает 404 при чтении."""
+    """Загружает БД через RAW-ссылку, используя корректный API путь."""
     try:
         raw_url = "https://githubusercontent.com"
+        api_url = "https://github.com"
+        
         r = requests.get(raw_url)
-        
         if r.status_code == 200:
-            api_url = "https://github.com"
             api_r = requests.get(api_url, headers=get_github_headers())
             sha = api_r.json().get("sha") if api_r.status_code == 200 else None
-            
-            return json.loads(r.text), sha
-            
+            return r.json(), sha
     except Exception:
         pass
-        
-    try:
-        raw_url_pages = "https://githubusercontent.com"
-        r = requests.get(raw_url_pages)
-        if r.status_code == 200:
-            api_url = "https://github.com"
-            api_r = requests.get(api_url, headers=get_github_headers())
-            sha = api_r.json().get("sha") if api_r.status_code == 200 else None
-            
-            return json.loads(r.text), sha
-    except Exception:
-        pass
-
     return [], None
 
 def save_calibration_to_github(formation_name, calibrated_value, current_wob, current_angle):
-    """Добавляет запись и пушит обновленный JSON, гарантированно вытаскивая SHA."""
+    """Обновляет JSON на GitHub, используя корректный API путь."""
     try:
-        # 1. Загружаем историю
-        history, _ = load_all_calibrations_from_github()
-        if not isinstance(history, list):
+        history, sha = load_all_calibrations_from_github()
+        if not isinstance(history, list): 
             history = []
             
-        # 2. Формируем новую запись
         new_record = {
             "formation": str(formation_name),
             "calibrated_ani": float(calibrated_value),
@@ -76,41 +60,30 @@ def save_calibration_to_github(formation_name, calibrated_value, current_wob, cu
         }
         history.append(new_record)
         
-        # 3. Кодируем в base64
         import base64
         json_string = json.dumps(history, indent=2, ensure_ascii=False)
-        updated_content = base64.b64encode(json_string.encode("utf-8")).decode("utf-8")
+        content = base64.b64encode(json_string.encode("utf-8")).decode("utf-8")
         
-        # 4. Забираем актуальный SHA файла напрямую из ветки main
-        sha = None
         target_url = "https://github.com"
-        sha_r = requests.get(target_url, headers=get_github_headers())
         
-        if sha_r.status_code == 200:
-            sha = sha_r.json().get("sha")
-        
-        # 5. Формируем payload для отправки
         payload = {
-            "message": f"СМК-Автокоммит: Добавлена калибровка по свите {formation_name}",
-            "content": updated_content,
+            "message": f"СМК-Автокоммит: Добавлена калибровка {formation_name}",
+            "content": content,
             "branch": "main"
         }
         
         if sha:
             payload["sha"] = sha
             
-        # 6. Отправляем PUT запрос (используем параметр json= вместо data=)
         put_r = requests.put(target_url, headers=get_github_headers(), json=payload)
         
-        # 7. Проверяем результат
+        # Альтернативная синтаксическая проверка без квадратных скобок
         if put_r.status_code == 200 or put_r.status_code == 201:
-            st.toast("💾 Данные успешно синхронизированы с GitHub!", icon="🚀")
+            st.toast("💾 Данные успешно синхронизированы!", icon="🚀")
         else:
             st.sidebar.error(f"GitHub отклонил запись! Код: {put_r.status_code}")
-            st.sidebar.write(put_r.json())
-            
     except Exception as e:
-        st.sidebar.error(f"Критический сбой сохранения: {str(e)}")
+        st.sidebar.error(f"Сбой GitOps контура: {str(e)}")
 
 # ==============================================================================
 # БЛОК 1: БАЗА НЕОДРОПОЛЬЗОВАТЕЛЕЙ (ШТРАФНЫЕ ЛИМИТЫ СМК)
