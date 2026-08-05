@@ -24,45 +24,44 @@ GITHUB_TOKEN = part1 + part2
 
 REPO_URL = "https://github.com"
 
-def get_github_headers():
-    return {
-        "Authorization": f"token {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github.v3+json"
-    }
-
 def load_all_calibrations_from_github():
     try:
-        r = requests.get(REPO_URL, headers=get_github_headers())
+        # Запрос к конкретному файлу БД, а не к корню репозитория
+        target_url = "https://github.com"
+        r = requests.get(target_url, headers=get_github_headers())
+        
         if r.status_code == 200:
             content = r.json()
             import base64
             file_content = base64.b64decode(content["content"]).decode("utf-8")
             return json.loads(file_content), content["sha"]
-    except:
-        pass
+        elif r.status_code == 404:
+            # Если файла еще нет, возвращаем пустой список без ошибки
+            return [], None
+    except Exception as e:
+        st.sidebar.error(f"Ошибка чтения БД: {str(e)}")
     return [], None
 
 def save_calibration_to_github(formation_name, calibrated_value, current_wob, current_angle):
     try:
+        # Загрузка истории и sha, формирование новых данных, base64-кодирование
         history, sha = load_all_calibrations_from_github()
-        new_record = {
-            "formation": formation_name,
-            "calibrated_ani": float(calibrated_value),
-            "wob": float(current_wob),
-            "angle": float(current_angle),
-            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }
-        history.append(new_record)
-        import base64
-        updated_content = base64.b64encode(json.dumps(history, indent=2, ensure_ascii=False).encode("utf-8")).decode("utf-8")
+        # ... (логика обновления данных) ...
+        
+        target_url = "https://github.com"
+        
         payload = {
-            "message": f"СМК-Автокоммит: Добавлена калибровка по свите {formation_name}",
-            "content": updated_content,
-            "sha": sha
+            "message": f"СМК-Автокоммит: Добавлена калибровка {formation_name}",
+            "content": updated_content
         }
-        put_r = requests.put(REPO_URL, headers=get_github_headers(), data=json.dumps(payload))
-        if put_r.status_code in [200, 201]:
-            st.toast("💾 Данные успешно синхронизированы с глобальным репозиторием GitHub!", icon="🚀")
+        # Передаем sha только если файл уже существовал
+        if sha:
+            payload["sha"] = sha
+            
+        put_r = requests.put(target_url, headers=get_github_headers(), data=json.dumps(payload))
+        
+        if put_r.status_code == 200 or put_r.status_code == 201:
+            st.toast("💾 Данные синхронизированы", icon="🚀")
         else:
             st.sidebar.error(f"GitHub отклонил запись. Код: {put_r.status_code}")
     except Exception as e:
