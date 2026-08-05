@@ -83,11 +83,10 @@ def save_calibration_to_github(formation_name, calibrated_value, current_wob, cu
         put_r = requests.put(target_url, headers=get_github_headers(), data=json.dumps(payload))
         
         # Проверка ответа (список кодов теперь на месте)
-        if put_r.status_code in:
+               # Альтернативная проверка кодов 200 и 201 без использования списков
+        if put_r.status_code == 200 or put_r.status_code == 201:
             st.toast("💾 Данные успешно синхронизированы с GitHub!", icon="🚀")
-        else:
-            st.sidebar.error(f"GitHub отклонил запись. Код: {put_r.status_code}")
-            
+
     except Exception as e:
         st.sidebar.error(f"Сбой GitOps: {str(e)}")
 
