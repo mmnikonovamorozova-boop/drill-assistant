@@ -17,43 +17,50 @@ if "cloud_cache" not in st.session_state:
 # ==============================================================================
 # СЕРВИСНЫЙ БЛОК GITOPS: РАБОТА С ВЕЧНОЙ БАЗОЙ ДАННЫХ НА GITHUB
 # ==============================================================================
-# Безопасная склейка токена от ложных срабатываний сканеров GitHub
-# ВСТАВЬТЕ ЭТОТ ВАРИАНТ:
+# Получение токена из секретов Streamlit Cloud
 GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
 
-REPO_URL = "https://github.com"
+def get_github_headers():
+    return {
+        "Authorization": f"token {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github.v3+json"
+    }
 
 def load_all_calibrations_from_github():
-    """Загружает список калибровок из JSON файла на GitHub."""
-    try:
-        # Запрос к конкретному файлу базы данных через GitHub API
-        target_url = "https://github.com"
-        r = requests.get(target_url, headers=get_github_headers())
+    """Загружает текущую базу данных калибровок из GitHub с диагностикой ошибок."""
+    target_url = "https://github.com"
+    r = requests.get(target_url, headers=get_github_headers())
+    
+    if r.status_code == 200:
+        content = r.json()
+        import base64
+        file_content = base64.b64decode(content["content"]).decode("utf-8")
         
-        if r.status_code == 200:
-            content = r.json()
-            import base64
-            file_content = base64.b64decode(content["content"]).decode("utf-8")
-            return json.loads(file_content), content["sha"]
-        elif r.status_code == 404:
-            # Если файла на GitHub ещё нет, возвращаем пустой массив
-            return [], None
-    except Exception as e:
-        st.sidebar.error(f"Сбой чтения из GitHub: {str(e)}")
-    return [], None
+        if not file_content.strip():
+            return [], content["sha"]
+            
+        parsed_json = json.loads(file_content)
+        if isinstance(parsed_json, list):
+            return parsed_json, content["sha"]
+        return [], content["sha"]
+        
+    elif r.status_code == 404:
+        return [], None
+    else:
+        # Выводим ошибку чтения на экран, если токен не подошел
+        st.error(f"GitHub API ошибка чтения: {r.status_code} - {r.text}")
+        return [], None
 
 def save_calibration_to_github(formation_name, calibrated_value, current_wob, current_angle):
-    """Обновляет JSON файл на GitHub с новой калибровкой."""
+    """Добавляет запись и пушит обновленный JSON с выводом ошибок на экран."""
     try:
-        # Загружаем текущую историю и SHA-хэш последней версии файла
         history, sha = load_all_calibrations_from_github()
         
         if not isinstance(history, list):
             history = []
             
-        # Формируем новую запись
         new_record = {
-            "formation": formation_name,
+            "formation": str(formation_name),
             "calibrated_ani": float(calibrated_value),
             "wob": float(current_wob),
             "angle": float(current_angle),
@@ -61,12 +68,10 @@ def save_calibration_to_github(formation_name, calibrated_value, current_wob, cu
         }
         history.append(new_record)
         
-        # Подготовка данных (base64 кодирование)
         import base64
         json_string = json.dumps(history, indent=2, ensure_ascii=False)
         updated_content = base64.b64encode(json_string.encode("utf-8")).decode("utf-8")
         
-        # Адрес файла
         target_url = "https://github.com"
         
         payload = {
@@ -74,20 +79,20 @@ def save_calibration_to_github(formation_name, calibrated_value, current_wob, cu
             "content": updated_content
         }
         
-        # Передаем sha-ключ для перезаписи
         if sha:
             payload["sha"] = sha
             
-        # Отправляем PUT-запрос
         put_r = requests.put(target_url, headers=get_github_headers(), data=json.dumps(payload))
         
-        # Проверка ответа (список кодов теперь на месте)
-               # Альтернативная проверка кодов 200 и 201 без использования списков
         if put_r.status_code == 200 or put_r.status_code == 201:
             st.toast("💾 Данные успешно синхронизированы с GitHub!", icon="🚀")
-
+        else:
+            # Показываем причину прямо по центру экрана главного окна
+            st.error(f"GitHub отклонил запись! Код: {put_r.status_code}")
+            st.code(put_r.text, language="json")
+            
     except Exception as e:
-        st.sidebar.error(f"Сбой GitOps: {str(e)}")
+        st.error(f"Критический сбой функции сохранения: {str(e)}")
 
 # ==============================================================================
 # БЛОК 1: БАЗА НЕОДРОПОЛЬЗОВАТЕЛЕЙ (ШТРАФНЫЕ ЛИМИТЫ СМК)
