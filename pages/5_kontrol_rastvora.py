@@ -275,9 +275,10 @@ with col_vzd2:
 current_sand_val = f_sand  # Синхронизация по песку с вашим Блоком 2
 
 # 3. Фильтрация и запуск адаптивного обучения математического ядра
+# 3. Фильтрация и запуск адаптивного обучения математического ядра через NumPy
 region_filter = "Волго-Урал" if region_choice == "Волго-Урал" else ["ХМАО", "ЯНАО", "Западная Сибирь"]
 
-if df_failures is not None:
+if df_failures is not None and not df_failures.empty:
     if isinstance(region_filter, list):
         df_geo = df_failures[df_failures["Регион работ"].isin(region_filter)]
     else:
@@ -296,25 +297,41 @@ accuracy_pct = 0.0
 
 if len(df_train) >= 3:
     try:
-        X_train = df_train[["Песок (%)", "Забойная Темп. (°C)", "Кинематика_число"]]
-        y_train = df_train["Скорость_износа"]
+        # Формируем матрицы для метода наименьших квадратов (МНК)
+        # Факторы: Песок, Температура, Кинематика и свободный член (столбец единиц)
+        X = df_train[["Песок (%)", "Забойная Темп. (°C)", "Кинематика_число"]].values
+        y = df_train["Скорость_износа"].values
         
-        lr = LinearRegression(positive=True)
-        lr.fit(X_train, y_train)
+        # Добавляем столбец единиц для интерцеппта (свободного коэффициента)
+        X_design = np.hstack([np.ones((X.shape[0], 1)), X])
         
-        y_pred_train = np.clip(lr.predict(X_train), 0.0001, None)
+        # Решение уравнения МНК: (X^T * X)^(-1) * X^T * y
+        beta, residuals, rank, s = np.linalg.lstsq(X_design, y, rcond=None)
+        
+        # Проверяем физичность коэффициентов (влияние факторов должно быть положительным)
+        # Если математика выдает отрицательный вес из-за шума, принудительно зануляем его
+        beta[1:] = np.clip(beta[1:], 0.0, None)
+        
+        # Верификация модели на исторических данных
+        y_pred_train = np.clip(X_design @ beta, 0.0001, None)
         hours_actual = df_train["Наработка до отказа (Часы)"].values
         hours_predicted = 1.0 / y_pred_train
         
-        mae_hours = float(mean_absolute_error(hours_actual, hours_predicted))
+        # Расчет погрешности в часах
+        mae_hours = float(np.mean(np.abs(hours_actual - hours_predicted)))
+        
+        # Расчет точности по СТО ИНТИ
         mape = np.mean(np.abs(hours_actual - hours_predicted) / hours_actual)
         accuracy_pct = max(0.0, min(100.0, (1.0 - mape) * 100.0))
         
-        X_current = np.array([[current_sand_val, current_temp_est, current_kin]])
-        predicted_wear_speed = max(0.0001, float(lr.predict(X_current)))
+        # Предикт для текущих условий на буровой
+        X_current = np.array([1.0, current_sand_val, current_temp_est, current_kin])
+        predicted_wear_speed = max(0.0001, float(X_current @ beta))
+        
         predicted_hours_to_failure = max(0.0, (1.0 / predicted_wear_speed) - current_runtime)
         model_ready = True
-    except: pass
+    except:
+        pass
 
 if not model_ready:
     sand_excess = max(0.0, current_sand_val - 0.5)
