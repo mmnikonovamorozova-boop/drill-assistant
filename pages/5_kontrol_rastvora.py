@@ -375,10 +375,11 @@ if df_failures is not None and not df_geo.empty:
 
     # Отрисовываем карточки исторических примеров в три колонки
     card_cols = st.columns(3)
-    for idx, (_, row) in enumerate(top_3_failures.iterrows()):
-        with card_cols[idx]:
-            with st.container(border=True):
-                full_name_str = str(row["Габарит /\nПроизводитель"])
+    for idx, (_, row) in enumerate( top_3_failures. iterrows()):
+        with card_cols[ idx]:
+            with st. container( border= True):
+                # Автоматически берём значение из самой первой колонки строки
+                full_name_str = str( row. iloc[ 0])
                 engine_clean_model = full_name_str.split("(")[0].strip() if "(" in full_name_str else "ВЗД"
                 serial_match = re.search(r"№\s*(\d+)", full_name_str)
                 serial_str = f" №{serial_match.group(1)}" if serial_match else ""
