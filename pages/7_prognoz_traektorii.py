@@ -181,8 +181,9 @@ def push_calibration_to_github(new_data):
     if not token:
         st.error("🚨 В настройках Streamlit Cloud (Secrets) отсутствует GITHUB_TOKEN! Запись невозможна.")
         return False
-
-   url = "https://github.com"
+            
+    url = "https://github.com"
+    
     headers = {
         "Authorization": f"token {token}",
         "Accept": "application/vnd.github.v3+json"
