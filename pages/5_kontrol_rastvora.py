@@ -218,7 +218,7 @@ from sklearn.metrics import mean_absolute_error
 
 # 1. Функция автоматической загрузки и парсинга Excel из вашего репозитория
 @st.cache_data(ttl=3600)
-df = pd.read_csv("failures_db.csv", sep=";"):
+def load_advanced_model(file_path="failures_db.csv"):
     try:
         # Для чтения Excel без openpyxl можно использовать встроенный движок или перевести базу в CSV
         # Пробуем прочитать Excel стандартным методом
