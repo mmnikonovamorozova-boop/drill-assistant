@@ -19,7 +19,7 @@ def load_calibrations_from_github():
     FILE_PATH = "calibrations_db.json"
     
     token = st.secrets.get("GITHUB_TOKEN", None)
-    url = f"https://github.com{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
+    url = "https://github.com"
     headers = {"Accept": "application/vnd.github.v3+json"}
     if token:
         headers["Authorization"] = f"token {token}"
@@ -217,7 +217,7 @@ def push_calibration_to_github(new_data):
 
         put_res = requests.put(url, headers=headers, json=commit_payload)
         
-        if put_res.status_code in:
+            if put_res.status_code == 200 or put_res.status_code == 201:
             st.success("🎉 Математическое ядро успешно обучено! Свежие коэффициенты записаны на GitHub.")
             st.cache_data.clear()
             return True
