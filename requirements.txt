@@ -8,3 +8,5 @@ requests
 sqlalchemy
 psycopg2-binary
 yadisk
+openpyxl
+scikit-learn
