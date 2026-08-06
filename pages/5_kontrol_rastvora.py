@@ -231,6 +231,9 @@ def load_advanced_model(file_path="failures_db.csv"):
         df["Забойная Темп. (°C)"] = pd.to_numeric(df["Забойная Темп. (°C)"], errors="coerce").fillna(70)
         
         # Извлекаем производителя из первой колонки
+               # Автоматически находим первую колонку, как бы она ни называлась в CSV
+        first_column = df.columns[0]
+        
         def extract_vendor(text):
             text = str(text).upper()
             if "РАДИУС" in text or "РС" in text: return "Радиус-Сервис"
@@ -238,8 +241,9 @@ def load_advanced_model(file_path="failures_db.csv"):
             elif "ГИДРОМАШ" in text: return "Гидромаш"
             elif "ТИТАН" in text: return "ПЗТО Титан"
             else: return "Прочие"
-            
-        df["Производитель_чистый"] = df["Габарит /\nПроизводитель"].apply(extract_vendor)
+
+        # Извлекаем по индексу, полностью защищаясь от KeyError
+        df["Производитель_чистый"] = df[first_column].apply(extract_vendor)
 
         def parse_kin(val):
             try:
