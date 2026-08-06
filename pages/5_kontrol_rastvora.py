@@ -218,6 +218,8 @@ from sklearn.metrics import mean_absolute_error
 @st.cache_data(ttl=3600)
 def load_advanced_model(file_path="failures_db.xlsx"):
     try:
+        # Для чтения Excel без openpyxl можно использовать встроенный движок или перевести базу в CSV
+        # Пробуем прочитать Excel стандартным методом
         df = pd.read_excel(file_path)
         df = df.dropna(subset=["Наработка до отказа (Часы)"]).copy()
         df["Наработка до отказа (Часы)"] = pd.to_numeric(df["Наработка до отказа (Часы)"])
@@ -249,7 +251,8 @@ def load_advanced_model(file_path="failures_db.xlsx"):
         df["Скорость_износа"] = 1.0 / df["Наработка до отказа (Часы)"]
         return df
     except Exception as e:
-        st.error(f"⚠️ Ошибка обработки базы Excel: {e}")
+        # Если openpyxl не установлен, выводим предупреждение и переходим на дефолтные формулы
+        st.warning(f"⚠️ База Excel недоступна (требуется библиотека для чтения): {e}. Используются базовые формулы.")
         return None
 
 df_failures = load_advanced_model()
@@ -274,7 +277,6 @@ with col_vzd2:
 
 current_sand_val = f_sand  # Синхронизация по песку с вашим Блоком 2
 
-# 3. Фильтрация и запуск адаптивного обучения математического ядра
 # 3. Фильтрация и запуск адаптивного обучения математического ядра через NumPy
 region_filter = "Волго-Урал" if region_choice == "Волго-Урал" else ["ХМАО", "ЯНАО", "Западная Сибирь"]
 
