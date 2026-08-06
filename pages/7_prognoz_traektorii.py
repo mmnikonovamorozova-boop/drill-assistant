@@ -53,7 +53,6 @@ active_calibration = load_calibrations_from_github()
 # =========================================================================
 # БОКОВАЯ ПАНЕЛЬ И НАСТРОЙКИ СТРАНИЦЫ
 # =========================================================================
-st.set_page_config(page_title="Помощник инженера ННБ - Траектория", layout="wide")
 st.sidebar.markdown(f"🤖 **Статус ядра:** {active_calibration['info']}")
 
 # Глобальные константы и параметры КНБК
@@ -80,7 +79,7 @@ well_name = st.text_input("📝 Номер/Название скважины:", 
 
 # Таблица замеров инклинометрии рейса
 data_inc = {
-    "Глубина (м)": [1200, 1230, 1260, 1290],
+    "Глубина (м)":,
     "Зенитный угол (°)": [42.1, 43.5, 44.8, 45.0],
     "Азимут (°)": [124.2, 124.5, 125.1, 125.2]
 }
@@ -191,7 +190,6 @@ def push_calibration_to_github(new_data):
     }
 
     try:
-        # А. Запрашиваем текущее состояние файла на GitHub для извлечения SHA-хэша
         res = requests.get(url, headers=headers)
         sha = None
         current_list = []
@@ -204,13 +202,6 @@ def push_calibration_to_github(new_data):
                 current_list = json.loads(old_str)
                 if not isinstance(current_list, list): current_list = []
             except: pass
-
-            try:
-                current_list = json.loads(old_str)
-                if not isinstance(current_list, list):
-                    current_list = []
-            except:
-                pass
 
         current_list.append(new_data)
         updated_json_str = json.dumps(current_list, indent=4, ensure_ascii=False)
