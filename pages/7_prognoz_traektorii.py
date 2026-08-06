@@ -1,16 +1,55 @@
-import streamlit as st
 import json
-import os  # ГАРАНТИРУЕМ ИМПОРТ МОДУЛЯ OS, ЧТОБЫ УБРАТЬ NAMEERROR!
-import numpy as np
+import base64
 import requests
-import base64  # Добавляем сразу сюда для надежности работы с GitHub API
-from datetime import datetime
+import numpy as np
+import pandas as pd
+import streamlit as st
 
-def load_all_calibrations_from_github():
+# =========================================================================
+# ПОДБЛОК 1: ДИНАМИЧЕСКИЙ СЧЕТЧИК И ЗАГРУЗКА ИСТОРИИ ИЗ REPOSITORY
+# =========================================================================
+
+@st.cache_data(ttl=600)  # Кэшируем на 10 минут, чтобы не перегружать сеть
+def load_calibrations_from_github():
+    """Считывает массив сохраненных сессий обучения с GitHub API"""
+    REPO_OWNER = "mmnikonovamorozova-boop"
+    REPO_NAME = "drill-assistant"
+    FILE_PATH = "calibrations_db.json"
+    
+    token = st.secrets.get("GITHUB_TOKEN", None)
+    url = f"https://github.com{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    if token:
+        headers["Authorization"] = f"token {token}"
+
+    # Дефолтные безопасные уставки математического ядра
+    default_coefficients = {
+        "slide_factor": 1.0,          # Коэффициент эффективности слайда
+        "intensity_correction": 1.0,  # Корректировка проектной интенсивности
+        "rotary_drift_val": 0.0,      # Роторный увод (градусов на 10 метров)
+        "info": "Заводские уставки (База пуста)"
+    }
+
     try:
-        api_url = "https://github.com"
-        r = requests.get(api_url, headers=get_github_headers())
-        st.sidebar.write(f"🔍 Статус GET базы: {r.status_code}")
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            file_info = response.json()
+            content_str = base64.b64decode(file_info["content"]).decode("utf-8")
+            calibrations_list = json.loads(content_str)
+            
+            # Если в базе есть записи, вытаскиваем самую последнюю по времени точку
+            if isinstance(calibrations_list, list) and len(calibrations_list) > 0:
+                last_point = calibrations_list[-1]
+                last_point["info"] = f"Успешно загружено! Актуально на основе скважины {last_point.get('well', 'Н/Д')}"
+                return last_point
+    except:
+        pass
+        
+    return default_coefficients
+
+# Загружаем последнюю рабочую калибровку из GitHub
+active_calibration = load_calibrations_from_github()
+
         if r.status_code == 200:
             content_json = r.json()
             file_content = base64.b64decode(content_json["content"]).decode("utf-8")
@@ -51,7 +90,6 @@ if "cloud_cache" not in st.session_state:
 # ==============================================================================
 # СЕРВИСНЫЙ БЛОК GITOPS: РАБОТА С ВЕЧНОЙ БАЗОЙ ДАННЫХ НА GITHUB
 # ==============================================================================
-# Получение токена из секретов Streamlit Cloud
 # Получение токена из секретов Streamlit Cloud
 GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
 
@@ -227,32 +265,109 @@ with col_ob3:
     fact_dls = st.number_input("Фактическая полученная интенсивность (°/10м):", min_value=0.0, max_value=6.0, value=1.4)
 
 # Находим кнопку обучения системы
-if st.button("Запустить самообучение системы", type="primary"):
-    with st.spinner("Обучение ядра ИИ и синхронизация БД..."):
-        # 1. Сюда вставьте ваши математические расчеты, которые уже были в кнопке
-        # (Например, расчет нового коэффициента анизотропии)
-        calibrated_val = 1.400 # Или ваша переменная расчета анизотропии
+# =========================================================================
+# ПОДБЛОК 3: БЛОК САМООБУЧЕНИЯ (ОБРАТНАЯ СВЯЗЬ И ЗАПИСЬ НА GITHUB)
+# =========================================================================
+st.markdown("### 🧠 Блок самообучения системы (Адаптация ядра)")
+st.caption("Введите фактические данные замера после бурения интервала для пересчета увода КНБК.")
+
+col_learn1, col_learn2 = st.columns(2)
+with col_learn1:
+    actual_angle_gain = st.number_input("Фактическое изменение угла по телесистеме (факт), °:", value=1.15)
+with col_learn2:
+    current_well = st.text_input("Имя текущей скважины для фиксации лога:", value="102-Г")
+
+def push_calibration_to_github(new_data):
+    REPO_OWNER = "mmnikonovamorozova-boop"
+    REPO_NAME = "drill-assistant"
+    FILE_PATH = "calibrations_db.json"
+    
+    token = st.secrets.get("GITHUB_TOKEN", None)
+    if not token:
+        st.error("🚨 В настройках Streamlit Cloud (Secrets) отсутствует GITHUB_TOKEN. Запись невозможна!")
+        return False
+
+    url = f"https://github.com{REPO_OWNER}/{REPO_NAME}/contents/{FILE_PATH}"
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+
+    try:
+        res = requests.get(url, headers=headers)
+        sha = None
+        current_list = []
         
-        # 2. Вытаскиваем значения из интерфейса, которые выбрал пользователь
-        # Сверяем названия с вашими виджетами выбора свиты, WOB и угла
-        current_formation = selected_formation if 'selected_formation' in locals() else "Неизвестная свита"
-        # Если у вас виджеты называются иначе, например st.selectbox, укажите их переменные:
-        # current_formation = v_svita 
+        if res.status_code == 200:
+            file_info = res.json()
+            sha = file_info["sha"]
+            old_str = base64.b64decode(file_info["content"]).decode("utf-8")
+            try:
+                current_list = json.loads(old_str)
+                if not isinstance(current_list, list): current_list = []
+            except: pass
+
+        current_list.append(new_data)
+        updated_json_str = json.dumps(current_list, indent=4, ensure_ascii=False)
+        encoded_content = base64.b64encode(updated_json_str.encode("utf-8")).decode("utf-8")
+
+        commit_payload = {
+            "message": f"🤖 Самообучение ядра: Скважина {new_data['well']} | Ошибка прогноза снижена",
+            "content": encoded_content,
+            "branch": "main"
+        }
+        if sha:
+            commit_payload["sha"] = sha
+
+        put_res = requests.put(url, headers=headers, json=commit_payload)
         
-        # Забираем значения веса на долото (WOB) и зенитного угла из полей ввода параметров КНБК
-        # По скриншотам они у вас введены в поля (14.00 тонн и 25.00 градусов)
-        wob_val = target_wob if 'target_wob' in locals() else 14.0
-        angle_val = target_angle if 'target_angle' in locals() else 25.0
+        if put_res.status_code in:
+            st.success("🎉 Математическое ядро успешно обучено! Новые коэффициенты улетели на GitHub.")
+            st.cache_data.clear()  # Принудительно чистим кэш
+            return True
+        else:
+            st.error(f"Ошибка коммита через GitHub API: {put_res.status_code}")
+    except Exception as err:
+        st.error(f"Сбой отправки данных: {err}")
+    return False
+
+if st.button("🔄 Запустить самообучение системы и обновить коэффициенты в репозитории", type="primary"):
+    with st.spinner("Вычисляется невязка и шаг фильтрации Калмана..."):
+        # Рассчитываем ошибку прогноза нашей модели
+        # Защита на случай, если переменная total_predicted_angle_gain не успела рассчитаться в блоках выше
+        pred_gain = total_predicted_angle_gain if 'total_predicted_angle_gain' in locals() else 0.0
+        if pred_gain == 0.0 and 'predicted_dls_10m' in locals():
+            pred_gain = predicted_dls_10m
+            
+        error_delta = actual_angle_gain - pred_gain
+        learning_rate = 0.12  # Скорость адаптации модели
         
-        # 3. ПРИНУДИТЕЛЬНЫЙ ВЫЗОВ НАШЕЙ ИСПРАВЛЕННОЙ ФУНКЦИИ СОХРАНЕНИЯ
-        save_calibration_to_github(
-            formation_name=current_formation,
-            calibrated_value=calibrated_val,
-            current_wob=wob_val,
-            current_angle=angle_val
-        )
+        # Получаем базовые уставки из базы данных GitHub
+        base_slide = float(active_calibration.get("slide_factor", 1.0))
+        base_drift = float(active_calibration.get("rotary_drift_val", 0.0))
+        base_int = float(active_calibration.get("intensity_correction", 1.0))
         
-        st.success(f"🤖 Ядро успешно обучено для свиты {current_formation}! Данные отправлены в GitOps контур.")
+        # Адаптивное распределение ошибки в зависимости от режима проходки интервала
+        if 'kms_last' in locals() and kms_last > 10.0:
+            new_slide_factor = base_slide + (error_delta * learning_rate)
+            new_rotary_drift = base_drift
+        else:
+            new_slide_factor = base_slide
+            new_rotary_drift = base_drift + (error_delta * learning_rate)
+            
+        # Формируем итоговую структуру JSON для записи в лог
+        import time
+        new_point_to_save = {
+            "date": time.strftime("%Y-%m-%d %H:%M"),
+            "well": current_well,
+            "slide_factor": round(float(new_slide_factor), 3),
+            "intensity_correction": round(float(base_int), 3),
+            "rotary_drift_val": round(float(new_rotary_drift), 3),
+            "unbalance_deg": round(float(error_delta), 2)
+        }
+        
+        # Отправляем обновленный массив в репозиторий GitHub
+        push_calibration_to_github(new_point_to_save)
 
 # ==============================================================================
 # БЛОК 3: ПАРАМЕТРЫ КНБК, РЕАКТИВНЫЙ МОМЕНТ И РЕОЛОГИЯ
@@ -286,29 +401,37 @@ st.markdown("---")
 st.subheader("📊 Расчет проходки в режиме «Слайд»")
 col_s1, col_s2 = st.columns(2)
 with col_s1:
-    dls_needed = st.number_input("Интенсивность, которую нужно получить (И), °:", min_value=0.1, max_value=5.0, value=1.5)
-with col_s2:
-    ppi_last = st.number_input("Полученная интенсивность на последнем замере (ППИ), °:", min_value=0.1, max_value=5.0, value=0.6)
-    kms_last = st.number_input("Количество метров слайда на последнем замере (КМС), м:", min_value=1.0, max_value=30.0, value=5.0)
+            dls_needed = st.number_input("Интенсивность, которую нужно получить (И), °:", min_value=0.1, max_value=5.0, value=1.5)
+    with col_sl_s2:
+        ppi_last = st.number_input("Полученная интенсивность на последнем замере (ППИ), °:", min_value=0.1, max_value=5.0, value=0.6)
+        kms_last = st.number_input("Количество метров слайда на последнем замере (КМС), м:", min_value=1.0, max_value=30.0, value=5.0)
 
-if st.button("📈 Рассчитать параметры прогноза на забой", type="secondary"):
-    dls_per_meter = ppi_last / kms_last
-    slide_length_needed = dls_needed / dls_per_meter if dls_per_meter > 0 else 0.0
-        
-    t_theta_rad = np.radians(target_angle)
-    L_m = 3.0 if "Стабилизирующая" in knbc_type else (18.0 if "Маятниковая" in knbc_type else 9.0)
-    rheology_modifier = buoyancy_factor * (1.0 - (yield_stress / 1000.0) * (1.0 - flow_index))
+    # Применяем коэффициент коррекции интенсивности из GitHub базы самообучения
+    k_int_learned = float(active_calibration.get("intensity_correction", 1.0))
     
-    if "Маятниковая" in knbc_type:
-        P_b = -150.0 * np.sin(t_theta_rad) * L_m * rheology_modifier
-    elif "Стабилизирующая" in knbc_type:
-        P_b = 80.0 * (target_wob / L_m) * np.cos(t_theta_rad) * buoyancy_factor
-    else:
-        P_b = ((50.0 * (target_wob / L_m) * np.cos(t_theta_rad)) - (70.0 * np.sin(t_theta_rad) * L_m)) * rheology_modifier
+    if st.button("📊 Рассчитать параметры прогноза на забой", type="secondary"):
+        # Расчет фактической интенсивности слайда с учетом поправки самообучения
+        dls_per_meter = (ppi_last / kms_last) * k_int_learned
+        slide_length_needed = dls_needed / dls_per_meter if dls_per_meter > 0 else 0.0
         
-    current_ani_rate = st.session_state.get('calibrated_ani', base_ani)
-    predicted_dls_10m = abs(P_b * current_ani_rate) / 400.0
-    current_limit = gno_limit if gno_zone else max_allowed_dls
+        t_theta_rad = np.radians(target_angle)
+        L_m = 3.8 if "Стабилизирующая" in knbc_type else (18.0 if "Маятниковая" in knbc_type else 9.0)
+        rheology_modifier = buoyancy_factor * (1.0 - (yield_stress / 1000.0) * (1.0 - flow_index))
+        
+        if "Маятниковая" in knbc_type:
+            P_b = -150.0 * np.sin(t_theta_rad) * L_m * rheology_modifier
+        elif "Стабилизирующая" in knbc_type:
+            P_b = 80.0 * (target_wob / L_m) * np.cos(t_theta_rad) * buoyancy_factor
+        else:
+            P_b = ((50.0 * (target_wob / L_m) * np.cos(t_theta_rad)) - (70.0 * np.sin(t_theta_rad) * L_m)) * rheology_modifier
+            
+        # Применяем коэффициент увода в роторе из GitHub базы самообучения
+        rotary_drift_learned = float(active_calibration.get("rotary_drift_val", 0.0))
+        
+        # Финальный предиктивный расчет интенсивности с учетом адаптивного увода
+        current_ani_rate = st.session_state.get('calibrated_ani', base_ani)
+        predicted_dls_10m = (abs(P_b * current_ani_rate) / 400.0) + rotary_drift_learned
+        current_limit = gno_zone_limit if gno_zone else max_allowed_dls
 
     st.subheader("📋 Результаты оперативного планирования:")
     c_res1, c_res2 = st.columns(2)
