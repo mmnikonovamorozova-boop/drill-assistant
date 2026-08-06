@@ -240,7 +240,7 @@ def load_advanced_model(file_path="failures_db.csv"):
             else: return "Прочие"
             
         df["Производитель_чистый"] = df["Габарит /\nПроизводитель"].apply(extract_vendor)
-        
+
         def parse_kin(val):
             try:
                 if "/" in str(val):
@@ -375,7 +375,7 @@ if df_failures is not None and not df_geo.empty:
         with card_cols[idx]:
             with st.container(border=True):
                 full_name_str = str(row["Габарит /\nПроизводитель"])
-                engine_clean_model = full_name_str.split("(")[1].replace(")", "").strip() if "(" in full_name_str else "ВЗД"
+                engine_clean_model = full_name_str.split("(")[0].strip() if "(" in full_name_str else "ВЗД"
                 serial_match = re.search(r"№\s*(\d+)", full_name_str)
                 serial_str = f" №{serial_match.group(1)}" if serial_match else ""
 
