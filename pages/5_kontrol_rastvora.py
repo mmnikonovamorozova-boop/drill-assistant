@@ -222,7 +222,7 @@ df = pd.read_csv("failures_db.csv", sep=";"):
     try:
         # Для чтения Excel без openpyxl можно использовать встроенный движок или перевести базу в CSV
         # Пробуем прочитать Excel стандартным методом
-        df = pd.read_excel(file_path)
+        df = pd.read_csv("failures_db.csv", sep=";")
         df = df.dropna(subset=["Наработка до отказа (Часы)"]).copy()
         df["Наработка до отказа (Часы)"] = pd.to_numeric(df["Наработка до отказа (Часы)"])
         df = df[df["Наработка до отказа (Часы)"] > 0]
