@@ -38,6 +38,8 @@ with st.container(border=True):
 
 # --- БЛОК 1: СВЕРКА (Компактный ввод) ---
 st.markdown("### 🗂 Блок 1: Сверка данных")
+well_name = st.text_input("📝 Номер/Название скважины:", value="101-Г")
+
 col1, col2 = st.columns(2)
 
 with col1:
