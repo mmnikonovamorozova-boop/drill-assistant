@@ -216,7 +216,7 @@ def push_calibration_to_github(new_data):
 
         put_res = requests.put(url, headers=headers, json=commit_payload)
         
-            if put_res.status_code == 200 or put_res.status_code == 201:
+        if put_res.status_code == 200 or put_res.status_code == 201:
             st.success("🎉 Математическое ядро успешно обучено! Свежие коэффициенты записаны на GitHub.")
             st.cache_data.clear()
             return True
