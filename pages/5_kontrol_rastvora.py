@@ -1,6 +1,15 @@
 import streamlit as st
+import numpy as np
 import pandas as pd
-from datetime import datetime
+import openpyxl
+
+# Инициализация базовых переменных предиктивного анализа
+if "predicted_hours_to_failure" not in st.session_state:
+    st.session_state.predicted_hours_to_failure = 0.0
+if "mae_hours" not in st.session_state:
+    st.session_state.mae_hours = 24.0
+if "accuracy_pct" not in st.session_state:
+    st.session_state.accuracy_pct = 75.0
 
 # --- ПРОВЕРКА АВТОРИЗАЦИИ (Безопасность) ---
 if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
@@ -195,9 +204,7 @@ else:
     st.success(f"🟢 **Гидравлический режим стабилен.** ЭЦП соответствует Техническим Критериям {customer}. Риски поглощения пластов и прихватов минимальны.")
 
 st.markdown("---")
-# =========================================================================
-# БЛОК 4: ЦИФРОВОЙ КАЛЬКУЛЯТОР ДЕГРАДАЦИИ СТАТОРА ВЗД С КОНТРОЛЕМ МРИ ТК
-# =========================================================================
+
 # =========================================================================
 # БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА РАСЧЕТА ОСТАТОЧНОГО РЕСУРСА СТАТОРА ВЗД
 # =========================================================================
@@ -324,9 +331,7 @@ with col_res_vzd2:
     st.metric("Точность ядра (учет ТК)", f"{accuracy_pct:.1f} %")
 with col_res_vzd3:
     st.metric("Погрешность расчета", f"± {mae_hours:.1f} ч")
-# =========================================================================
-# БЛОК 4 (ПРОДОЛЖЕНИЕ): ИНТЕЛЛЕКТУАЛЬНЫЙ ПОИСК ТОП-3 АНАЛОГИЧНЫХ ОТКАЗОВ В РЕГИОНЕ
-# =========================================================================
+
 if df_failures is not None and not df_geo.empty:
     st.markdown("---")
     st.markdown(f"#### 🔍 Топ-3 схожих исторических отказа в регионе ({region_choice}):")
@@ -395,7 +400,6 @@ report_html = f"""
 """
 st.markdown(report_html, unsafe_allow_html=True)
 
-# --- БЛОК 5: РАПОРТ (Часть 2 — Генерация .txt файла и скачивание) ---
 # 1. Формирование списка аналогичных отказов
 analog_report_lines = []
 if 'top_3_failures' in locals():
@@ -423,6 +427,7 @@ st.download_button(
     use_container_width=True
 )
 st.markdown("---")
+
 # =========================================================================
 # БЛОК 6: НАКОПЛЕНИЕ ИСТОРИИ, ЛОГИРОВАНИЕ И МОНИТОРИНГ ТЕНДЕНЦИЙ
 # =========================================================================
