@@ -349,8 +349,7 @@ try:
                     current_list = []
             else:
                 current_list = []
-
-                
+  
         # 2. Добавляем новые данные
         current_list.append(new_data)
         encoded_content = base64.b64encode(json.dumps(current_list, indent=4).encode("utf-8")).decode("utf-8")
