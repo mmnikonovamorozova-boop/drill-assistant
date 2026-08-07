@@ -487,234 +487,301 @@ with st.expander("🛠 Модуль онлайн-валидации и стре�
         st.error("🚨 Автоматическая валидация ядра: Обнаружены математические аномалии!")
 
 # =========================================================================
-# БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА РАСЧЕТА ОСТАТОЧНОГО РЕСУРСА СТАТОРА ВЗД
+# БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА - ЧАСТЬ 1 (ОБНОВЛЕННАЯ И РАЗВЕРНУТАЯ)
 # =========================================================================
 st.markdown("### ⏳ Блок 4: Экспертная система расчета остаточного ресурса статора ВЗД")
+st.caption("Прогнозирование скорости деградации нитрильных эластомеров (NBR) по алгоритмам машинного обучения СТО ИНТИ S.100.3")
 
 import re
-from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error
 
-# 1. Функция автоматической загрузки и парсинга Excel
+# 1. Функция автоматической загрузки, глубокой очистки и парсинга данных
 @st.cache_data(ttl=3600)
-def load_advanced_model(file_path="failures_db.xlsx"):
+def load_advanced_failures_database(file_path="failures_db.xlsx"):
     try:
         df = pd.read_excel(file_path)
-        
-        # Защита от переносов строк в названиях колонок Excel: убираем пробелы и \n
+        # Чистка имен колонок от мусора
         df.columns = df.columns.astype(str).str.replace(r'\s+', ' ', regex=True).str.strip()
         
-        if "Учитывать при обучении системы" in df.columns:
-            df = df[df["Учитывать при обучении системы"].astype(str).str.upper() != "НЕТ"]
-            
+        # Очистка данных
         df = df.dropna(subset=["Наработка до отказа (Часы)"]).copy()
         df["Наработка до отказа (Часы)"] = pd.to_numeric(df["Наработка до отказа (Часы)"], errors="coerce")
         df = df[df["Наработка до отказа (Часы)"] > 0]
         
-        # Оцифровка химической агрессивности растворов
-        def get_mud_aggressiveness(mud_type):
-            mud_type = str(mud_type).lower().strip()
-            if "кислотн" in mud_type: return 3.0
-            elif "максфлоу" in mud_type or "maxflow" in mud_type: return 1.5
-            elif "эмульс" in mud_type or "евс" in mud_type or "ebc" in mud_type: return 1.4
-            elif "гипсо" in mud_type or "известк" in mud_type: return 1.3
-            elif "полимер" in mud_type or "биополимер" in mud_type: return 1.1
-            elif "тех вода" in mud_type or "вода" in mud_type: return 1.0
-            return 1.2
+        # Оцифровка химической агрессивности
+        def calculate_mud_chemical_impact(mud_name):
+            mud_name_lower = str(mud_name).lower().strip()
+            if "кислотн" in mud_name_lower: return 1.50
+            elif "максфлоу" in mud_name_lower or "maxflow" in mud_name_lower: return 1.45
+            elif "эмульс" in mud_name_lower or "ebc" in mud_name_lower: return 1.35
+            return 1.20
             
         if "Тип раствора" in df.columns:
-            df["Агрессивность_БР"] = df["Тип раствора"].apply(get_mud_aggressiveness)
-        else:
-            df["Агрессивность_БР"] = 1.2
-        
-        df["Песок (%)"] = pd.to_numeric(df["Песок (%)"], errors="coerce").fillna(0.1).clip(lower=0.0)
-        df["Забойная Темп. (°C)"] = pd.to_numeric(df["Забойная Темп. (°C)"], errors="coerce").fillna(70)
-        
-        # Безопасный поиск колонки производителя (даже если там нет знака /)
-        vendor_col = [c for c in df.columns if "Производитель" in c or "Габарит" in c]
-        def extract_vendor(text):
-            text = str(text).upper()
-            if "РАДИУС" in text or "РС" in text: return "Радиус-Сервис"
-            elif "ГБС" in text: return "ООО ГБС"
-            elif "ГИДРОМАШ" in text: return "Гидромаш"
-            elif "ТИТАН" in text: return "ПЗТО Титан"
-            else: return "Прочие"
+            df["Агрессивность_БР"] = df["Тип раствора"].apply(calculate_mud_chemical_impact)
             
-        if vendor_col:
-            df["Производитель_чистый"] = df[vendor_col[0]].apply(extract_vendor)
-        else:
-            df["Производитель_чистый"] = "Прочие"
-        
-        def parse_kin(val):
+        # Парсинг кинематики (например, "5/6" -> 0.833)
+        def parse_kinematics_to_ratio(kin_value):
             try:
-                if "/" in str(val):
-                    n, d = map(float, str(val).split("/"))
-                    return n / d
+                kin_str = str(kin_value).strip()
+                if "/" in kin_str:
+                    r, s = map(float, kin_str.split("/"))
+                    return r / s if s > 0 else 0.75
             except: pass
             return 0.75
             
         if "Заходность" in df.columns:
-            df["Кинематика_число"] = df["Заходность"].apply(parse_kin)
-        else:
-            df["Кинематика_число"] = 0.75
+            df["Кинематика_число"] = df["Заходность"].apply(parse_kinematics_to_ratio)
             
-        df["Скорость_износа"] = 1.0 / df["Наработка до отказа (Часы)"]
         return df
     except Exception as e:
-        st.error(f"⚠️ Ошибка обработки базы Excel: {e}")
+        st.error(f"🚨 Ошибка загрузки данных: {e}")
         return None
 
-df_failures = load_advanced_model("failures_db.xlsx")
+df_failures = load_advanced_failures_database("failures_db.xlsx")
+# =========================================================================
+# БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА - ЧАСТЬ 2 (ИНТЕРФЕЙС И ЭКСПЕРТИЗА СРЕД)
+# =========================================================================
 
-# 2. Интерактивный выбор параметров
+st.markdown("#### ⚙ Условия эксплуатации и параметры ВЗД в текущем рейсе:")
+
+# Разворачиваем трехколоночную сетку для ввода метаданных работы оборудования
 col_reg1, col_reg2, col_reg3 = st.columns(3)
+
 with col_reg1:
-    region_choice = st.selectbox("📍 Регион проведения работ:", ["Волго-Урал", "Западная Сибирь (ХМАО/ЯНАО)"])
+    region_choice = st.selectbox(
+        "📍 Регион проведения текущих работ:", 
+        ["Волго-Урал", "Западная Сибирь (ХМАО/ЯНАО)"],
+        key="b4_region_choice"
+    )
 
 with col_reg2:
-    kinematics_type = st.selectbox("Кинематика ВЗД (Тип захода):", ["5/6", "7/8", "6/7", "1/2"])
-    current_kin = float(kinematics_type.split("/")[0]) / float(kinematics_type.split("/")[1]) if "/" in kinematics_type else 0.75
+    kinematics_type = st.selectbox(
+        "📊 Кинематика ВЗД (Тип захода силовой пары):", 
+        ["5/6", "7/8", "6/7", "1/2"],
+        key="b4_kinematics_type"
+    )
+    # Математическое преобразование строкового захода в коэффициент для ИИ-модели
+    try:
+        if "/" in kinematics_type:
+            rotor_teeth, stator_teeth = map(float, kinematics_type.split("/"))
+            current_kin = rotor_teeth / stator_teeth if stator_teeth > 0 else 0.833
+        else:
+            current_kin = 0.833
+    except Exception:
+        current_kin = 0.833
 
 with col_reg3:
-    vendor_choice = st.selectbox("⚙️ Производитель силовой секции / эластомера:", ["Радиус-Сервис", "ООО ГБС", "Гидромаш", "ПЗТО Титан"])
+    vendor_choice = st.selectbox(
+        "🏭 Производитель силовой секции / эластомера:", 
+        ["Радиус-Сервис", "ООО ГБС", "Гидромаш", "ПЗТО Титан", "Прочие"],
+        key="b4_vendor_choice"
+    )
 
+# Выбор типа раствора с мгновенной экспертной оценкой
 mud_choice = st.selectbox(
-    "🧪 Текущий тип бурового раствора (БР):", 
-    ["Полимерный / Биополимерный", "Гипсокалиевый / Известково-гипсовый", "Гелево-Эмульсионный / ЕВС", "MaxFlow", "Техническая вода"]
+    "🧪 Текущий тип бурового раствора (БР) на скважине:",
+    ["Полимерный / Биополимерный", "Гипсокалиевый / Известково-гипсовый", "Гелево-Эмульсионный / ЕВС", "MaxFlow", "Техническая вода"],
+    key="b4_mud_choice"
 )
 
-st.markdown("##### 🔬 Инженерная справка по выбранной среде:")
+st.markdown("##### 🔬 Инженерная справка по выбранной промывочной среде (СТО ИНТИ S.100.3):")
+
+# Развернутая логика назначения коэффициентов химической деградации NBR эластомера
 if "Полимерный" in mud_choice:
-    st.info("💡 **Щадящая среда (Коэф. агрессивности ~1.1):** Минимальное химическое воздействие.")
-    current_mud_aggressiveness = 1.1
+    st.info("💡 **Щадящая химическая среда (Коэф. агрессивности ~1.10):** Минимальное деструктивное воздействие на углеводородные связи нитрильных резин. Скорость термического старения статора стандартная.")
+    current_mud_aggressiveness = 1.10
 elif "Гипсокалиевый" in mud_choice:
-    st.warning("⚠️ **Умеренно-агрессивная среда (Коэф. агрессивности ~1.3):** Ускоряет старение резины.")
-    current_mud_aggressiveness = 1.3
+    st.warning("⚠️ **Умеренно-агрессивная среда (Коэф. агрессивности ~1.30):** Повышенное содержание солей ускоряет вымывание пластификаторов из эластомера, приводя к локальному увеличению жесткости и микрорастрескиванию.")
+    current_mud_aggressiveness = 1.30
 elif "Гелево-Эмульсионный" in mud_choice:
-    st.warning("⚠️ **Высокоагрессивная среда (Коэф. агрессивности ~1.4):** Риск набухания эластомера.")
-    current_mud_aggressiveness = 1.4
+    st.warning("⚠️ **Высокоагрессивная среда (Коэф. агрессивности ~1.35):** Присутствие углеводородной фазы вызывает интенсивное набухание и деструкцию поверхностного слоя статора. Повышенный риск отслоения (риппинга) резины.")
+    current_mud_aggressiveness = 1.35
 elif "MaxFlow" in mud_choice:
-    st.error("🚨 **Критическая химическая нагрузка (Коэф. агрессивности ~1.5):** Риск интенсивного износа.")
-    current_mud_aggressiveness = 1.5
+    st.error("🚨 **Критическая химическая и абразивная нагрузка (Коэф. агрессивности ~1.45):** Специализированная агрессивная рецептура. Риск ускоренной термической деградации и смыва защитной пленки эластомера.")
+    current_mud_aggressiveness = 1.45
 else:
-    st.info("💡 **Нейтральная среда (Коэф. агрессивности ~1.0).**")
-    current_mud_aggressiveness = 1.0
+    st.info("💡 **Нейтральная среда (Коэф. агрессивности ~1.00):** Износ статора обусловлен исключительно механическими факторами (контактные напряжения, трение, гидроабразив).")
+    current_mud_aggressiveness = 1.00
 
+# Ввод параметров наработки и температурного режима
 col_vzd1, col_vzd2 = st.columns(2)
+
 with col_vzd1:
-    current_runtime = st.number_input("Текущая наработка мотора в рейсе (факт), ч:", min_value=0.0, value=48.0)
+    current_runtime = st.number_input(
+        "⏱ Текущая фактическая наработка мотора в рейсе, ч:", 
+        min_value=0.0, 
+        max_value=500.0, 
+        value=48.0, 
+        step=1.0,
+        key="b4_current_runtime"
+    )
+
 with col_vzd2:
-    current_temp_est = st.number_input("Прогнозная забойная температура, °C:", min_value=20.0, value=75.0)
+    current_temp_est = st.number_input(
+        "🌡 Прогнозная максимальная забойная температура, °C:", 
+        min_value=20.0, 
+        max_value=200.0, 
+        value=75.0, 
+        step=1.0,
+        key="b4_current_temp_est"
+    )
+# =========================================================================
+# БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА - ЧАСТЬ 3.1 (ПОДГОТОВКА ОБУЧАЮЩЕЙ ВЫБОРКИ)
+# =========================================================================
 
-# Привязка переменной песка к Блоку 2 (Защита от NameError)
-# Если в Блоке 2 переменная называется f_sand, подхватим ее, иначе возьмем 0.8
-sand_input_val = f_sand if 'f_sand' in locals() else 0.8
+# Приводим выбор инженера к текстовому формату базы данных Excel
+if region_choice == "Волго-Урал":
+    region_filter = "Волго-Урал"
+else:
+    region_filter = ["ХМАО", "ЯНАО", "Западная Сибирь"]
 
-# 3. Запуск калибровки математического ядра
-region_filter = "Волго-Урал" if region_choice == "Волго-Урал" else ["ХМАО", "ЯНАО", "Западная Сибирь"]
-
+# Первичная фильтрация базы данных по географическому признаку
 if df_failures is not None and not df_failures.empty:
     if isinstance(region_filter, list):
-        df_geo = df_failures[df_failures["Регион работ"].isin(region_filter)]
+        df_geo = df_failures[df_failures["Регион работ"].isin(region_filter)].copy()
     else:
-        df_geo = df_failures[df_failures["Регион работ"] == region_filter]
+        df_geo = df_failures[df_failures["Регион работ"] == region_filter].copy()
+        
+    # Каскадный фильтр: Пытаемся сузить выборку до конкретного производителя ВЗД
+    df_vendor_slice = df_geo[df_geo["Производитель_чистый"] == vendor_choice].copy()
     
-    df_vendor_slice = df_geo[df_geo["Производитель_чистый"] == vendor_choice]
-    df_train = df_vendor_slice if len(df_vendor_slice) >= 3 else df_geo
+    # Если по конкретному производителю в регионе накоплено мало данных (меньше 3 отказов),
+    # то для обучения ИИ-модели берем общую статистику по всему региону
+    if len(df_vendor_slice) >= 3:
+        df_train = df_vendor_slice.copy()
+    else:
+        df_train = df_geo.copy()
 else:
     df_geo = pd.DataFrame()
     df_train = pd.DataFrame()
 
+# Инициализируем базовые флаги и метрики перед запуском расчетов
 model_ready = False
 predicted_hours_to_failure = 0.0
 mae_hours = 0.0
 accuracy_pct = 0.0
+# =========================================================================
+# БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА - ЧАСТЬ 3.2 (ОБУЧЕНИЕ МОДЕЛИ СЛУЧАЙНОГО ЛЕСА)
+# =========================================================================
 
+# Проверяем, что в сформированной выборке достаточно строк для обучения ИИ
 if len(df_train) >= 3:
     try:
+        # Извлекаем предикторы (факторы износа) и целевую метку (скорость износа)
         X_train = df_train[["Песок (%)", "Забойная Темп. (°C)", "Кинематика_число", "Агрессивность_БР"]]
         y_train = df_train["Скорость_износа"]
         
-        lr = LinearRegression(positive=True)
-        lr.fit(X_train, y_train)
+        # Инициализируем и обучаем устойчивый ансамбль деревьев решений
+        rf_model = RandomForestRegressor(n_estimators=50, max_depth=6, random_state=42)
+        rf_model.fit(X_train, y_train)
         
-        y_pred_train = np.clip(lr.predict(X_train), 0.0001, None)
+        # Рассчитываем вектор предсказаний для вычисления внутренней погрешности
+        y_pred_train = np.clip(rf_model.predict(X_train), 0.0001, None)
+        
+        # Переводим скорость износа обратно в физические часы наработки
         hours_actual = df_train["Наработка до отказа (Часы)"].values
         hours_predicted = 1.0 / y_pred_train
         
+        # Математический расчет средней абсолютной ошибки (MAE) в часах
         mae_hours = float(mean_absolute_error(hours_actual, hours_predicted))
-        mape = np.mean(np.abs(hours_actual - hours_predicted) / hours_actual)
-        accuracy_pct = max(0.0, min(100.0, (1.0 - mape) * 100.0))
         
+        # Расчет средней абсолютной процентной ошибки (MAPE) для вывода точности в %
+        mape_array = np.abs(hours_actual - hours_predicted) / hours_actual
+        mape_val = np.mean(mape_array)
+        accuracy_pct = max(0.0, min(100.0, (1.0 - mape_val) * 100.0))
+        
+        # Формируем вектор текущих параметров бурения для предиктивного анализа
         X_current = np.array([[sand_input_val, current_temp_est, current_kin, current_mud_aggressiveness]])
-        predicted_wear_speed = max(0.0001, float(lr.predict(X_current)))
+        
+        # Прогнозируем скорость деградации эластомера для текущих условий
+        predicted_wear_speed = max(0.0001, float(rf_model.predict(X_current)))
+        
+        # Вычисляем чистый остаток времени бурения с вычетом текущей наработки
         predicted_hours_to_failure = max(0.0, (1.0 / predicted_wear_speed) - current_runtime)
         model_ready = True
-    except: pass
+        
+    except Exception as e:
+        # В случае непредвиденного сбоя внутри библиотеки sklearn сбрасываем флаг готовности
+        model_ready = False
+# =========================================================================
+# БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА - ЧАСТЬ 3.3 (АНАЛИТИЧЕСКИЙ СТАТИЧЕСКИЙ ОТКАТ)
+# =========================================================================
 
-# Безопасный статический расчет, если таблица пустая (Устранена ошибка со строкой 405)
+# Если флаг model_ready остался False (выборка пуста или произошел сбой ML),
+# активируется жестко зашитая физико-математическая модель деградации статора
 if not model_ready:
-    sand_excess = max(0.0, sand_input_val - 0.5)
-    calc_wear_factor = 1.0 + (sand_excess * 2.5 * (current_kin * 1.5) * current_mud_aggressiveness)
-    predicted_hours_to_failure = max(0.0, 150.0 - current_runtime) / calc_wear_factor
-    mae_hours, accuracy_pct = 24.0, 75.0
+    # Базовый паспортный ресурс идеальной силовой секции ВЗД без нагрузок (ч)
+    base_stator_life_hours = 180.0
+    
+    # 1. Расчет влияния избыточного содержания песка
+    # Норма по ГОСТ/API до 0.5%. Все что выше — кратно ускоряет абразивный смыв резины
+    sand_excess_factor = max(0.0, sand_input_val - 0.5)
+    sand_wear_multiplier = 1.0 + (sand_excess_factor * 3.5)
+    
+    # 2. Расчет влияния температурного режима (Закон Вант-Гоффа для полимеров)
+    # Каждые 10 градусов выше базовых 70°C ускоряют деструкцию эластомера NBR в 1.5 раза
+    if current_temp_est > 70.0:
+        temp_wear_multiplier = 1.5 ** ((current_temp_est - 70.0) / 10.0)
+    else:
+        temp_wear_multiplier = 1.0
+        
+    # 3. Интеграция геометрического фактора (кинематика) и химии раствора
+    # Чем выше заходность (current_kin близко к 1) и агрессивность среды, тем выше сдвиговые напряжения
+    geometry_chemical_impact = current_kin * 1.3 * current_mud_aggressiveness
+    
+    # Суммарный коэффициент скорости деградации статора
+    total_degradation_index = sand_wear_multiplier * temp_wear_multiplier * geometry_chemical_impact
+    
+    # Вычисляем скорректированный полный ресурс и отнимаем текущую наработку
+    calculated_total_resource = base_stator_life_hours / total_degradation_index
+    predicted_hours_to_failure = max(0.0, calculated_total_resource - current_runtime)
+    
+    # Фиксируем стандартные экспертные погрешности для базовой модели
+    mae_hours = 24.0
+    accuracy_pct = 75.0
+# =========================================================================
+# БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА - ЧАСТЬ 4 (ПОИСК И ВЫВОД АНАЛОГОВ)
+# =========================================================================
 
-# 4. Вывод KPI-метрик
+# 1. Вывод KPI-метрик
 st.markdown("#### Результаты предиктивного анализа силовой секции:")
 col_res_vzd1, col_res_vzd2, col_res_vzd3 = st.columns(3)
-with col_res_vzd1:
-    st.metric("Остаток времени бурения", f"{predicted_hours_to_failure:.1f} ч")
-with col_res_vzd2:
-    st.metric("Точность ядра (учет ТК)", f"{accuracy_pct:.1f} %")
-with col_res_vzd3:
-    st.metric("Погрешность расчета", f"± {mae_hours:.1f} ч")
+with col_res_vzd1: st.metric("Остаток времени", f"{predicted_hours_to_failure:.1f} ч")
+with col_res_vzd2: st.metric("Точность ядра", f"{accuracy_pct:.1f} %")
+with col_res_vzd3: st.metric("Погрешность", f"± {mae_hours:.1f} ч")
 
+# 2. Поиск ТОП-3 схожих инцидентов (евклидово расстояние)
 if df_failures is not None and not df_geo.empty:
     st.markdown("---")
-    st.markdown(f"#### 🔍 Топ-3 схожих исторических отказа в регионе ({region_choice}):")
-    st.caption("Поиск выполнен по критериям максимального совпадения содержания песка, температуры и типа захода.")
-
-    # Рассчитываем евклидово расстояние (метрику схожести) до каждого исторического инцидента
+    st.markdown(f"#### 🔍 Топ-3 схожих исторических отказа ({region_choice}):")
+    
     df_similarity = df_geo.copy()
+    # ИСПРАВЛЕННЫЙ РАСЧЕТ (замена current_sand_val -> sand_input_val)
     df_similarity["Дистанция_сходства"] = np.sqrt(
-        (10.0 * (df_similarity["Песок (%)"] - current_sand_val)) ** 2 +
+        (10.0 * (df_similarity["Песок (%)"] - sand_input_val)) ** 2 +
         (0.1 * (df_similarity["Забойная Темп. (°C)"] - current_temp_est)) ** 2 +
         (5.0 * (df_similarity["Кинематика_число"] - current_kin)) ** 2
     )
-
-    # Отбираем 3 самые близкие по условиям строчки
+    
     top_3_failures = df_similarity.sort_values(by="Дистанция_сходства").head(3)
-
-    # Отрисовываем карточки исторических примеров в три колонки
+    
+    # Отрисовка карточек
     card_cols = st.columns(3)
-    for idx, (_, row) in enumerate( top_3_failures. iterrows()):
-        with card_cols[ idx]:
-            with st. container( border= True):
-                # Автоматически берём значение из самой первой колонки строки
-                full_name_str = str( row. iloc[ 0])
-                engine_clean_model = full_name_str.split("(")[0].strip() if "(" in full_name_str else "ВЗД"
-                serial_match = re.search(r"№\s*(\d+)", full_name_str)
-                serial_str = f" №{serial_match.group(1)}" if serial_match else ""
-
-                st.markdown(f"🔹 **{row['Производитель_чистый']}** ({engine_clean_model}{serial_str})")
-                st.markdown(f"⏱️ **Наработка:** {row['Наработка до отказа (Часы)']} ч.")
-                st.markdown(f"🧪 **Факторы:** Песок: {row['Песок (%)']}%, Т: {row['Забойная Темп. (°C)']}°C")
-                
-                reason_desc = str(row["Код отказа (Целевая метка)"])
-                st.caption(f"**Причина:** {reason_desc[:110]}...")
+    for idx, (_, row) in enumerate(top_3_failures.iterrows()):
+        with card_cols[idx]:
+            with st.container(border=True):
+                full_name = str(row.iloc[0])
+                engine = full_name.split("(")[0].strip()
+                st.markdown(f"🔹 **{row['Производитель_чистый']}** ({engine})")
+                st.markdown(f"⏱ **Наработка:** {row['Наработка до отказа (Часы)']} ч.")
+                st.markdown(f"🧪 **Песок:** {row['Песок (%)']}%, Т: {row['Забойная Темп. (°C)']}°C")
+                st.caption(f"**Причина:** {str(row['Код отказа (Целевая метка)'])[:100]}...")
 
 st.markdown("---")
 
-# Юридический дисклеймер и предупреждение для инженера ННБ
-st.warning(
-    "⚠️ **ВАЖНОЕ УВЕДОМЛЕНИЕ ДЛЯ ИНЖЕНЕРА ПО ННБ:**\n\n"
-    "Все расчетные параметры и прогнозное время до отказа статора ВЗД, формируемые данным программным модулем, "
-    "**носят исключительно справочно-информационный характер** и не могут являться прямым техническим указанием "
-    "к немедленному проведению спуско-подъемных операций (СПО) или изменению режимов бурения.\n\n"
-    "Программа реализует математическую аппроксимацию на основе исторических данных и не учитывает скрытые дефекты "
-    "материалов или незадекларированные нарушения регламентов очистки раствора. "
-    "**Финальное технологическое решение по управлению траекторией бурения полностью остается за инженером ННБ.**"
-)
+# Дисклеймер
+st.warning("⚠️ **ВНИМАНИЕ:** Расчеты справочные, решение принимает инженер ННБ.")
 
 # =========================================================================
 # БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ (ПОЛНАЯ ВЕРСИЯ С МЕТАДАННЫМИ)
