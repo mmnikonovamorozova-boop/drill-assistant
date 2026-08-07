@@ -317,7 +317,7 @@ if st.button("📊 Рассчитать параметры прогноза на
 # =========================================================================
 def push_calibration_to_github_api(new_data):
     """Отправляет новые коэффициенты калибровки в репозиторий через ://github.com"""
-    url = "https://api.github/repos/mmnikonovamorozova-boop/drill-assistant/contents/calibrations_db.json"
+    url = "https://api.github.com/repos/mmnikonovamorozova-boop/drill-assistant/contents/calibrations_db.json"
     
     token = st.secrets.get("GITHUB_TOKEN", None)
     if not token:
