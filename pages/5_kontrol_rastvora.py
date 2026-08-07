@@ -141,129 +141,251 @@ else:
 st.markdown("---")
 
 # =========================================================================
-# БЛОК 3: ВЫСОКОТОЧНЫЙ РАСЧЕТ ЭЦП ПО МОДЕЛИ ГЕРШЕЛЯ-БАЛКЛИ (API 13D)
+# БЛОК 3: ВЫСОКОТОЧНЫЙ РАСЧЕТ ЭЦП ПО МОДЕЛИ ГЕРШЕЛЯ-БАЛКЛИ (API 13D) - ЧАСТЬ 1
 # =========================================================================
 st.markdown("### 📊 Блок 3: Высокоточный расчет и управление ЭЦП/ECD")
-st.caption("Расчет по модели Гершеля-Балкли (API RP 13D) интегрирован с матрицей решений")
+st.caption("Математическое ядро по стандарту API RP 13D интегрировано с уставками ТК и поправкой на абразивную фазу")
 
-# 1. Горизонтальная сетка ввода геолого-технических данных
+# 1. Ввод геолого-технических данных
 col_geo1, col_geo2, col_geo3 = st.columns(3)
+
 with col_geo1:
-    h_tvd = st.number_input("Вертикальная глубина (TVD), м:", min_value=100.0, value=2500.0)
-    d_hole = st.number_input("Диаметр скважины, мм:", min_value=50.0, value=215.9)
+    h_tvd = st.number_input("Вертикальная глубина скважины (TVD), м:", min_value=10.0, value=2500.0, step=10.0, key="b3_h_tvd")
+    d_hole = st.number_input("Диаметр скважины, мм:", min_value=50.0, value=215.9, step=0.1, key="b3_d_hole")
+
 with col_geo2:
-    q_flow = st.number_input("Расход насосов, л/с:", min_value=5.0, value=28.0)
-    rop = st.number_input("Скорость проходки (ROP), м/ч:", min_value=1.0, value=35.0)
+    q_flow = st.number_input("Расход насосов, л/с:", min_value=0.0, value=28.0, step=0.5, key="b3_q_flow")
+    rop = st.number_input("Скорость проходки (ROP), м/ч:", min_value=0.0, value=35.0, step=1.0, key="b3_rop")
+
 with col_geo3:
-    d_pipe = st.number_input("Диаметр трубы (СБТ), мм:", min_value=40.0, value=127.0)
-    p_frac = st.number_input("Эквивалент давления ГРП, г/см³:", min_value=1.0, value=1.35)
+    d_pipe = st.number_input("Наружный диаметр трубы, мм:", min_value=10.0, value=127.0, step=0.1, key="b3_d_pipe")
+    p_frac = st.number_input("Эквивалент ГРП / поглощения, г/см³:", min_value=0.8, value=1.35, step=0.01, key="b3_p_frac")
 
+# --- СТРОГАЯ ГЕОМЕТРИЧЕСКАЯ ВАЛИДАЦИЯ ---
+if d_pipe >= d_hole:
+    st.error(f"🚨 **КРИТИЧЕСКАЯ ОШИБКА:** D трубы ({d_pipe} мм) > D скважины ({d_hole} мм).")
+    st.stop()
+
+# 2. Перевод параметров в СИ
 import math
+dh_m, dp_m = d_hole / 1000.0, d_pipe / 1000.0
+area_annulus = (math.pi / 4.0) * (dh_m**2 - dp_m**2)
+hydraulic_diam = dh_m - dp_m
 
-# 2. Перевод параметров в систему СИ и расчет геометрии
-dh_m = d_hole / 1000.0  
-dp_m = d_pipe / 1000.0  
-area_annulus = (math.pi / 4.0) * (dh_m**2 - dp_m**2) 
-hydraulic_diam = dh_m - dp_m 
+# --- ИНТЕГРАЦИЯ ДАННЫХ ИЗ БЛОКА 2 (Поправка на песок) ---
+actual_sand_pct = st.session_state.get('main_sand_input', 0.5)
+sand_fraction = actual_sand_pct / 100.0
+rho_rock = 2650.0  # кг/м³
+base_mud_density = f_dens * 1000.0  # г/см³ -> кг/м³
 
-# Наследование данных из Блока 1 для устранения рассинхрона
-rho_base = f_dens * 1000.0  
-pv_si = f_pv / 1000.0       
-yp_si = f_yp * 0.1          
-tau_0 = yp_si
-# 3. Расчет модели Гершеля-Балкли (n_hb, K_hb)
-theta_300 = f_pv + f_yp
-theta_600 = (2 * f_pv) + f_yp
+# Корректировка плотности
+rho_base_corrected = base_mud_density + (sand_fraction * (rho_rock - base_mud_density))
 
-if theta_300 > 0 and (theta_300 - tau_0) > 0:
-    n_hb = 3.32 * math.log10((theta_600 - tau_0) / (theta_300 - tau_0))
-    n_hb = max(0.1, min(1.0, n_hb))  
-    K_hb = (theta_300 - tau_0) / (511**n_hb)
+# Эмпирическая поправка реологии (Модель Эйнштейна-Томаса)
+sand_fraction_clipped = min(0.10, sand_fraction)
+rheology_multiplier = 1.0 + 2.5 * sand_fraction_clipped + 10.05 * (sand_fraction_clipped ** 2)
+
+f_pv_corrected = f_pv * rheology_multiplier
+f_yp_corrected = f_yp * rheology_multiplier
+
+# СИ для Гершеля-Балкли
+pv_si = f_pv_corrected / 1000.0  # Па·с
+yp_si = f_yp_corrected * 0.1     # Па
+# =========================================================================
+# БЛОК 3: ВЫСОКОТОЧНЫЙ РАСЧЕТ ЭЦП ПО МОДЕЛИ ГЕРШЕЛЯ-БАЛКЛИ - ЧАСТЬ 2
+# =========================================================================
+
+# Пересчет скорректированных ПВ и ДНС обратно в условные показания реометра Fann 
+# (Используем стандартные константы перевода API)
+theta_300_fann = f_pv_corrected + f_yp_corrected
+theta_600_fann = (2.0 * f_pv_corrected) + f_yp_corrected
+
+# Расчет предела текучести по Гершелю-Балкли (Yield Stress, tau_0) по стандарту API RP 13D
+# Классическая формула на основе геометрии Fann: tau_0 = 2 * theta_3 - theta_600
+# Для защиты от экстремальных/ошибочных значений ограничиваем tau_0 снизу и сверху
+fann_tau_0 = (2.0 * theta_300_fann) - theta_600_fann
+if fann_tau_0 < 0.0:
+    fann_tau_0 = 0.0
+elif fann_tau_0 >= theta_300_fann:
+    fann_tau_0 = theta_300_fann * 0.5  # Защитное ограничение при аномальной реологии
+
+# --- СТРОГИЙ РАСЧЕТ ИНДЕКСА ТЕЧЕНИЯ (n_hb) И КОЭФФИЦИЕНТА КОНСИСТЕНЦИИ (K_hb) ---
+# Проверяем знаменатель и аргумент логарифма на корректность (!= 0 и > 0)
+numerator_log = theta_600_fann - fann_tau_0
+denominator_log = theta_300_fann - fann_tau_0
+
+if denominator_log > 0.001 and numerator_log > 0.001 and (numerator_log / denominator_log) > 0:
+    try:
+        # Расчет индекса нелинейности потока n_hb
+        n_hb = 3.321928 * math.log10(numerator_log / denominator_log)
+        
+        # Физические рамки для псевдопластичных буровых растворов по API
+        n_hb = max(0.1, min(1.0, n_hb))
+        
+        # Расчет коэффициента консистенции K_hb в Па·с^n
+        # Коэффициент 0.511 переводит показания шкалы Fann в Паскали
+        K_hb = 0.511 * (theta_300_fann - fann_tau_0) / (511.0 ** n_hb)
+        
+    except (ValueError, ZeroDivisionError):
+        # Безопасный откат к базовым параметрам в случае математической аномалии
+        n_hb = 0.65
+        K_hb = 0.511 * theta_300_fann / (511.0 ** n_hb)
+        fann_tau_0 = 0.0
 else:
-    n_hb, K_hb = 0.5, 0.5  
+    # Если реологическая кривая вырождается, переходим на линейную модель
+    n_hb = 1.0  # Ньютоновская модель
+    K_hb = 0.511 * theta_300_fann / 511.0
+    fann_tau_0 = 0.0
 
-# 4. Скорость потока и эффективная скорость сдвига в затрубе
-v_annulus = (q_flow / 1000.0) / area_annulus if area_annulus > 0 else 0
-gamma_dot = ((2 * n_hb + 1) / (3 * n_hb)) * (12 * v_annulus / hydraulic_diam) if hydraulic_diam > 0 else 0
-tau_annulus = tau_0 + K_hb * (gamma_dot**n_hb) if gamma_dot > 0 else tau_0
+# Перевод предела текучести tau_0 в систему СИ (Паскали) для гидродинамических уравнений
+tau_0_si = fann_tau_0 * 0.511
+# =========================================================================
+# БЛОК 3: ВЫСОКОТОЧНЫЙ РАСЧЕТ ЭЦП ПО МОДЕЛИ ГЕРШЕЛЯ-БАЛКЛИ - ЧАСТЬ 3
+# =========================================================================
 
-# 5. Обобщенное число Рейнольдса и коэффициент трения Фаннинга
-eff_viscosity = tau_annulus / gamma_dot if gamma_dot > 0 else 0.001
-Re_general = (rho_base * v_annulus * hydraulic_diam) / eff_viscosity
+# --- 1. РАСЧЕТ СКОРОСТИ И СКОРОСТИ СДВИГА В ЗАТРУБЬЕ ---
+# v_annulus уже посчитана на Шаге 1. Проверяем, есть ли циркуляция:
+if q_flow > 0.001 and area_annulus > 0:
+    v_annulus = (q_flow / 1000.0) / area_annulus
+    
+    # Эффективная скорость сдвига в затрубном пространстве по API RP 13D
+    # Учитывает индекс нелинейности потока n_hb
+    if hydraulic_diam > 0 and n_hb > 0:
+        gamma_dot = ((2.0 * n_hb + 1.0) / (3.0 * n_hb)) * (12.0 * v_annulus / hydraulic_diam)
+    else:
+        gamma_dot = 0.0
+else:
+    v_annulus = 0.0
+    gamma_dot = 0.0
 
-if Re_general < 2100:
+# --- 2. РАСЧЕТ НАПРЯЖЕНИЯ СДВИГА И ЭФФЕКТИВНОЙ ВЯЗКОСТИ ---
+if gamma_dot > 0.001:
+    # Динамическое напряжение сдвига в потоке по Гершелю-Балкли
+    tau_annulus = tau_0_si + K_hb * (gamma_dot ** n_hb)
+    # Эффективная вязкость (Па·с)
+    eff_viscosity = tau_annulus / gamma_dot
+else:
+    tau_annulus = tau_0_si
+    # В статике эффективная вязкость условно стремится к максимуму (заглушка для исключения деления на 0)
+    eff_viscosity = 999.0  
+
+# --- 3. ОБОБЩЕННОЕ ЧИСЛО РЕЙНОЛЬДСА ДЛЯ МОДЕЛИ ГЕРШЕЛЯ-БАЛКЛИ ---
+# Используем скорректированную плотность раствора rho_base_corrected из Шага 1
+if eff_viscosity > 0 and hydraulic_diam > 0:
+    Re_general = (rho_base_corrected * v_annulus * hydraulic_diam) / eff_viscosity
+else:
+    Re_general = 0.0
+
+# --- 4. КРИТЕРИАЛЬНЫЙ РАСЧЕТ КОЭФФИЦИЕНТА ТРЕНИЯ ФАННИНГА ---
+if Re_general <= 0.001:
+    # Полная статика, трение отсутствует
+    f_friction = 0.0
+elif Re_general < 2100.0:
+    # Ламинарный режим течения
     f_friction = 16.0 / Re_general
 else:
-    f_friction = 0.079 / (Re_general**0.25)
+    # Турбулентный/переходный режим (Классическое приближение Блазиуса по API)
+    f_friction = 0.0791 / (Re_general ** 0.25)
+# =========================================================================
+# БЛОК 3: ВЫСОКОТОЧНЫЙ РАСЧЕТ ЭЦП ПО МОДЕЛИ ГЕРШЕЛЯ-БАЛКЛИ - ЧАСТЬ 4
+# =========================================================================
 
-# 6. Потери давления на трение и учет выноса шлама
-dp_dl_friction = (2 * f_friction * rho_base * (v_annulus**2)) / hydraulic_diam if hydraulic_diam > 0 else 0
-total_p_friction_pa = dp_dl_friction * h_tvd
-
-rho_rock = 2650.0  
-q_solids = ((math.pi / 4.0) * (dh_m**2)) * (rop / 3600.0)
-c_cutting = q_solids / ((q_flow / 1000.0) + q_solids) if (q_flow + q_solids) > 0 else 0
-rho_eff_mix = rho_base * (1.0 - c_cutting) + rho_rock * c_cutting
-
-# 7. Финальный точный расчет ЭЦП (ECD), г/см³
-total_hydrostatic_pa = rho_eff_mix * 9.81 * h_tvd
-total_dynamic_pressure_pa = total_hydrostatic_pa + total_p_friction_pa
-calculated_ecd = (total_dynamic_pressure_pa / (9.81 * h_tvd)) / 1000.0
-# 8. Классификация технологических зон риска ГРП
-orange_zone = p_frac - 0.03
-red_zone = p_frac - 0.015
-
-if calculated_ecd < orange_zone:
-    ecd_status, status_color, bg_color = "Зеленая зона (Безопасно)", "#10B981", "#ECFDF5"
-elif calculated_ecd < red_zone:
-    ecd_status, status_color, bg_color = "Оранжевая зона (Повышенный риск)", "#F59E0B", "#FEF3C7"
+# --- 1. ПОТЕРИ ДАВЛЕНИЯ НА ТРЕНИЕ В ЗАТРУБЕ (Па) ---
+if hydraulic_diam > 0:
+    # Дифференциальные потери давления на 1 метр длины
+    dp_dl_friction = (2.0 * f_friction * rho_base_corrected * (v_annulus ** 2)) / hydraulic_diam
+    total_p_friction_pa = dp_dl_friction * h_tvd
 else:
-    ecd_status, status_color, bg_color = "Красная зона (Критическая угроза ГРП!)", "#EF4444", "#FEE2E2"
+    total_p_friction_pa = 0.0
 
-# 9. Отображение результатов гидродинамического мониторинга
+# --- 2. МАТЕМАТИЧЕСКИЙ РАСЧЕТ КОНЦЕНТРАЦИИ И ВЫНОСА ШЛАМА ---
+# Защита: шлам генерируется только при наличии механического бурения и геометрии скважины
+if rop > 0.01 and d_hole > 0 and (q_flow > 0.01 or v_annulus > 0.01):
+    dh_m_local = d_hole / 1000.0
+    # Объем выбуренной породы в секунду (м³/с)
+    q_solids = ((math.pi / 4.0) * (dh_m_local ** 2)) * (rop / 3600.0)
+    # Поток промывочной жидкости (м³/с)
+    q_fluid_m3s = q_flow / 1000.0
+    
+    # Объемная концентрация шлама в затрубном пространстве
+    c_cutting = q_solids / (q_fluid_m3s + q_solids)
+    # Жесткое физическое ограничение сверху для исключения математических аномалий
+    c_cutting = max(0.0, min(0.10, c_cutting)) 
+else:
+    c_cutting = 0.0
+
+# --- 3. ИНТЕГРАЦИЯ ЭФФЕКТИВНОЙ ПЛОТНОСТИ СМЕСИ С УЧЕТОМ ШЛАМА И ПЕСКА ---
+# rho_base_corrected уже учитывает песок из Блока 2, добавляем шлам (rho_rock = 2650 кг/м³)
+rho_eff_mix = (rho_base_corrected * (1.0 - c_cutting)) + (rho_rock * c_cutting)
+
+# --- 4. ФИНАЛЬНЫЙ РАСЧЕТ ДИНАМИЧЕСКОГО ДАВЛЕНИЯ И ЭЦП (ECD) ---
+if h_tvd > 0.1:
+    # Общее гидростатическое давление смеси (Па)
+    total_hydrostatic_pa = rho_eff_mix * 9.81 * h_tvd
+    # Полное динамическое забойное давление (Па)
+    total_dynamic_pressure_pa = total_hydrostatic_pa + total_p_friction_pa
+    
+    # Перевод итоговой ЭЦП (ECD) обратно в г/см³
+    calculated_ecd = (total_dynamic_pressure_pa / (9.81 * h_tvd)) / 1000.0
+else:
+    # Защитный откат на плотность на входе, если глубина близка к нулю
+    calculated_ecd = rho_base_corrected / 1000.0
+# =========================================================================
+# БЛОК 3: ВЫСОКОТОЧНЫЙ РАСЧЕТ ЭЦП ПО МОДЕЛИ ГЕРШЕЛЯ-БАЛКЛИ - ЧАСТЬ 5
+# =========================================================================
+
+# --- 1. ОПРЕДЕЛЕНИЕ ДИНАМИЧЕСКОГО БУФЕРА БЕЗОПАСНОСТИ ПО ТРЕБОВАНИЯМ ТК ---
+selected_client = company_choice if 'company_choice' in locals() else "Прочие"
+# Установка буфера в зависимости от компании
+if selected_client == "Роснефть":
+    tk_buffer = 0.030
+    client_label = "ПАО «НК «Роснефть»"
+elif selected_client == "Газпром нефть":
+    tk_buffer = 0.020
+    client_label = "ПАО «Газпром нефть»"
+else:
+    tk_buffer = 0.025
+    client_label = f"ТК «{selected_client}»"
+
+# --- 2. КЛАССИФИКАЦИЯ ТЕХНОЛОГИЧЕСКИХ ЗОН РИСКА С УЧЕТОМ БУФЕРА ---
+orange_zone_threshold = p_frac - tk_buffer
+red_zone_threshold = p_frac - (tk_buffer * 0.5)
+
+if calculated_ecd < orange_zone_threshold:
+    ecd_status = "🟢 Зеленая зона (Режим безопасен)"
+    status_color = "#10B981"
+    status_msg = f"Гидравлический режим стабилен. ЭЦП соответствует Техническим Критериям {client_label}."
+elif calculated_ecd < red_zone_threshold:
+    ecd_status = "🟡 Оранжевая зона (Повышенный риск)"
+    status_color = "#F59E0B"
+    status_msg = f"ВНИМАНИЕ: Оранжевая зона {client_label}. Контролировать скорость спуска инструмента!"
+else:
+    ecd_status = "🔴 Красная зона (Критическая угроза ГРП!)"
+    status_color = "#EF4444"
+    status_msg = f"КРИТИЧЕСКИЙ РЕЖИМ {client_label}: Расчетная ЭЦП ({calculated_ecd:.3f}) превышает предел!"
+
+# --- 3. ОТОБРАЖЕНИЕ РЕЗУЛЬТАТОВ ГИДРОДИНАМИЧЕСКОГО МОНИТОРИНГА ---
 st.markdown("#### Результаты гидродинамического мониторинга:")
 col_res1, col_res2, col_res3 = st.columns(3)
+
 with col_res1:
     st.metric("Расчетная ЭЦП (ECD)", f"{calculated_ecd:.3f} г/см³")
 with col_res2:
-    st.metric("Запас до ГРП пласта", f"{(p_frac - calculated_ecd):.3f} г/см³")
+    st.metric("Запас до ГРП пласта", f"{p_frac - calculated_ecd:.3f} г/см³")
 with col_res3:
     st.markdown(
-        f'<div style="text-align: center; color: white; background-color: {status_color}; padding: 8px; border-radius: 4px; font-weight: bold; font-size: 14px; margin-top: 10px;">'
-        f'{ecd_status}</div>', 
+        f'<div style="text-align: center; color: white; background-color: {status_color}; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 14px; margin-top: 8px;">'
+        f'{ecd_status}</div>',
         unsafe_allow_html=True
     )
 
-# 10. Интеграция требований Заказчиков в Sidebar
-st.sidebar.markdown("---")
-st.sidebar.header("🏢 Уставки Заказчика")
-customer = st.sidebar.selectbox("Выберите компанию-Заказчика:", ["Роснефть", "Газпром", "ЛУКОЙЛ"])
-
-if customer == "Роснефть":
-    lim_sp, limit_posadka, limit_statika = "0.4 м/с", "5–7 тонн", "5 минут"
-elif customer == "Газпром":
-    lim_sp, limit_posadka, limit_statika = "0.4 м/с", "4–5 тонн", "3–5 минут"
-else:
-    lim_sp, limit_posadka, limit_statika = "0.5 м/с", "5 тонн", "5 минут"
-
-with st.sidebar.expander(f"📌 Лимиты по ТК: {customer}"):
-    st.markdown(f"• **Скорость СПО в открытом стволе:** ≤ {lim_sp}")
-    st.markdown(f"• **Допустимая посадка инструмента:** ≤ {limit_posadka}")
-    st.markdown(f"• **Время в покое (статика):** ≤ {limit_statika}")
-
-# 11. Автоматический контроль рисков по регламенту выбранного Заказчика
-if "Красная" in ecd_status or calculated_ecd >= p_frac:
-    st.error(f"❌ **КРИТИЧЕСКИЙ РЕЖИМ {customer}:** Расчетная ЭЦП ({calculated_ecd:.3f}) превышает предел ГРП! Немедленно остановить углубление, приподнять КНБК на 50 метров от забоя!")
-elif "Оранжевая" in ecd_status:
-    st.warning(f"⚠️ **ВНИМАНИЕ: Оранжевая зона ТК {customer}.** Риск зашламления. Увеличить время очистных проработок каждой свечи на 30–70%, контролировать скорость спуска инструмента (≤ {lim_sp}).")
-else:
-    st.success(f"🟢 **Гидравлический режим стабилен.** ЭЦП соответствует Техническим Критериям {customer}. Риски поглощения пластов и прихватов минимальны.")
+# Вывод статуса
+if "🔴" in ecd_status: st.error(f"❌ **{status_msg}**")
+elif "🟡" in ecd_status: st.warning(f"⚠️ **{status_msg}**")
+else: st.success(f"{status_msg}")
 
 st.markdown("---")
 
-# =========================================================================
-# БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА РАСЧЕТА ОСТАТОЧНОГО РЕСУРСА СТАТОРА ВЗД
-# =========================================================================
 # =========================================================================
 # БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА РАСЧЕТА ОСТАТОЧНОГО РЕСУРСА СТАТОРА ВЗД
 # =========================================================================
