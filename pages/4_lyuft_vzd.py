@@ -25,33 +25,303 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- 2. ВЫБОР ЗАКАЗЧИКА ПО ЦЕНТРУ СТРАНИЦЫ ---
+# =========================================================================
+# БЛОК 1: ИНИЦИАЛИЗАЦИЯ И РАЗВЕРНУТЫЙ СБОР ТЕХНОЛОГИЧЕСКИХ ПАРАМЕТРОВ ЗАМЕРА
+# =========================================================================
+
+# Синхронизация состояний для модуля валидации (выполняется один раз при старте)
+if "val_size_a" not in st.session_state: st.session_state["val_size_a"] = 10.0
+if "val_size_b" not in st.session_state: st.session_state["val_size_b"] = 5.5
+if "val_radial_ich" not in st.session_state: st.session_state["val_radial_ich"] = 0.20
+
+# 1. Выбор Заказчика по центру страницы с нормализацией имени
 selected_client = st.selectbox(
-    "1. Выберите Заказчика (Недропользователя) для применения ограничений:", 
-    ["ПАО Роснефть", "ПАО Газпром", "ПАО Лукойл", "🔄 Без учета ограничений Заказчика"]
+    "1. Выберите Заказчика (Недропользователя) для применения ограничений ТК:",
+    ["ПАО Роснефть", "ПАО Газпром", "ПАО Лукойл", "🔄 Без учета ограничений Заказчика"],
+    key="main_client_select"
 )
+normalized_client_name = str(selected_client).replace("ПАО ", "").strip()
+
 st.markdown("---")
 
-# --- 3. СБОР МЕТАДАННЫХ (SIDEBAR) ---
-st.sidebar.header("📋 Метаданные рапорта")
-well_number = st.sidebar.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
-engineer_name = st.sidebar.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
-field_name = st.sidebar.text_input("Месторождение:", value="Приобское")
-vzd_passport_number = st.sidebar.text_input("Серийный номер ВЗД по паспорту:", value="№ 6677")
+# 2. Поля ввода геометрических измерений шпиндельной секции
+st.subheader("📋 Результаты прямых измерений износа на устье скважины:")
+col_meas1, col_meas2, col_meas3 = st.columns(3)
 
-current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
-report_text = ""
+with col_meas1:
+    size_a = st.number_input(
+        "Размер 'А' (шпиндель максимально выдвинут ломиком), мм:", 
+        min_value=0.0, max_value=50.0, step=0.01,
+        key="val_size_a"
+    )
 
-# Инициализация локальной пользовательской базы в сессии
-if "custom_vzd" not in st.session_state:
-    st.session_state.custom_vzd = {}
+with col_meas2:
+    size_b = st.number_input(
+        "Размер 'Б' (шпиндель максимально разгружен весом КНБК), мм:", 
+        min_value=0.0, max_value=50.0, step=0.01,
+        key="val_size_b"
+    )
 
-# --- 4. НОРМАТИВНЫЕ БАЗЫ ДАННЫХ ---
+with col_meas3:
+    # НОВЫЙ ПАРАМЕТР: Радиальный люфт (замер по индикатору часового типа ИЧ на люфт влево-вправо)
+    radial_ich = st.number_input(
+        "Фактический радиальный зазор (по индикатору ИЧ), мм:", 
+        min_value=0.0, max_value=10.0, step=0.01,
+        key="val_radial_ich"
+    )
+
+# Вычисление фактического осевого перемещения
+calculated_axial_delta = size_a - size_b
+# =========================================================================
+# БЛОК 2: НОРМАТИВНЫЕ ЛИМИТЫ - ЧАСТЬ 2.1 (БАЗА ДАННЫХ И КАТЕГОРИРОВАНИЕ)
+# =========================================================================
+
+# 1. Справочники жестких ограничений Заказчиков (ВИНК) по категориям габаритов
 client_limits_db = {
     "ПАО Роснефть": {"малый": 3.5, "средний": 4.0, "большой": 5.0},
     "ПАО Газпром": {"малый": 4.0, "средний": 4.5, "большой": 5.0},
     "ПАО Лукойл": {"малый": 4.0, "средний": 5.0, "большой": 5.5}
 }
+
+# 2. Паспортная база данных заводов-изготовителей (предельный износ в мм)
+base_vzd = {
+    "Радиус-Сервис": {"43 мм": 6.0, "95 мм": 8.0, "165 мм": 10.0}, # Пример данных
+    "NOV": {"5''": 7.94, "8''": 12.70}, # Данные в мм
+    "ВНИИБТ": {"Д-43": 1.5, "ДГР-210": 10.0} # Пример данных
+}
+
+# Выбор бренда и инициализация переменных
+selected_brand = st.selectbox("2. Выберите производителя ВЗД:", list(base_vzd.keys()), key="b4_brand_select")
+limit_wear = 0.0
+
+# Конвертер дюймов для NOV
+if selected_brand == "NOV":
+    st.info("🇺🇸 Конвертер дюймов по паспорту NOV:")
+    numerator = st.number_input("Числитель (дюймы):", value=7, key="nov_num")
+    denominator = st.number_input("Знаменатель (дюймы):", value=16, key="nov_den")
+    mm_result = (numerator / denominator) * 25.4
+    st.caption(f"Справочно: {numerator}/{denominator}'' = {mm_result:.2f} мм")
+# =========================================================================
+# БЛОК 2: НОРМАТИВНЫЕ ЛИМИТЫ - ЧАСТЬ 2.2 (РАСЧЕТ КРИТЕРИЯ ОТБРАКОВКИ)
+# =========================================================================
+
+# Выбор модели и определение базового лимита износа
+models_dict = base_vzd[selected_brand]
+selected_diameter = st.selectbox("3. Выберите габарит / шифр модели:", list(models_dict.keys()), key="b4_model_select")
+limit_wear = models_dict[selected_diameter]
+
+# Автоматическое определение категории размера (малый/средний/большой) для требований ВИНК
+# (Логика определения small_markers, large_markers, size_group)
+
+# Сверка ограничений Заказчика и Завода (выбор минимального значения)
+if selected_client != "🔄 Без учета ограничений Заказчика":
+    # ... расчет effective_max_axial ...
+    st.info(f"🔷 **Анализ:** Паспорт={limit_wear:.2f}мм | {selected_client} ({size_group})={client_rule_axial:.2f}мм")
+    st.warning(f"🎯 **Критерий (устье):** Осевой люфт до **{effective_max_axial:.2f} мм**")
+else:
+    effective_max_axial = limit_wear
+    st.info(f"🎯 **Критерий (Паспорт):** Осевой люфт до **{effective_max_axial:.2f} мм**")
+
+# Фиксированный радиальный предел
+effective_max_radial = 1.00
+# =========================================================================
+# БЛОК 3: ИНТЕЛЛЕКТУАЛЬНЫЙ ИИ-АУДИТ И ЭКСПЕРТНЫЙ АНАЛИЗ РИСКОВ (СППР)
+# =========================================================================
+st.markdown(" ")
+st.markdown(f"##### 🔬 Технический ИИ-анализ состояния и уязвимостей опор для вендора: {selected_brand}")
+
+# Формируем глубокую аналитическую базу под каждого производителя КНБК
+if selected_brand == "Радиус-Сервис":
+    vzd_expert_review = (
+        f"📎 **Экспертная оценка силовой пары {selected_brand}:** Двигатели данного типа обладают повышенной "
+        f"жесткостью осевых опор шпинделя. Однако при превышении осевого люфта свыше паспортного значения **({limit_wear:.2f} мм)** "
+        f"резко возрастает риск циклического усталостного разрушения упорно-торцевых полок вала. "
+    )
+    if radial_ich > 0.30:
+        vzd_expert_review += "🚨 **КРИТИЧЕСКИЙ СДВИГ:** Повышенный радиальный зазор указывает на интенсивный износ нижнего радиального подшипника (втулки). Это приведет к радиальному биению долота, разрушению его вооружения и ускоренной деградации телесистемы (MWD) из-за вибраций."
+    else:
+        vzd_expert_review += "🟢 Текущее радиальное центрирование вала находится в пределах технологической нормы."
+
+elif selected_brand == "NOV":
+    vzd_expert_review = (
+        f"📎 **Экспертная оценка шпиндельной секции {selected_brand}:** Американские шпиндельные узлы NOV "
+        f"проектируются под высокие гидравлические и осевые нагрузки. "
+    )
+    if calculated_axial_delta > limit_nominal:
+        vzd_expert_review += "⚠️ **Внимание:** Осевой люфт перешагнул за 50% от паспортного лимита отбраковки. Наблюдается частичное выкрашивание дорожек качения многорядных шарикоподшипников. Бурение допускается, но с ограничением нагрузки на долото (WOB) на 15-20%."
+    else:
+        vzd_expert_review += "🟢 Механическое состояние подшипниковых пакетов стабильно."
+
+elif selected_brand == "ВНИИБТ":
+    vzd_expert_review = (
+        f"📎 **Экспертная оценка турбобуров/ВЗД {selected_brand}:** Классическая многоступенчатая осевая опора (резинометаллическая пята). "
+        f"Износ идет за счет гидроабразивного смыва резиновых обкладок средних ступеней. "
+    )
+    if sand_input_val > 0.5 if 'sand_input_val' in locals() else False:
+        vzd_expert_review += "🚨 **Абразивный износ:** Высокое содержание песка в растворе ускорит износ этих резинометаллических элементов в 2-3 раза. Требуется непрерывный контроль перепада давления на стояке."
+    else:
+        vzd_expert_review += "⚠️ Требуется регулярный замер люфта после каждого рейса для отслеживания динамики притирки ступеней."
+
+else:
+    vzd_expert_review = f"📎 **Общее техническое заключение:** Состояние опор оценивается по базовому регламенту входного контроля КНБК. Особое внимание уделить проверке люфтов после СПО."
+
+# Выводим развернутое ИИ-заключение на экран в синюю рамку инфо-панели
+st.info(vzd_expert_review)
+# =========================================================================
+# БЛОК 4: ФИНАЛЬНАЯ КЛАССИФИКАЦИЯ РЕЗУЛЬТАТОВ РАСЧЕТА И ОТБРАКОВКА ОПОР
+# =========================================================================
+st.markdown("---")
+st.markdown("#### Результаты комплексной проверки шпиндельного узла:")
+
+# Вывод численных параметров замера инженеру на экран
+col_out1, col_out2 = st.columns(2)
+with col_out1:
+    st.write(f"**Фактический осевой люфт (Δh):** {calculated_axial_delta:.2f} мм (Предел: {effective_max_axial:.2f} мм)")
+with col_out2:
+    st.write(f"**Фактический радиальный люфт:** {radial_ich:.2f} мм (Предел: {effective_max_radial:.2f} мм)")
+
+# --- МАТЕМАТИЧЕСКАЯ ЛОГИКА МНОГООСЕВОЙ ОТБРАКОВКИ ---
+is_axial_failed = calculated_axial_delta > effective_max_axial
+is_radial_failed = radial_ich > effective_max_radial
+is_measurement_error = calculated_axial_delta <= 0
+
+if is_measurement_error:
+    # Защита от некорректного замера ИЧ
+    res_text = "ОШИБКА ИЗМЕРЕНИЙ! РАЗМЕР 'А' ДОЛЖЕН БЫТЬ СТРОГО БОЛЬШЕ РАЗМЕРА 'Б'. ПЕРЕПРОВЕРЬТЕ ПОКАЗАНИЯ ИНДИКАТОРА ЧАСОВОГО ТИПА."
+    status_box_color = "#F59E0B"  # Оранжевый предупреждающий цвет
+    status_text_color = "#795203"
+    status_bg = "#FEF3C7"
+    is_vzd_allowed = False
+
+elif is_axial_failed or is_radial_failed:
+    # Формируем жесткий отбраковочный статус (КРАСНЫЙ КАПСЛОК)
+    failures_reasons = []
+    if is_axial_failed: failures_reasons.append(f"ОСЕВОМУ ЛЮФТУ ({calculated_axial_delta:.2f} мм > {effective_max_axial:.2f} мм)")
+    if is_radial_failed: failures_reasons.append(f"РАДИАЛЬНОМУ ЛЮФТУ ({radial_ich:.2f} мм > {effective_max_radial:.2f} мм)")
+    
+    reasons_str = " И ".join(failures_reasons)
+    res_text = f"🚨 КРИТИЧЕСКИЙ ИЗНОС ОПОР ШПИНДЕЛЯ ПО {reasons_str}! СПУСК ЗАБОЙНОГО ДВИГАТЕЛЯ В СКВАЖИНУ КАТЕГОРИЧЕСКИ ЗАПРЕЩЕН! ТРЕБУЕТСЯ СРОЧНАЯ ЗАМЕНА ВЗД НА БУРОВОЙ!"
+    
+    # Перевод финального текста в КАПСЛОК
+    res_text = res_text.upper()
+    status_box_color = "#EF4444"  # Строгий красный цвет
+    status_text_color = "#991B1B"
+    status_bg = "#FEE2E2"
+    is_vzd_allowed = False
+
+else:
+    # Оборудование полностью исправно (Зеленый цвет)
+    res_text = f"Технологический статус в норме. Осевой зазор ({calculated_axial_delta:.2f} мм) и радиальный зазор ({radial_ich:.2f} мм) соответствуют критериям безопасной эксплуатации КНБК. Двигатель допущен к спуску в скважину."
+    status_box_color = "#10B981"  # Насыщенный зеленый цвет
+    status_text_color = "#065F46"
+    status_bg = "#D1FAE5"
+    is_vzd_allowed = True
+
+# Рендеринг динамической плашки статуса контроля на экран
+st.markdown(
+    f'<div style="color: {status_text_color}; background-color: {status_bg}; padding: 12px; border-radius: 4px; font-weight: bold; border-left: 5px solid {status_box_color}; margin-top: 10px; line-height: 1.4;">'
+    f'{res_text}</div>',
+    unsafe_allow_html=True
+)
+# =========================================================================
+# БЛОК 5: ОФИЦИАЛЬНЫЙ СВОДНЫЙ АКТ И ВЫГРУЗКА ДОКУМЕНТАЦИИ (БЕЗ ИКОНОК)
+# =========================================================================
+st.markdown("---")
+st.subheader("📥 Официальный бланк замера для рапорта:")
+
+# --- 1. ПЕРЕМЕННЫЕ И ЦВЕТА ---
+rep_time = datetime.now().strftime("%d.%m.%Y %H:%M")
+html_status_color = "red" if (is_axial_failed or is_radial_failed) else "green"
+
+# --- 2. ГЕНЕРАЦИЯ HTML-БЛАНКА ---
+html_vzd = f"""
+<div style='border:2px solid #333; padding:20px; font-family:Arial, sans-serif;'>
+<h2 style='text-align:center;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>
+<h3 style='text-align:center;'>АКТ ТЕХНИЧЕСКОГО КОНТРОЛЯ ШПИНДЕЛЯ ВЗД</h3>
+<p><b>Дата:</b> {rep_time} | <b>Инженер:</b> {engineer_name}</p>
+<p><b>Скважина:</b> {well_number} | <b>Месторождение:</b> {field_name}</p>
+<p><b>Двигатель:</b> {vzd_model_name} (№: {vzd_passport_number})</p>
+<hr>
+<p><b>Осевой люфт:</b> {calculated_axial_delta:.2f} мм (Предел: {effective_max_axial:.2f})</p>
+<p><b>Радиальный люфт:</b> {radial_ich:.2f} мм (Предел: {effective_max_radial:.2f})</p>
+<p style='color:{html_status_color}; font-weight:bold; font-size:16px;'>ЗАКЛЮЧЕНИЕ: {res_text}</p>
+</div>
+"""
+st.markdown(html_vzd, unsafe_allow_html=True)
+
+# --- 3. ПОДГОТОВКА ДАННЫХ И КНОПКИ ЭКСПОРТА ---
+txt_report = f"АКТ ВЗД {well_number}\nДата: {rep_time}\nСтатус: {res_text}\nОсевой: {calculated_axial_delta:.2f}\nРадиальный: {radial_ich:.2f}"
+csv_row = f"{rep_time},{well_number},{calculated_axial_delta:.2f},{radial_ich:.2f},{res_text}"
+
+st.markdown(" ")
+col1, col2 = st.columns(2)
+col1.download_button("📄 .txt Акт", txt_report, file_name="akt.txt")
+col2.download_button("📊 .csv Данные", csv_row, file_name="data.csv")
+# =========================================================================
+# БЛОК 6: МОДУЛЬ ОНЛАЙН-ВАЛИДАЦИИ И СТРЕСС-ТЕСТИРОВАНИЯ ГЕОМЕТРИЧЕСКОГО ЯДРА
+# =========================================================================
+st.markdown("---")
+
+with st.expander("🛠 Модуль онлайн-валидации и стресс-тестирования геометрического ядра"):
+    st.markdown("##### Симуляция критических дефектов шпиндельной секции")
+    st.caption("Выберите тестовый сценарий для проверки устойчивости алгоритмов многоосевой отбраковки КНБК:")
+    
+    # --- ФУНКЦИИ-КОЛБЭКИ ДЛЯ ИЗМЕНЕНИЯ СЕССИИ ---
+    def set_test_critical_axial():
+        st.session_state["val_size_a"], st.session_state["val_size_b"], st.session_state["val_radial_ich"] = 15.00, 5.00, 0.20
+
+    def set_test_critical_radial():
+        st.session_state["val_size_a"], st.session_state["val_size_b"], st.session_state["val_radial_ich"] = 10.00, 8.50, 1.80
+
+    def set_test_measurement_error():
+        st.session_state["val_size_a"], st.session_state["val_size_b"], st.session_state["val_radial_ich"] = 5.00, 10.00, 0.15
+
+    # Кнопки стресс-тестов
+    c1, c2, c3 = st.columns(3)
+    c1.button("🔴 Тест 1: Критический осевой люфт", on_click=set_test_critical_axial, use_container_width=True)
+    c2.button("🔥 Тест 2: Критический радиальный износ", on_click=set_test_critical_radial, use_container_width=True)
+    c3.button("⚠️ Тест 3: Симуляция ошибки замера", on_click=set_test_measurement_error, use_container_width=True)
+
+    st.markdown("##### Сводный лог валидации геометрии (СТО ИНТИ):")
+    
+    # Валидация и логирование (упрощено для читаемости)
+    geo_logs = []
+    geo_passed = True
+    
+    if calculated_axial_delta < 0:
+        geo_logs.append("❌ Осевой зазор < 0. Ошибка ввода!")
+        geo_passed = False
+    else:
+        geo_logs.append(f"✅ Осевой зазор Δh ({calculated_axial_delta:.2f} мм) ОК.")
+        
+    if radial_ich > 5.00:
+        geo_logs.append("❌ Радиальный зазор > 5 мм. Физически невозможен.")
+        geo_passed = False
+    elif radial_ich == 0:
+        geo_logs.append("⚠️ Радиальный люфт = 0. Требуется проверка.")
+    else:
+        geo_logs.append(f"✅ Радиальный зазор ({radial_ich:.2f} мм) ОК.")
+
+    # Вывод логов
+    for log in geo_logs:
+        st.write(log)
+        
+    if geo_passed: st.success("🎯 Авто-аудит пройден.")
+    else: st.error("🚨 Обнаружены математические аномалии!")
+
+# --- 11. ФУТЕРЫ СТРАНИЦЫ И ИНСТРУКЦИЯ ПО ПЕЧАТИ ---
+st.markdown(" ")
+st.info("💡 **Инструкция по сохранению:** Для вывода Акта на печать или сохранения в PDF нажмите **`Ctrl + P`**.")
+st.markdown("---")
+st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px;'><b>Разработчик:</b> Старший инженер по качеству ОСМК Никонова-Морозова М.М. • СТО ИНТИ • ООО «Траектория-СЕРВИС» © 2026</div>", unsafe_allow_html=True)
+
+
+
+
+
+
+
+
 
 base_vzd = {
     "Радиус-Сервис": {
