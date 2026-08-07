@@ -219,46 +219,52 @@ st.markdown("---")
 # =========================================================================
 # БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА РАСЧЕТА ОСТАТОЧНОГО РЕСУРСА СТАТОРА ВЗД
 # =========================================================================
+# =========================================================================
+# БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА РАСЧЕТА ОСТАТОЧНОГО РЕСУРСА СТАТОРА ВЗД
+# =========================================================================
 st.markdown("### ⏳ Блок 4: Экспертная система расчета остаточного ресурса статора ВЗД")
 
 import re
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_absolute_error
 
-# 1. Функция автоматической загрузки и парсинга Excel из вашего репозитория
+# 1. Функция автоматической загрузки и парсинга Excel
 @st.cache_data(ttl=3600)
 def load_advanced_model(file_path="failures_db.xlsx"):
     try:
         df = pd.read_excel(file_path)
         
-        # 1. Жесткая фильтрация аномалий по вашему новому столбцу
-        # Обучаем ядро ТОЛЬКО на тех строках, которые вы одобрили (где нет некорректных признаков)
+        # Защита от переносов строк в названиях колонок Excel: убираем пробелы и \n
+        df.columns = df.columns.astype(str).str.replace(r'\s+', ' ', regex=True).str.strip()
+        
         if "Учитывать при обучении системы" in df.columns:
-            # Исключаем строки, где явно указано НЕ учитывать (например, Кислотные ванны, брак вулканизации)
             df = df[df["Учитывать при обучении системы"].astype(str).str.upper() != "НЕТ"]
             
         df = df.dropna(subset=["Наработка до отказа (Часы)"]).copy()
         df["Наработка до отказа (Часы)"] = pd.to_numeric(df["Наработка до отказа (Часы)"], errors="coerce")
         df = df[df["Наработка до отказа (Часы)"] > 0]
         
-        # 2. Оцифровка химической агрессивности типов растворов (БР)
-        # Присваиваем базовый коэффициент химической деградации (индекс агрессивности раствора)
+        # Оцифровка химической агрессивности растворов
         def get_mud_aggressiveness(mud_type):
             mud_type = str(mud_type).lower().strip()
-            if "кислотн" in mud_type: return 3.0       # Максимальный износ эластомера
+            if "кислотн" in mud_type: return 3.0
             elif "максфлоу" in mud_type or "maxflow" in mud_type: return 1.5
             elif "эмульс" in mud_type or "евс" in mud_type or "ebc" in mud_type: return 1.4
             elif "гипсо" in mud_type or "известк" in mud_type: return 1.3
-            elif "полимер" in mud_type or "биополимер" in mud_type: return 1.1 # Наиболее щадящие растворы
+            elif "полимер" in mud_type or "биополимер" in mud_type: return 1.1
             elif "тех вода" in mud_type or "вода" in mud_type: return 1.0
-            return 1.2 # Базовое среднее значение для неизвестных типов растворов
+            return 1.2
             
-        df["Агрессивность_БР"] = df["Тип раствора"].apply(get_mud_aggressiveness)
+        if "Тип раствора" in df.columns:
+            df["Агрессивность_БР"] = df["Тип раствора"].apply(get_mud_aggressiveness)
+        else:
+            df["Агрессивность_БР"] = 1.2
         
-        # 3. Стандартная предобработка остальных параметров
         df["Песок (%)"] = pd.to_numeric(df["Песок (%)"], errors="coerce").fillna(0.1).clip(lower=0.0)
         df["Забойная Темп. (°C)"] = pd.to_numeric(df["Забойная Темп. (°C)"], errors="coerce").fillna(70)
         
+        # Безопасный поиск колонки производителя (даже если там нет знака /)
+        vendor_col = [c for c in df.columns if "Производитель" in c or "Габарит" in c]
         def extract_vendor(text):
             text = str(text).upper()
             if "РАДИУС" in text or "РС" in text: return "Радиус-Сервис"
@@ -267,7 +273,10 @@ def load_advanced_model(file_path="failures_db.xlsx"):
             elif "ТИТАН" in text: return "ПЗТО Титан"
             else: return "Прочие"
             
-        df["Производитель_чистый"] = df["Габарит /\nПроизводитель"].apply(extract_vendor)
+        if vendor_col:
+            df["Производитель_чистый"] = df[vendor_col[0]].apply(extract_vendor)
+        else:
+            df["Производитель_чистый"] = "Прочие"
         
         def parse_kin(val):
             try:
@@ -277,19 +286,20 @@ def load_advanced_model(file_path="failures_db.xlsx"):
             except: pass
             return 0.75
             
-        df["Кинематика_число"] = df["Заходность"].apply(parse_kin)
-        
-        # Целевая переменная скорости износа
+        if "Заходность" in df.columns:
+            df["Кинематика_число"] = df["Заходность"].apply(parse_kin)
+        else:
+            df["Кинематика_число"] = 0.75
+            
         df["Скорость_износа"] = 1.0 / df["Наработка до отказа (Часы)"]
         return df
     except Exception as e:
-        st.error(f"⚠️ Ошибка обработки обновленной базы Excel: {e}")
+        st.error(f"⚠️ Ошибка обработки базы Excel: {e}")
         return None
 
-df_failures = load_advanced_model()
+df_failures = load_advanced_model("failures_db.xlsx")
 
-# 2. Выбор региона бурения, заходов и производителя
-# 2. Выбор параметров рейса КНБК и типа промывочной жидкости
+# 2. Интерактивный выбор параметров
 col_reg1, col_reg2, col_reg3 = st.columns(3)
 with col_reg1:
     region_choice = st.selectbox("📍 Регион проведения работ:", ["Волго-Урал", "Западная Сибирь (ХМАО/ЯНАО)"])
@@ -301,58 +311,39 @@ with col_reg2:
 with col_reg3:
     vendor_choice = st.selectbox("⚙️ Производитель силовой секции / эластомера:", ["Радиус-Сервис", "ООО ГБС", "Гидромаш", "ПЗТО Титан"])
 
-# НОВОЕ: Интерактивный выбор текущего типа раствора на буровой
 mud_choice = st.selectbox(
     "🧪 Текущий тип бурового раствора (БР):", 
     ["Полимерный / Биополимерный", "Гипсокалиевый / Известково-гипсовый", "Гелево-Эмульсионный / ЕВС", "MaxFlow", "Техническая вода"]
 )
 
-# Вывод экспертной справки по физико-химическим свойствам раствора для инженера ННБ
 st.markdown("##### 🔬 Инженерная справка по выбранной среде:")
-
 if "Полимерный" in mud_choice:
-    st.info(
-        "💡 **Щадящая среда (Коэф. агрессивности ~1.1):** Минимальное химическое воздействие на эластомер. "
-        "Основной риск — механический размыв вершин зубьев при плохой очистке от шлама. Требуется строгий контроль ситовых гидроциклонов."
-    )
+    st.info("💡 **Щадящая среда (Коэф. агрессивности ~1.1):** Минимальное химическое воздействие.")
     current_mud_aggressiveness = 1.1
-
 elif "Гипсокалиевый" in mud_choice:
-    st.warning(
-        "⚠️ **Умеренно-агрессивная среда (Коэф. агрессивности ~1.3):** Повышенное содержание солей калия и кальция. "
-        "Ускоряет термическое старение резины и снижает её эластичность (риск микрорастрескивания). Избегайте пиковых перепадов давления."
-    )
+    st.warning("⚠️ **Умеренно-агрессивная среда (Коэф. агрессивности ~1.3):** Ускоряет старение резины.")
     current_mud_aggressiveness = 1.3
-
 elif "Гелево-Эмульсионный" in mud_choice:
-    st.warning(
-        "⚠️ **Высокоагрессивная среда (Коэф. агрессивности ~1.4):** Наличие углеводородной фазы (эмульсии). "
-        "Вызывает набухание стандартных нитрильных эластомеров (NBR), приводя к потере натяга в паре ротор-статор и риску вырывов резины."
-    )
+    st.warning("⚠️ **Высокоагрессивная среда (Коэф. агрессивности ~1.4):** Риск набухания эластомера.")
     current_mud_aggressiveness = 1.4
-
 elif "MaxFlow" in mud_choice:
-    st.error(
-        "🚨 **Критическая химическая нагрузка (Коэф. агрессивности ~1.5):** Специализированная безтвердая система. "
-        "ПАВ и хим-реагенты обладают высокой проникающей способностью. Износ профиля статора может идти до основания металлического остова."
-    )
+    st.error("🚨 **Критическая химическая нагрузка (Коэф. агрессивности ~1.5):** Риск интенсивного износа.")
     current_mud_aggressiveness = 1.5
-
-elif "Техническая вода" in mud_choice:
-    st.info(
-        "💡 **Нейтральная среда (Коэф. агрессивности ~1.0):** Химическая деградация отсутствует. "
-        "Ресурс мотора лимитируется исключительно абразивным износом (песком) и кавитационными процессами."
-    )
+else:
+    st.info("💡 **Нейтральная среда (Коэф. агрессивности ~1.0).**")
     current_mud_aggressiveness = 1.0
 
-# Далее стандартный ввод наработки и температуры
 col_vzd1, col_vzd2 = st.columns(2)
 with col_vzd1:
     current_runtime = st.number_input("Текущая наработка мотора в рейсе (факт), ч:", min_value=0.0, value=48.0)
 with col_vzd2:
     current_temp_est = st.number_input("Прогнозная забойная температура, °C:", min_value=20.0, value=75.0)
 
-# 3. Фильтрация и запуск адаптивного обучения математического ядра через NumPy
+# Привязка переменной песка к Блоку 2 (Защита от NameError)
+# Если в Блоке 2 переменная называется f_sand, подхватим ее, иначе возьмем 0.8
+sand_input_val = f_sand if 'f_sand' in locals() else 0.8
+
+# 3. Запуск калибровки математического ядра
 region_filter = "Волго-Урал" if region_choice == "Волго-Урал" else ["ХМАО", "ЯНАО", "Западная Сибирь"]
 
 if df_failures is not None and not df_failures.empty:
@@ -374,46 +365,31 @@ accuracy_pct = 0.0
 
 if len(df_train) >= 3:
     try:
-        # Формируем матрицы для метода наименьших квадратов (МНК)
-        # Факторы: Песок, Температура, Кинематика и свободный член (столбец единиц)
-        X = df_train[["Песок (%)", "Забойная Темп. (°C)", "Кинематика_число"]].values
-        y = df_train["Скорость_износа"].values
+        X_train = df_train[["Песок (%)", "Забойная Темп. (°C)", "Кинематика_число", "Агрессивность_БР"]]
+        y_train = df_train["Скорость_износа"]
         
-        # Добавляем столбец единиц для интерцеппта (свободного коэффициента)
-        X_design = np.hstack([np.ones((X.shape[0], 1)), X])
+        lr = LinearRegression(positive=True)
+        lr.fit(X_train, y_train)
         
-        # Решение уравнения МНК: (X^T * X)^(-1) * X^T * y
-        beta, residuals, rank, s = np.linalg.lstsq(X_design, y, rcond=None)
-        
-        # Проверяем физичность коэффициентов (влияние факторов должно быть положительным)
-        # Если математика выдает отрицательный вес из-за шума, принудительно зануляем его
-        beta[1:] = np.clip(beta[1:], 0.0, None)
-        
-        # Верификация модели на исторических данных
-        y_pred_train = np.clip(X_design @ beta, 0.0001, None)
+        y_pred_train = np.clip(lr.predict(X_train), 0.0001, None)
         hours_actual = df_train["Наработка до отказа (Часы)"].values
         hours_predicted = 1.0 / y_pred_train
         
-        # Расчет погрешности в часах
-        mae_hours = float(np.mean(np.abs(hours_actual - hours_predicted)))
-        
-        # Расчет точности по СТО ИНТИ
+        mae_hours = float(mean_absolute_error(hours_actual, hours_predicted))
         mape = np.mean(np.abs(hours_actual - hours_predicted) / hours_actual)
         accuracy_pct = max(0.0, min(100.0, (1.0 - mape) * 100.0))
         
-        # Предикт для текущих условий на буровой
-        X_current = np.array([1.0, current_sand_val, current_temp_est, current_kin])
-        predicted_wear_speed = max(0.0001, float(X_current @ beta))
-        
+        X_current = np.array([[sand_input_val, current_temp_est, current_kin, current_mud_aggressiveness]])
+        predicted_wear_speed = max(0.0001, float(lr.predict(X_current)))
         predicted_hours_to_failure = max(0.0, (1.0 / predicted_wear_speed) - current_runtime)
         model_ready = True
-    except:
-        pass
+    except: pass
 
+# Безопасный статический расчет, если таблица пустая (Устранена ошибка со строкой 405)
 if not model_ready:
-    sand_excess = max(0.0, current_sand_val - 0.5)
-    wear_factor = 1.0 + (sand_excess * 2.5 * (current_kin * 1.5))
-    predicted_hours_to_failure = max(0.0, 150.0 - current_runtime) / wear_factor
+    sand_excess = max(0.0, sand_input_val - 0.5)
+    calc_wear_factor = 1.0 + (sand_excess * 2.5 * (current_kin * 1.5) * current_mud_aggressiveness)
+    predicted_hours_to_failure = max(0.0, 150.0 - current_runtime) / calc_wear_factor
     mae_hours, accuracy_pct = 24.0, 75.0
 
 # 4. Вывод KPI-метрик
