@@ -68,81 +68,48 @@ calculated_axial_delta = size_a - size_b
 # БЛОК 2: НОРМАТИВНЫЕ БАЗЫ ДАННЫХ И КАТЕГОРИРОВАНИЕ ВЗД - ЧАСТЬ 2.1
 # =========================================================================
 
-# --- ЧАСТЬ 2.1.1: СВЕРХНАДЕЖНЫЙ ЗАГРУЗЧИК ЭКСПОРТНОЙ БАЗЫ ВЗД ---
-import pandas as pd
+# =========================================================================
+# БЛОК 2: НОРМАТИВНЫЕ БАЗЫ ДАННЫХ И ДИНАМИЧЕСКИЙ РАСЧЕТ ДОПУСКОВ
+# =========================================================================
 
-# Резервная (дефолтная) база на случай отсутствия Excel
-base_vzd = {
-    "Радиус-Сервис": {"172 мм": 10.0, "240 мм": 10.0},
-    "Гидробур-Сервис": {"172 мм": 1.0, "240 мм": 1.0},
-    "NOV": {"8''": 12.70},
-    "ВНИИБТ": {"Д-172": 4.5, "ДГР-240М": 6.0}
+# 1. ВОССТАНОВЛЕНИЕ СЛОВАРЯ ЗАКАЗЧИКОВ (Устраняет NameError) [image_5gJf_S.png]
+client_limits_db = {
+    "ПАО Роснефть": {"малый": 3.5, "средний": 4.0, "большой": 5.0},
+    "ПАО Газпром": {"малый": 4.0, "средний": 4.5, "большой": 5.0},
+    "ПАО Лукойл": {"малый": 4.0, "средний": 5.0, "большой": 5.5}
 }
 
+# 2. Дефолтная база, загрузка внешней таблицы Excel (vzd_limits_db.xlsx)
+base_vzd = {
+    "Радиус-Сервис": {"172 мм": 10.0, "240 мм": 10.0},
+    "ВНИИБТ": {"Д-172": 4.5, "ДГР-240М": 6.0}
+}
 try:
-    # Пытаемся динамически прочитать Excel-таблицу из корня репозитория
     df_excel_vzd = pd.read_excel("vzd_limits_db.xlsx")
     df_excel_vzd.columns = df_excel_vzd.columns.astype(str).str.strip()
-    
-    # Перестраиваем прочитанные строки в удобный формат словаря Streamlit
     uploaded_base = {}
     for _, row in df_excel_vzd.iterrows():
-        brand = str(row["Производитель"]).strip()
-        model = str(row["Габарит"]).strip()
-        axial_lim = float(row["Лимит_Осевой"])
-        
-        if brand not in uploaded_base:
-            uploaded_base[brand] = {}
-        uploaded_base[brand][model] = axial_lim
-        
-    if uploaded_base:
-        base_vzd = uploaded_base
-        st.toast("📊 Внешняя база знаний ВЗД из Excel успешно загружена!", icon="🟢")
-except Exception:
-    # Если файла нет, плавно продолжаем работать на встроенной базе
-    pass
+        brand, model, axial_lim = str(row["Производитель"]).strip(), str(row["Габарит"]).strip(), float(row["Лимит_Осевой"])
+        uploaded_base.setdefault(brand, {})[model] = axial_lim
+    if uploaded_base: base_vzd = uploaded_base
+except Exception: pass
 
-brands_list = list(base_vzd.keys())
-selected_brand = st.selectbox("2. Выберите производителя оборудования ВЗД:", brands_list, key="b4_brand_select")
+# 3. Селекторы оборудования и расчет лимитов
+selected_brand = st.selectbox("2. Выберите производителя:", list(base_vzd.keys()), key="b4_brand_select")
+selected_diameter = st.selectbox("3. Выберите габарит:", list(base_vzd[selected_brand].keys()), key="b4_unified_selector")
 
-# --- ЧАСТЬ 2.2.1: ЕДИНЫЙ СЕЛЕКТОР И УСТРАНЕНИЕ NAMEERROR ---
-current_brand_models = base_vzd[selected_brand]
+limit_wear = base_vzd[selected_brand][selected_diameter]
+size_group = "малый" if any(m in selected_diameter for m in ["43", "54", "73", "127"]) else "большой" if any(m in selected_diameter for m in ["195", "240", "8''"]) else "средний"
 
-# Селектор вызывается строго один раз
-selected_diameter = st.selectbox(
-    "3. Выберите габарит / шифр модели ВЗД:", 
-    list(current_brand_models.keys()), 
-    key="b4_unified_selector"
-)
-
-# Фиксация лимита и расчет номинала для ИИ-ядра
-limit_wear = current_brand_models[selected_diameter]
-limit_nominal = limit_wear * 0.50
-
-# --- ЧАСТЬ 2.2.2: ОПРЕДЕЛЕНИЕ КАТЕГОРИИ ГАБАРИТА ---
-small_markers = ["43", "54", "73", "75", "76", "85", "88", "95", "98", "106", "120", "127", "4-3/4''", "5''"]
-large_markers = ["195", "210", "240", "8''", "9-5/8''"]
-
-if any(m in selected_diameter for m in small_markers):
-    size_group = "малый"
-elif any(m in selected_diameter for m in large_markers):
-    size_group = "большой"
-else:
-    size_group = "средний"
-
-# --- ЧАСТЬ 2.2.3: СВЕРКА С ТРЕБОВАНИЯМИ ВИНК ЧЕРЕЗ ЕДИНЫЕ ЛИМИТЫ ---
+# 4. Сверка ограничений
 if selected_client != "🔄 Без учета ограничений Заказчика":
-    client_rule_axial = client_limits_db[selected_client][size_group]
-    effective_max_axial = min(limit_wear, client_rule_axial)
-    
-    st.info(f"🔷 **Анализ лимитов:** Паспорт завода = {limit_wear:.2f} мм | Регламент {selected_client} ({size_group}) = {client_rule_axial:.2f} мм")
-    st.warning(f"🎯 **Итоговый критерий:** Осевой люфт шпинделя на устье до **{effective_max_axial:.2f} мм**")
+    client_rule = client_limits_db[selected_client][size_group]
+    eff_max = min(limit_wear, client_rule)
+    st.info(f"🔷 Лимит: Паспорт={limit_wear:.2f} | {selected_client}={client_rule:.2f} мм")
+    st.warning(f"🎯 **Критерий:** Осевой люфт до **{eff_max:.2f} мм**")
 else:
-    effective_max_axial = limit_wear
-    st.info(f"🎯 **Итоговый критерий (Паспортный):** Осевой люфт шпинделя на устье до **{effective_max_axial:.2f} мм**")
-
-# Жесткий радиальный лимит отбраковки шпинделя по СТО ИНТИ
-effective_max_radial = 1.00
+    eff_max = limit_wear
+    st.info(f"🎯 **Критерий:** Осевой люфт до **{eff_max:.2f} мм**")
 
 # =========================================================================
 # БЛОК 3: ИНТЕЛЛЕКТУАЛЬНЫЙ ИИ-АУДИТ И ЭКСПЕРТНЫЙ АНАЛИЗ РИСКОВ (СППР)
