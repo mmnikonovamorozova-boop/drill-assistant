@@ -751,47 +751,48 @@ if not model_ready:
     mae_hours = 24.0
     accuracy_pct = 75.0
 # =========================================================================
-# БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА - ЧАСТЬ 4 (ПОИСК И ВЫВОД АНАЛОГОВ)
+# БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА - ИСПРАВЛЕННЫЙ ПОИСК АНАЛОГОВ
 # =========================================================================
 
 # 1. Вывод KPI-метрик
 st.markdown("#### Результаты предиктивного анализа силовой секции:")
-col_res_vzd1, col_res_vzd2, col_res_vzd3 = st.columns(3)
-with col_res_vzd1: st.metric("Остаток времени", f"{predicted_hours_to_failure:.1f} ч")
-with col_res_vzd2: st.metric("Точность ядра", f"{accuracy_pct:.1f} %")
-with col_res_vzd3: st.metric("Погрешность", f"± {mae_hours:.1f} ч")
+col1, col2, col3 = st.columns(3)
+with col1: st.metric("Остаток времени бурения", f"{predicted_hours_to_failure:.1f} ч")
+with col2: st.metric("Точность ядра (учет ТК)", f"{accuracy_pct:.1f} %")
+with col3: st.metric("Погрешность расчета", f"± {mae_hours:.1f} ч")
 
-# 2. Поиск ТОП-3 схожих инцидентов (евклидово расстояние)
+# 2. Поиск ТОП-3 схожих инцидентов с защитой данных
 if df_failures is not None and not df_geo.empty:
     st.markdown("---")
-    st.markdown(f"#### 🔍 Топ-3 схожих исторических отказа ({region_choice}):")
+    st.markdown(f"#### 🔍 Топ-3 схожих исторических отказа в регионе ({region_choice}):")
     
     df_similarity = df_geo.copy()
-    # ИСПРАВЛЕННЫЙ РАСЧЕТ (замена current_sand_val -> sand_input_val)
+    
+    # --- ЗАЩИТА: Принудительная конвертация данных в числа ---
+    for col in ["Песок (%)", "Забойная Темп. (°C)", "Кинематика_число"]:
+        df_similarity[col] = pd.to_numeric(df_similarity[col], errors="coerce").fillna(0)
+    
+    # Расчет дистанции (безопасный)
     df_similarity["Дистанция_сходства"] = np.sqrt(
         (10.0 * (df_similarity["Песок (%)"] - sand_input_val)) ** 2 +
         (0.1 * (df_similarity["Забойная Темп. (°C)"] - current_temp_est)) ** 2 +
         (5.0 * (df_similarity["Кинематика_число"] - current_kin)) ** 2
     )
     
-    top_3_failures = df_similarity.sort_values(by="Дистанция_сходства").head(3)
-    
-    # Отрисовка карточек
+    # Вывод карточек (топ-3)
+    top_3 = df_similarity.sort_values(by="Дистанция_сходства").head(3)
     card_cols = st.columns(3)
-    for idx, (_, row) in enumerate(top_3_failures.iterrows()):
+    for idx, (_, row) in enumerate(top_3.iterrows()):
         with card_cols[idx]:
             with st.container(border=True):
-                full_name = str(row.iloc[0])
-                engine = full_name.split("(")[0].strip()
-                st.markdown(f"🔹 **{row['Производитель_чистый']}** ({engine})")
+                st.markdown(f"🔹 **{row.get('Производитель_чистый', 'ВЗД')}**")
                 st.markdown(f"⏱ **Наработка:** {row['Наработка до отказа (Часы)']} ч.")
-                st.markdown(f"🧪 **Песок:** {row['Песок (%)']}%, Т: {row['Забойная Темп. (°C)']}°C")
-                st.caption(f"**Причина:** {str(row['Код отказа (Целевая метка)'])[:100]}...")
-
-st.markdown("---")
+                st.caption(f"Песок: {row['Песок (%)']}% | T: {row['Забойная Темп. (°C)']}°C")
+                st.caption(f"Причина: {str(row.get('Код отказа (Целевая метка)', 'Износ'))[:50]}...")
 
 # Дисклеймер
-st.warning("⚠️ **ВНИМАНИЕ:** Расчеты справочные, решение принимает инженер ННБ.")
+st.warning("⚠️ **ВАЖНОЕ УВЕДОМЛЕНИЕ:** Расчеты носят рекомендательный характер.")
+
 
 # =========================================================================
 # БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ (ПОЛНАЯ ВЕРСИЯ С МЕТАДАННЫМИ)
