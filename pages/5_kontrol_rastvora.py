@@ -450,20 +450,20 @@ st.warning(
 )
 
 # =========================================================================
-# БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ (БЕЗОПАСНЫЙ РЕЖИМ)
+# БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ (ИСПРАВЛЕННЫЙ HTML)
 # =========================================================================
 st.markdown("---")
 st.subheader("📥 Блок 5: Официальный бланк замера для рапорта")
 
 import time
 
-# 1. Безопасный сбор локальных переменных для защиты от NameError
+# 1. Сбор локальных переменных
 safe_time = time.strftime("%d.%m.%Y %H:%M")
 safe_well = str(well_name) if 'well_name' in locals() else "101-Г"
 safe_region = str(region_choice) if 'region_choice' in locals() else "Волго-Урал"
 safe_mud = str(mud_choice) if 'mud_choice' in locals() else "Полимерный"
-safe_sand = f"{sand_input_val:.2f}%" if 'sand_input_val' in locals() else "0.80%"
-safe_vzd = f"{vendor_choice} ({kinematics_type})" if ('vendor_choice' in locals() and 'kinematics_type' in locals()) else "ВЗД"
+safe_sand = "{:.2f}%".format(sand_input_val) if 'sand_input_val' in locals() else "0.80%"
+safe_vzd = "{} ({})".format(vendor_choice, kinematics_type) if ('vendor_choice' in locals() and 'kinematics_type' in locals()) else "ВЗД"
 safe_inti_status = str(inti_status) if 'inti_status' in locals() else "✔ ПАРАМЕТРЫ БР В НОРМЕ"
 safe_color = str(act_status_color) if 'act_status_color' in locals() else "#10B981"
 
@@ -472,27 +472,35 @@ safe_pred_hours = float(predicted_hours_to_failure) if 'predicted_hours_to_failu
 safe_acc = float(accuracy_pct) if 'accuracy_pct' in locals() else 95.0
 safe_mae = float(mae_hours) if 'mae_hours' in locals() else 5.0
 
-# 2. Печать бланка (Используем только проверенные safe-переменные)
-html_report = f"""
+# 2. Шаблон бланка через .format() для исключения конфликтов синтаксиса
+html_template = """
 <div style='border:3px solid #1E3A8A; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>
     <h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>
     <h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ И ПРЕДИКТИВНОГО АНАЛИЗА</h3>
     <hr style='border:1px solid #1E3A8A; margin-bottom:20px;'>
     
-    <p><b>Дата/Время:</b> {safe_time} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Регион работ:</b> {safe_region}</p>
-    <p><b>Объект / Скважина:</b> {safe_well}</p>
-    <p><b>Тип раствора:</b> {safe_mud} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Содержание песка:</b> {safe_sand}</p>
-    <p><b>Оборудование КНБК:</b> {safe_vzd}</p>
+    <p><b>Дата/Время:</b> {0} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Регион работ:</b> {1}</p>
+    <p><b>Объект / Скважина:</b> {2}</p>
+    <p><b>Тип раствора:</b> {3} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Содержание песка:</b> {4}</p>
+    <p><b>Оборудование КНБК:</b> {5}</p>
     
     <h4 style='color:#1E3A8A; margin-top:20px; border-bottom:1px solid #D1D5DB; padding-bottom:5px;'>РЕЗУЛЬТАТЫ ПРЕДИКТИВНОГО МОДЕЛИРОВАНИЯ ВЗД:</h4>
-    <p style='font-size:15px;'>Прогнозное время работы статора до отказа: <b>{safe_pred_hours:.1f} ч.</b></p>
-    <p style='font-size:15px;'>Точность адаптивного ядра: <b>{safe_acc:.1f}%</b> (Погрешность: <b>±{safe_mae:.1f} ч.</b>)</p>
+    <p style='font-size:15px;'>Прогнозное время работы статора до отказа: <b>{6:.1f} ч.</b></p>
+    <p style='font-size:15px;'>Точность адаптивного ядра: <b>{7:.1f}%</b> (Погрешность: <b>±{8:.1f} ч.</b>)</p>
     
-    <p style='font-size:16px; color:{safe_color}; margin-top:15px;'><b>ТЕХНОЛОГИЧЕСКИЙ СТАТУС: {safe_inti_status}</b></p>
+    <p style='font-size:16px; color:{9}; margin-top:15px;'><b>ТЕХНОЛОГИЧЕСКИЙ СТАТУС: {10}</b></p>
     <p style='font-size:12px; color:#6B7280; text-align:center; margin-top:35px; border-top:1px dashed #D1D5DB; padding-top:10px;'>Сгенерировано автоматизированным модулем контроля БР • ООО «Траектория-Сервис»</p>
 </div>
 """
-st.markdown(html_report, unsafe_allow_html=True)
+
+# Рендеринг HTML без использования f-строки
+st.markdown(
+    html_template.format(
+        safe_time, safe_region, safe_well, safe_mud, safe_sand, 
+        safe_vzd, safe_pred_hours, safe_acc, safe_mae, safe_color, safe_inti_status
+    ), 
+    unsafe_allow_html=True
+)
 
 # 3. Кнопка скачивания официального рапорта
 report_text_content = (
