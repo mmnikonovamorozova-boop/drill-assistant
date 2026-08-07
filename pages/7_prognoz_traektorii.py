@@ -392,9 +392,9 @@ with st.expander("🛠 Модуль онлайн-валидации и стре�
     # --- ФУНКЦИИ-КОЛБЭКИ ДЛЯ СИНХРОНИЗАЦИЯ С СЕССИЕЙ ---
     def set_trajectory_test(slide, rotary, dls_proj):
         # Запись пресетов в сессию для мгновенной перерисовки интерфейса
-        st.session_state["planned_slide"] = slide
-        st.session_state["planned_rotary"] = rotary
-        st.session_state["target_intensity"] = dls_proj
+        st.session_state["planned_slide_input"] = slide
+        st.session_state["planned_rotary_input"] = rotary
+        st.session_state["target_intensity_input"] = dls_proj
 
     # Удобная сетка кнопок стресс-тестов 2х2
     c1, c2 = st.columns(2)
@@ -419,12 +419,12 @@ with st.expander("🛠 Модуль онлайн-валидации и стре�
         
     # 2. Аудит пространственной интенсивности (DLS) с учетом износа шпинделя
     if target_intensity > max_allowed_dls:
-        traj_logs.append(f"🚨 ПРЕВЫШЕНИЕ ТЗ: Проектная интенсивность ({target_intensity:.2f}°/10м) превышает лимит по ТЗ ({max_allowed_dls:.2f}°/10м)!")
+        traj_logs.append(f"🚨 ПРЕВЫШЕНИЕ ДОГОВОРА: Проектная интенсивность ({target_intensity:.2f}°/10м) превышает лимит по ТК ({max_allowed_dls:.2f}°/10м) для {selected_dor}!")
         has_traj_err = True
     elif target_intensity == 0:
         traj_logs.append("⚠️ Предупреждение: Целевая интенсивность равна 0.00. Профиль скважины условно-вертикальный.")
     else:
-        traj_logs.append(f"✅ ГЕОМЕТРИЯ: Целевая интенсивность профиля ({target_intensity:.2f}°/10м) находится в безопасных пределах ТЗ.")
+        traj_logs.append(f"✅ ГЕОМЕТРИЯ: Целевая интенсивность профиля ({target_intensity:.2f}°/10м) находится в безопасных пределах договора.")
 
     # 3. Валидация влияния износа шпинделя ВЗД из сквозной шины данных
     if radial_wear_vzd > 1.0:
