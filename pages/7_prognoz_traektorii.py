@@ -174,40 +174,48 @@ except Exception as e:
 # =========================================================================
 # БЛОК 5.1 — МОДЕЛИРОВАНИЕ СИЛ КНБК, АНИЗОТРОПИИ ПЛАСТА И УВОДА ДОЛОТА
 # Функционал: Расчет боковой отклоняющей силы на долоте с учетом реологии
-# бурового раствора, конструктивного типа КНБК и радиального износа ВЗД.
+# бурового раствора, конструктивного типа КНБК, радиального износа ВЗД
+# и нормативного коэффициента анизотропии проходимой геологической свиты.
 # =========================================================================
 st.markdown("---")
 st.markdown("### 📈 Блок 5: Пространственная интенсивность и увод")
 
-# Ввод эксплуатационных параметров
+# Ввод эксплуатационных параметров интервала бурения
 col_b2_1, col_b2_2 = st.columns(2)
 with col_b2_1:
-    planned_slide = st.number_input("Запланировано СЛАЙДА, м:", value=9.0)
+    planned_slide = st.number_input("Запланировано СЛАЙДА, м:", value=9.0, key="planned_slide_input")
     k_slide_current = st.number_input("Коэффициент слайда (K_slide):", value=float(active_calibration.get("slide_factor", 1.0)))
 with col_b2_2:
-    planned_rotary = st.number_input("Запланировано РОТОРА, м:", value=21.0)
-    drift_current = st.number_input("Естественный увод в роторе, град/10м:", value=float(active_calibration.get("rotary_drift_val", 0.0)))
+    planned_rotary = st.number_input("Запланировано РОТОРА, м:", value=21.0, key="planned_rotary_input")
+    # Подставляем базовый увод из геологического селектора, если в базе нет свежей калибровки
+    drift_current = st.number_input("Естественный увод в роторе, град/10м:", value=default_rotary_drift)
 
-target_intensity = st.number_input("Проектная интенсивность КНБК, град/10м:", value=1.2)
+target_intensity = st.number_input("Проектная интенсивность КНБК, град/10м:", value=1.2, key="target_intensity_input")
 k_int_current = st.number_input("Коэффициент коррекции КНБК:", value=float(active_calibration.get("intensity_correction", 1.0)))
-base_ani = st.number_input("Базовая анизотропия породы (H_ani):", value=0.05)
 
-# Расчет отклоняющей силы P_b (упрощенная модель API RP 13D)
+# Расчет гидродинамических и конструктивных сил по модели API RP 13D
 t_theta_rad = np.radians(target_angle)
 L_m = 3.8 if "Стабилизирующая" in knbc_type else (18.0 if "Маятниковая" in knbc_type else 9.0)
+
+# Интеграция ДНС раствора из 5-го модуля как гидродинамического демпфера силы
 rheology_modifier = buoyancy_factor * (1.0 - (yield_stress / 1000.0))
 
-# Векторный расчет сил КНБК
+# Векторное вычисление конструктивных сил КНБК (Маятник / Стабилизатор / Направленная)
 if "Маятниковая" in knbc_type:
-    P_b = -150.0 * np.sin(t_theta_rad) * L_m * rheology_modifier
+    P_b_structural = -150.0 * np.sin(t_theta_rad) * L_m * rheology_modifier
 elif "Стабилизирующая" in knbc_type:
-    P_b = 80.0 * (target_wob / L_m) * np.cos(t_theta_rad) * buoyancy_factor
+    P_b_structural = 80.0 * (target_wob / L_m) * np.cos(t_theta_rad) * buoyancy_factor
 else:
-    P_b = ((50.0 * (target_wob / L_m) * np.cos(t_theta_rad)) - (70.0 * np.sin(t_theta_rad) * L_m)) * rheology_modifier
+    P_b_structural = ((50.0 * (target_wob / L_m) * np.cos(t_theta_rad)) - (70.0 * np.sin(t_theta_rad) * L_m)) * rheology_modifier
 
-# Модификатор износа ВЗД: снижение эффективной силы при радиальном люфте
+# ФИЗИКА ГЕОЛОГИИ: Расчет реактивной боковой силы увода за счет анизотропии свиты
+# Чем жестче порода (выше base_ani), тем сильнее вектор отклонения КНБК от проектной оси
+P_b_geology = P_b_structural * (1.0 + base_ani)
+
+# Модификатор износа ВЗД: радиальный люфт шпинделя гасит полезную боковую силу на долоте
 wear_loss_factor = max(0.2, 1.0 - (radial_wear_vzd / 3.0)) 
-P_b_effective = P_b * wear_loss_factor
+P_b_effective = P_b_geology * wear_loss_factor
+
 # =========================================================================
 # БЛОК 5.2 — РАСЧЕТ ПРОГНОЗНОЙ ГЕОМЕТРИИ ТРАЕКТОРИИ НА ЗАБОЕ
 # Функционал: Интеграция режимов бурения (Слайд/Ротор), расчет изменения
