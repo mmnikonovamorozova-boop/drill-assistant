@@ -272,45 +272,62 @@ html_vzd = f"""
 st.markdown(html_vzd, unsafe_allow_html=True)
 
 # =========================================================================
-# БЛОК 6: МОДУЛЬ ОНЛАЙН-ВАЛИДАЦИИ И СТРЕСС-ТЕСТИРОВАНИЯ ГЕОМЕТРИЧЕСКОГО ЯДРА
-# =========================================================================
-# =========================================================================
-# БЛОК 6: МОДУЛЬ ОНЛАЙН-ВАЛИДАЦИИ (ГЕОМЕТРИЯ + ННБ)
+# БЛОК 6: СТАБИЛЬНЫЙ МОДУЛЬ ОНЛАЙН-ВАЛИДАЦИИ (ГЕОМЕТРИЯ + ННБ)
 # =========================================================================
 st.markdown("---")
-with st.expander("🛠 Модуль онлайн-валидации и стресс-тестирования", expanded=False):
+with st.expander("🛠 Модуль онлайн-валидации и стресс-тестирования", expanded=True):
     st.markdown("##### Симуляция дефектов и режимов бурения")
     
     # --- ФУНКЦИИ-КОЛБЭКИ (СИНХРОНИЗАЦИЯ С СЕССИЕЙ) ---
     def set_test(a, b, rad):
-        st.session_state["val_size_a"], st.session_state["val_size_b"], st.session_state["val_radial_ich"] = a, b, rad
+        st.session_state["val_size_a"] = a
+        st.session_state["val_size_b"] = b
+        st.session_state["val_radial_ich"] = rad
 
-    # 4 кнопки в сетку 2х2
+    # Сетка кнопок 2х2
     c1, c2 = st.columns(2)
     c1.button("🔴 Осевой люфт", on_click=set_test, args=(15.0, 5.0, 0.2), use_container_width=True)
     c2.button("🔥 Радиальный износ", on_click=set_test, args=(10.0, 8.5, 1.8), use_container_width=True)
     c1.button("⚠ Ошибка замера", on_click=set_test, args=(5.0, 10.0, 0.15), use_container_width=True)
     c2.button("🎯 Стресс-режим ННБ", on_click=set_test, args=(15.0, 5.0, 0.8), use_container_width=True)
 
-    st.markdown("##### Сводный лог валидации:")
+    st.markdown("##### Сводный log валидации:")
 
-    # Логика проверок (Геометрия + NNB)
+    # Безусловный расчет логов на основе текущего состояния сессии
+    test_axial = st.session_state["val_size_a"] - st.session_state["val_size_b"]
+    test_radial = st.session_state["val_radial_ich"]
+    
     logs = []
     has_err = False
-    if calculated_axial_delta < 0: logs.append("❌ Осевой зазор < 0"); has_err = True
-    else: logs.append(f"✅ Осевой зазор ({calculated_axial_delta:.2f} мм) ОК.")
     
-    if radial_ich > 5.0: logs.append("❌ Радиальный зазор > 5 мм"); has_err = True
-    else: logs.append(f"✅ Радиальный зазор ({radial_ich:.2f} мм) ОК.")
-
-        # Валидация по переменной DLS_max_passport
-    if DLS_max_passport > 8.0: 
-        logs.append("🚨 Критический DLS! Риск слома вала при роторном бурении.")
+    if test_axial < 0:
+        logs.append("❌ Осевой зазор < 0. Обнаружена ошибка измерений!")
         has_err = True
-    elif DLS_max_passport == 0.0:
-        logs.append("⚠️ Проектный DLS равен 0.00. Расчет технологических рисков по изгибу неактивен.")
-    else: 
-        logs.append(f"✅ DLS ({DLS_max_passport:.2f}°/10м) в безопасных пределах.")
+    else:
+        logs.append(f"✅ Осевой зазор ({test_axial:.2f} мм) в физически возможном диапазоне.")
+    
+    if test_radial > 5.0:
+        logs.append("❌ Радиальный зазор > 5 мм. Метрологическая аномалия!")
+        has_err = True
+    else:
+        logs.append(f"✅ Радиальный зазор ({test_radial:.2f} мм) ОК.")
+
+    if DLS_max_passport == 0.0:
+        logs.append("⚠️ Проектный DLS равен 0.00. Мониторинг изгиба КНБК приостановлен.")
+    elif DLS_max_passport > 8.0:
+        logs.append("🚨 Критический проектный DLS! Высокий риск слома вала.")
+        has_err = True
+    else:
+        logs.append(f"✅ Проектный DLS ({DLS_max_passport:.2f}°/10м) в безопасных пределах.")
+
+    # Вывод логов на экран
+    for log in logs:
+        st.write(log)
+        
+    if not has_err:
+        st.success("✅ Комплексный аудит пройден успешно.")
+    else:
+        st.error("🚨 В системе зафиксированы критические аномалии!")
 
 # --- 11. ФУТЕРЫ СТРАНИЦЫ И ИНСТРУКЦИЯ ПО ПЕЧАТИ ---
 st.markdown(" ")
