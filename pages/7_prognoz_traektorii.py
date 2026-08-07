@@ -147,7 +147,7 @@ with tab_geology:
     else: default_ani, default_drift = 0.18, 0.15
 
     base_ani = st.number_input("Базовая анизотропия породы (H_ani):", value=default_ani, step=0.01)
-    default_rotary_drift = float(active_calibration.get("rotary_drift_val", default_drift))
+    default_rotary_drift = float(default_drift)
 
 buoyancy_factor = shared_buoyancy # Переменная для сохранения совместимости с нижними блоками
 
