@@ -1,1 +1,10 @@
-[]
+[
+    {
+        "well": "101-\u0413",
+        "error_val": 0.007,
+        "slide_factor": 1.001,
+        "intensity_correction": 1.0,
+        "rotary_drift_val": 0.03,
+        "info": "\u041e\u0431\u0443\u0447\u0435\u043d\u043e \u043d\u0430 \u0441\u043a\u0432\u0430\u0436\u0438\u043d\u0435 101-\u0413. \u041e\u0448\u0438\u0431\u043a\u0430: 0.01\u00b0"
+    }
+]
