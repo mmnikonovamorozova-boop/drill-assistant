@@ -450,14 +450,14 @@ st.warning(
 )
 
 # =========================================================================
-# БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ (ИСПРАВЛЕННЫЙ HTML)
+# БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ (ФИНАЛЬНЫЙ СТАБИЛЬНЫЙ)
 # =========================================================================
 st.markdown("---")
-st.subheader("📥 Блок 5: Официальный бланк замера для рапорта")
+st.subheader("📥 Блок 5: Официальный blank замера для рапорта")
 
 import time
 
-# 1. Сбор локальных переменных
+# 1. Сбор и принудительное текстовое форматирование всех переменных заранее
 safe_time = time.strftime("%d.%m.%Y %H:%M")
 safe_well = str(well_name) if 'well_name' in locals() else "101-Г"
 safe_region = str(region_choice) if 'region_choice' in locals() else "Волго-Урал"
@@ -467,33 +467,38 @@ safe_vzd = "{} ({})".format(vendor_choice, kinematics_type) if ('vendor_choice' 
 safe_inti_status = str(inti_status) if 'inti_status' in locals() else "✔ ПАРАМЕТРЫ БР В НОРМЕ"
 safe_color = str(act_status_color) if 'act_status_color' in locals() else "#10B981"
 
-# Прогнозные метрики ядра
-safe_pred_hours = float(predicted_hours_to_failure) if 'predicted_hours_to_failure' in locals() else 100.0
-safe_acc = float(accuracy_pct) if 'accuracy_pct' in locals() else 95.0
-safe_mae = float(mae_hours) if 'mae_hours' in locals() else 5.0
+# Предварительно переводим числа в строки, чтобы убрать двоеточия из {} в HTML
+pred_hours_num = float(predicted_hours_to_failure) if 'predicted_hours_to_failure' in locals() else 100.0
+safe_pred_hours = "{:.1f} ч.".format(pred_hours_num)
 
-# 2. Шаблон бланка через .format() для исключения конфликтов синтаксиса
+acc_pct_num = float(accuracy_pct) if 'accuracy_pct' in locals() else 95.0
+safe_acc = "{:.1f}%".format(acc_pct_num)
+
+mae_h_num = float(mae_hours) if 'mae_hours' in locals() else 5.0
+safe_mae = "±{:.1f} ч.".format(mae_h_num)
+
+# 2. Изолированный HTML-шаблон (внутри нет никаких сложных масок и двоеточий)
 html_template = """
-<div style='border:3px solid #1E3A8A; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>
-    <h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>
-    <h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ И ПРЕДИКТИВНОГО АНАЛИЗА</h3>
-    <hr style='border:1px solid #1E3A8A; margin-bottom:20px;'>
+<div style="border:3px solid #1E3A8A; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;">
+    <h2 style="text-align:center; color:#1E3A8A; margin-top:0;">ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>
+    <h3 style="text-align:center; color:#4B5563; margin-top:-10px;">АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ И ПРЕДИКТИВНОГО АНАЛИЗА</h3>
+    <hr style="border:1px solid #1E3A8A; margin-bottom:20px;">
     
     <p><b>Дата/Время:</b> {0} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Регион работ:</b> {1}</p>
     <p><b>Объект / Скважина:</b> {2}</p>
     <p><b>Тип раствора:</b> {3} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Содержание песка:</b> {4}</p>
     <p><b>Оборудование КНБК:</b> {5}</p>
     
-    <h4 style='color:#1E3A8A; margin-top:20px; border-bottom:1px solid #D1D5DB; padding-bottom:5px;'>РЕЗУЛЬТАТЫ ПРЕДИКТИВНОГО МОДЕЛИРОВАНИЯ ВЗД:</h4>
-    <p style='font-size:15px;'>Прогнозное время работы статора до отказа: <b>{6:.1f} ч.</b></p>
-    <p style='font-size:15px;'>Точность адаптивного ядра: <b>{7:.1f}%</b> (Погрешность: <b>±{8:.1f} ч.</b>)</p>
+    <h4 style="color:#1E3A8A; margin-top:20px; border-bottom:1px solid #D1D5DB; padding-bottom:5px;">РЕЗУЛЬТАТЫ ПРЕДИКТИВНОГО МОДЕЛИРОВАНИЯ ВЗД:</h4>
+    <p style="font-size:15px;">Прогнозное время работы статора до отказа: <b>{6}</b></p>
+    <p style="font-size:15px;">Точность адаптивного ядра: <b>{7}</b> (Погрешность: <b>{8}</b>)</p>
     
-    <p style='font-size:16px; color:{9}; margin-top:15px;'><b>ТЕХНОЛОГИЧЕСКИЙ СТАТУС: {10}</b></p>
-    <p style='font-size:12px; color:#6B7280; text-align:center; margin-top:35px; border-top:1px dashed #D1D5DB; padding-top:10px;'>Сгенерировано автоматизированным модулем контроля БР • ООО «Траектория-Сервис»</p>
+    <p style="font-size:16px; color:{9}; margin-top:15px;"><b>ТЕХНОЛОГИЧЕСКИЙ СТАТУС: {10}</b></p>
+    <p style="font-size:12px; color:#6B7280; text-align:center; margin-top:35px; border-top:1px dashed #D1D5DB; padding-top:10px;">Сгенерировано автоматизированным модулем контроля БР • ООО «Траектория-Сервис»</p>
 </div>
 """
 
-# Рендеринг HTML без использования f-строки
+# Прямой и безопасный рендеринг в Streamlit
 st.markdown(
     html_template.format(
         safe_time, safe_region, safe_well, safe_mud, safe_sand, 
@@ -507,7 +512,7 @@ report_text_content = (
     f"ООО «ТРАЕКТОРИЯ-СЕРВИС»\nАКТ КОНТРОЛЯ ПАРАМЕТРОВ БР\n"
     f"----------------------------------------\n"
     f"Скважина: {safe_well}\nРаствор: {safe_mud}\nПесок: {safe_sand}\n"
-    f"Прогноз ресурса ВЗД: {safe_pred_hours:.1f} ч.\n"
+    f"Прогноз ресурса ВЗД: {safe_pred_hours}\n"
     f"----------------------------------------\n"
     f"СТАТУС: {safe_inti_status}"
 )
