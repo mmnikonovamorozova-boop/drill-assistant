@@ -992,69 +992,39 @@ with st.container(border=True):
     )
 
 # =========================================================================
-# БЛОК 5: СВОДНЫЙ РАПОРТ - ЧАСТЬ 5.3 (ГЕНЕРАЦИЯ И СКАЧИВАНИЕ ФАЙЛОВ ЭКСПОРТА)
+# БЛОК 5: СВОДНЫЙ РАПОРТ - ЧАСТЬ 5.3 (Сборка и выгрузка)
 # =========================================================================
 
-# 1. Формирование содержания официального печатного Акта в формате TXT
-# Строго удалены все иконки, добавлен автоматический КАПСЛОК для нарушений
+# --- БЕЗОПАСНАЯ ИНИЦИАЛИЗАЦИЯ (Исключаем NameError) ---
+normalized_field = str(field_name).strip() if 'field_name' in locals() else "Приобское"
+normalized_well = str(well_name).strip() if 'well_name' in locals() else "Скв. № 101"
+normalized_engineer = str(engineer_name).strip() if 'engineer_name' in locals() else "Иванов И.И."
+normalized_serial = str(serial_number).strip() if 'serial_number' in locals() else "№ 6677"
+normalized_vzd = f"{vendor_choice} ({kinematics_type})" if ('vendor_choice' in locals() and 'kinematics_type' in locals()) else "ВЗД"
+
+# --- ВЫВОД НА ЭКРАН (Инженер + Скважина) ---
+st.markdown(f"**Инженер:** {normalized_engineer} | **Скв./Куст:** {normalized_well} | **ВЗД:** {normalized_serial}")
+
+# --- ФОРМИРОВАНИЕ TXT (Официальный Акт) ---
 report_text_content = (
-    f"--------------------------------------------------\n"
-    f"               ООО ТРАЕКТОРИЯ-СЕРВИС              \n"
-    f"        АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ И АНАЛИЗА   \n"
-    f"--------------------------------------------------\n"
-    f"Дата и время формирования: {report_timestamp}\n"
-    f"Заказчик (Недропользователь): {normalized_company}\n"
-    f"Месторождение: {normalized_field}\n"
-    f"Скважина / Куст: {normalized_well}\n"
-    f"Инженер по ННБ: {normalized_engineer}\n"
-    f"--------------------------------------------------\n"
-    f"ТЕХНОЛОГИЧЕСКИЕ ПАРАМЕТРЫ ПРОМЫВКИ:\n"
-    f"Регион проведения работ: {normalized_region}\n"
-    f"Тип бурового раствора: {normalized_mud}\n"
-    f"Фактическое содержание песка: {sand_input_val:.2f}%\n"
-    f"Допустимый порог очистки БР: {sand_threshold:.2f}%\n"
-    f"--------------------------------------------------\n"
-    f"ПАРАМЕТРЫ И СОСТОЯНИЕ ОБОРУДОВАНИЯ КНБК:\n"
-    f"Силовая пара ВЗД: {normalized_vzd}\n"
-    f"Серийный номер по паспорту: {normalized_serial}\n"
-    f"Прогноз остаточного ресурса: {pred_hours_num:.1f} ч.\n"
-    f"Доверительная точность расчета ядра: {acc_pct_num:.1f}%\n"
-    f"Статистическая погрешность (MAE): +/- {mae_h_num:.1f} ч.\n"
-    f"--------------------------------------------------\n"
-    f"ТЕХНОЛОГИЧЕСКОЕ ЗАКЛЮЧЕНИЕ СЛУЖБЫ КОНТРОЛЯ БР:\n"
-    f"{final_report_status}\n"
-    f"--------------------------------------------------\n"
-    f"Документ имеет силу официального цифрового акта.\n"
-    f"Сгенерировано автоматически ПО 'Помощник инженера ННБ'."
+    f"--- ООО ТРАЕКТОРИЯ-СЕРВИС ---\n"
+    f"АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ\n"
+    f"Дата: {report_timestamp}\n"
+    f"Инженер: {normalized_engineer}\n"
+    f"Скважина: {normalized_well}\n"
+    f"-----------------------------\n"
+    f"Состояние: {final_report_status}\n"
 )
 
-# 2. Формирование структурированной строки в формате CSV (для экспорта в базы данных)
-# Колонки: Дата,Заказчик,Скважина,Песок,Допуск,Ресурс,Точность,Статус
-csv_header = "Timestamp,Company,Well,Sand_Pct,Limit_Pct,Predicted_Hours,Accuracy_Pct,Status\n"
-csv_row = f'"{report_timestamp}","{normalized_company}","{normalized_well}",{sand_input_val:.2f},{sand_threshold:.2f},{pred_hours_num:.1f},{acc_pct_num:.1f},"{final_report_status}"'
-report_csv_content = csv_header + csv_row
+# --- ФОРМИРОВАНИЕ CSV (Данные) ---
+report_csv_content = f"Timestamp,Engineer,Status\n{report_timestamp},{normalized_engineer},{final_report_status}"
 
-# 3. Интеграция кнопок скачивания в интерфейс Streamlit
-st.markdown("##### Выгрузка официальной документации на рабочий стол:")
+# --- КНОПКИ СКАЧИВАНИЯ ---
 col_down1, col_down2 = st.columns(2)
-
 with col_down1:
-    st.download_button(
-        label="📥 Скачать официальный Акт технологического контроля (.txt)",
-        data=report_text_content,
-        file_name=f"Akt_TK_Mud_{normalized_well.replace(' ', '_')}_{time.strftime('%Y%m%d')}.txt",
-        mime="text/plain",
-        use_container_width=True
-    )
-
+    st.download_button("📥 Скачать Акт (.txt)", report_text_content, file_name=f"Akt_{normalized_well}.txt")
 with col_down2:
-    st.download_button(
-        label="📊 Экспортировать точку замера для баз данных (.csv)",
-        data=report_csv_content,
-        file_name=f"Data_Row_Mud_{normalized_well.replace(' ', '_')}_{time.strftime('%Y%m%d')}.csv",
-        mime="text/csv",
-        use_container_width=True
-    )
+    st.download_button("📊 Скачать CSV", report_csv_content, file_name=f"Data_{normalized_well}.csv")
 
 # =========================================================================
 # БЛОК 6: НАКОПЛЕНИЕ ИСТОРИИ, ЛОГИРОВАНИЕ И МОНИТОРИНГ ТЕНДЕНЦИЙ
