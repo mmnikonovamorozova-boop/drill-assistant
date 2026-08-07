@@ -54,6 +54,31 @@ with client_col2:
         max_sand_limit = 0.5
 
 st.markdown("---")
+# --- ДОБАВЛЕНИЕ ТЕХНОЛОГИЧЕСКИХ ПАРАМЕТРОВ РАСТВОРА (УСТРАНЕНИЕ NAMEERROR) ---
+st.subheader("📋 Технологические параметры промывочной жидкости:")
+col_dens1, col_dens2, col_dens3 = st.columns(3)
+
+with col_dens1:
+    f_dens = st.number_input("Плотность раствора (г/см³):", min_value=0.8, max_value=2.5, value=1.12, step=0.01)
+with col_dens2:
+    f_pv = st.number_input("Пластическая вязкость ПВ (мПа·с):", min_value=1.0, max_value=100.0, value=25.0, step=1.0)
+with col_dens3:
+    f_yp = st.number_input("Динамическое напряжение сдвига ДНС (дПа):", min_value=0.0, max_value=100.0, value=12.0, step=1.0)
+
+st.markdown("---")
+
+# --- ПОЛНЫЙ МЕТАПАСПОРТ РАПОРТА В БОКОВОЙ ПАНЕЛИ (SIDEBAR) ---
+with st.sidebar:
+    st.markdown("### 📋 Метаданные рапорта")
+    well_name = st.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
+    engineer_name = st.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
+    field_name = st.text_input("Месторождение:", value="Приобское")
+    serial_number = st.text_input("Серийный номер ВЗД по паспорту:", value="№ 6677")
+    
+    st.markdown("---")
+    if st.button("🚪 Выйти", use_container_width=True):
+        st.session_state.clear()
+        st.rerun()
 
 # =========================================================================
 # БЛОК 2: ОЦЕНКА РИСКОВ (СВЯЗКА ПЕСКА И РАСХОДА НАСОСОВ)
