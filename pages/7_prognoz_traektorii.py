@@ -350,7 +350,7 @@ def push_calibration_to_github_api(new_data):
         # Выполняем удаленную запись в репозиторий GitHub
         put_res = requests.put(url, headers=headers, json=commit_payload, timeout=10)
         
-        if put_res.status_code in:
+        if put_res.status_code in [200, 201]:
             st.success("🎉 Математическое ядро успешно обучено! Свежие коэффициенты записаны на GitHub.")
             st.cache_data.clear() # Сброс кэша Streamlit для мгновенного обновления весов
             return True
