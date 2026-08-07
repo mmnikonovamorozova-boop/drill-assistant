@@ -45,13 +45,59 @@ active_calibration = load_calibrations_from_github_api()
 st.sidebar.markdown(f"🤖 **Статус ИИ-ядра:** {active_calibration['info']}")
 
 # =========================================================================
-# БЛОК 3 — СКВОЗНАЯ ШИНА ОБМЕНА ДАННЫМИ С ЛИТОЛОГИЧЕСКИМ СЕЛЕКТОРОМ (РД ВНИИБТ)
-# Функционал: Автоматическое назначение стартовых коэффициентов анизотропии 
-# породы и естественного увода КНБК при отсутствии ГГИ Заказчика.
+# БЛОК 3 — СКВОЗНАЯ ШИНА ДАННЫХ И ДИНАМИЧЕСКИЙ ИМПОРТ ДОГОВОРНЫХ ЛИМИТОВ (EXCEL)
+# Функционал: Считывание vink_limits_db.xlsx, фильтрация дочерних обществ (ДОРов)
+# и автоматическое назначение технологических ограничений DLS по контракту.
 # =========================================================================
 st.sidebar.markdown("### 🧬 Автоматическая шина данных КНБК")
 
-# 1. Интеграция геологического разреза с нормативными поправками
+# 1. Считывание базы данных лимитов из Excel с защитным откатом
+try:
+    df_vink_db = pd.read_excel("vink_limits_db.xlsx")
+    # Очищаем текстовые поля от случайных пробелов
+    df_vink_db["Холдинг"] = df_vink_db["Холдинг"].astype(str).str.strip()
+    df_vink_db["Заказчик (ДОР)"] = df_vink_db["Заказчик (ДОР)"].astype(str).str.strip()
+except Exception as e:
+    # Фолбэк-датафрейм на случай, если файла еще нет в репозитории (для тестов)
+    st.sidebar.warning("⚠️ Файл vink_limits_db.xlsx не найден. Загружены дефолтные ТК.")
+    fallback_data = {
+        "Холдинг": ["Роснефть", "Роснефть", "Газпром нефть", "ЛУКОЙЛ"],
+        "Заказчик (ДОР)": ["ООО РН-Юганскнефтегаз", "АО Самаранефтегаз", "ООО Газпромнефть-Хантос", "ООО ЛУКОЙЛ-Западная Сибирь"],
+        "Лимит_DLS": [2.5, 3.0, 3.2, 2.8],
+        "Лимит_ГНО": [1.0, 1.5, 1.2, 1.1]
+    }
+    df_vink_db = pd.DataFrame(fallback_data)
+
+# 2. Интеграция с главным окном холдингов и фильтрация ДОРов
+parent_vink = st.session_state.get("main_page_company", "Роснефть")
+
+# Фильтруем строки таблицы: оставляем только ДОРы выбранного холдинга
+filtered_dors = df_vink_db[df_vink_db["Холдинг"] == parent_vink]
+
+if not filtered_dors.empty:
+    list_of_dors = filtered_dors["Заказчик (ДОР)"].unique().tolist()
+    selected_dor = st.sidebar.selectbox(f"🏢 Дочернее общество ({parent_vink}):", list_of_dors)
+    
+    # Извлекаем лимиты по конкретному договору для выбранного ДОРа
+    dor_row = filtered_dors[filtered_dors["Заказчик (ДОР)"] == selected_dor].iloc[0]
+    contract_dls_limit = float(dor_row["Лимит_DLS"])
+    contract_gno_limit = float(dor_row["Лимит_ГНО"])
+else:
+    # Защита: если холдинг в Excel не найден
+    st.sidebar.error(f"Заказчик {parent_vink} отсутствует в vink_limits_db.xlsx")
+    selected_dor = "Стандартный договор"
+    contract_dls_limit = 3.0
+    contract_gno_limit = 1.2
+
+# 3. Интерактивное управление зонами ГНО на основе выбранного контракта
+gno_zone = st.sidebar.checkbox("Учитывать зоны ГНО / Опасность желобов", value=False)
+
+if gno_zone:
+    max_allowed_dls = st.sidebar.number_input("Макс. допустимый DLS по договору (ГНО), °/10м:", value=contract_gno_limit, step=0.1)
+else:
+    max_allowed_dls = st.sidebar.number_input("Макс. допустимый DLS по договору, °/10м:", value=contract_dls_limit, step=0.1)
+
+# 4. Геологический селектор (оставляем без изменений)
 st.sidebar.markdown("##### 🌋 Геологический разрез интервала (при отсутствии ГГИ)")
 lithology_type = st.sidebar.selectbox(
     "Текущая проходимая свита / литология:",
@@ -61,35 +107,18 @@ lithology_type = st.sidebar.selectbox(
         "Известняки, доломиты, ангидриты (Твердые породы)",
         "Кремнистые и плотные скальные породы (Крепкие)"
     ],
-    index=1 # По умолчанию ставим Западную Сибирь
+    index=1
 )
 
-# Справочник нормативных коэффициентов анизотропии и базового увода по РД
-if "Мягкие" in lithology_type:
-    default_ani = 0.02
-    default_drift = 0.01
-elif "Средняя" in lithology_type:
-    default_ani = 0.05
-    default_drift = 0.03
-elif "Твердые" in lithology_type:
-    default_ani = 0.12
-    default_drift = 0.08
-else:
-    default_ani = 0.18
-    default_drift = 0.15
+if "Мягкие" in lithology_type: default_ani, default_drift = 0.02, 0.01
+elif "Средняя" in lithology_type: default_ani, default_drift = 0.05, 0.03
+elif "Твердые" in lithology_type: default_ani, default_drift = 0.12, 0.08
+else: default_ani, default_drift = 0.18, 0.15
 
-# 2. Поля ввода с автоматической подстановкой геологических поправок
-base_ani = st.sidebar.number_input(
-    "Базовая анизотропия породы (H_ani):", 
-    value=default_ani, 
-    step=0.01,
-    help="Коэффициент макронеоднородности пласта. Наследуется из справочника РД ВНИИБТ."
-)
-
-# Переопределяем базовый увод в роторе по геологии, если инженер не ввел его вручную
+base_ani = st.sidebar.number_input("Базовая анизотропия породы (H_ani):", value=default_ani, step=0.01)
 default_rotary_drift = float(active_calibration.get("rotary_drift_val", default_drift))
 
-# Остальные параметры сквозной шины данных
+# Остальные параметры сквозной шины данных раствора и КНБК
 shared_buoyancy = float(st.session_state.get("shared_buoyancy_factor", 0.85))
 buoyancy_factor = st.sidebar.number_input("Коэффициент плавучести (K_pl):", value=shared_buoyancy, step=0.01)
 yield_stress = st.sidebar.number_input("ДНС бурового раствора (дПа):", value=float(st.session_state.get("shared_yield_stress", 40.0)), step=1.0)
@@ -97,7 +126,6 @@ radial_wear_vzd = st.sidebar.number_input("Радиальный люфт шпи�
 knbc_type = st.sidebar.selectbox("Конфигурация КНБК:", ["Стандартная", "Маятниковая", "Стабилизирующая"])
 target_angle = st.sidebar.number_input("Текущий зенитный угол, °:", min_value=0.0, max_value=90.0, value=45.0)
 target_wob = st.sidebar.number_input("Нагрузка на долото (WOB), т:", value=15.0)
-max_allowed_dls = st.sidebar.number_input("Макс. интенсивность по ТЗ, град/10м:", value=2.5)
 
 # =========================================================================
 # БЛОК 4 — ОБРАБОТКА ГГИ ЗАКАЗЧИКА И РАСЧЕТ ТРАЕКТОРИИ (MINIMUM CURVATURE METHOD)
