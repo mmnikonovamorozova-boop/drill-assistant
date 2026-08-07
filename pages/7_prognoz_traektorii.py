@@ -329,51 +329,46 @@ def push_calibration_to_github_api(new_data):
         "Accept": "application/vnd.github.v3+json"
     }
     
-    try:
-        # Шаг 1: Запрашиваем текущую версию файла для получения актуального SHA-хэша
+        try:
+        # 1. Проверяем наличие файла и получаем его SHA (если есть)
         res = requests.get(url, headers=headers, timeout=10)
         sha = None
         current_list = []
         
         if res.status_code == 200:
             file_info = res.json()
-            sha = file_info["sha"]
-            old_str = base64.b64decode(file_info["content"]).decode("utf-8")
-            try:
-                current_list = json.loads(old_str)
-                if not isinstance(current_list, list): 
-                    current_list = []
-            except Exception: 
-                pass
+            sha = file_info.get("sha") # Безопасное получение SHA
+            content = base64.b64decode(file_info["content"]).decode("utf-8")
+            current_list = json.loads(content)
                 
-        # Шаг 2: Добавляем новую точку калибровочного замера в массив
+        # 2. Добавляем новые данные
         current_list.append(new_data)
-        updated_json_str = json.dumps(current_list, indent=4, ensure_ascii=False)
-        encoded_content = base64.b64encode(updated_json_str.encode("utf-8")).decode("utf-8")
+        encoded_content = base64.b64encode(json.dumps(current_list, indent=4).encode("utf-8")).decode("utf-8")
         
-        # Шаг 3: Собираем коммит-пакет для выполнения PUT-запроса
+        # 3. Подготавливаем запрос (создание или обновление)
         commit_payload = {
-            "message": f"🤖 Самообучение ядра: Скважина {new_data['well']}",
+            "message": "Обновление калибровок",
             "content": encoded_content,
             "branch": "main"
         }
+        
+        # Добавляем SHA, только если файл уже существовал
         if sha:
             commit_payload["sha"] = sha
             
-        # Выполняем удаленную запись в репозиторий GitHub
         put_res = requests.put(url, headers=headers, json=commit_payload, timeout=10)
         
         if put_res.status_code in [200, 201]:
-            st.success("🎉 Математическое ядро успешно обучено! Свежие коэффициенты записаны на GitHub.")
-            st.cache_data.clear() # Сброс кэша Streamlit для мгновенного обновления весов
+            st.success("✅ Данные записаны на GitHub!")
             return True
         else:
-            st.error(f"❌ Ошибка записи на GitHub API: {put_res.status_code} - {put_res.text}")
+            st.error(f"❌ Ошибка GitHub: {put_res.status_code}")
             return False
             
     except Exception as err:
-        st.error(f"🚨 Сбой отправки данных предиктивного анализа: {err}")
+        st.error(f"🚨 Ошибка: {err}")
         return False
+
 # =========================================================================
 # БЛОК 7.2 — ИНТЕРФЕЙС ОБРАТНОЙ СВЯЗИ И АВТОМАТИЧЕСКИЙ РАСЧЕТ НЕВЯЗКИ (ИИ)
 # Функционал: Расчет ошибки прогноза, фильтрация весов по методу наименьших 
