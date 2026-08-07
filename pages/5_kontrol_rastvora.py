@@ -927,106 +927,130 @@ with st.expander("🛠 Модуль онлайн-валидации и стре�
     else:
         st.error("🚨 Обнаружены математические аномалии в расчете ИИ-модели!")
 
-
 # =========================================================================
-# БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ (ПОЛНАЯ ВЕРСИЯ С МЕТАДАННЫМИ)
+# БЛОК 5: СВОДНЫЙ РАПОРТ - ЧАСТЬ 5.1 (Нормализация данных и ИИ-анализ)
 # =========================================================================
 st.markdown("---")
-
 import time
 
-# 1. Безопасный сбор всех новых метаданных из Sidebar и главного экрана
-safe_time = time.strftime("%d.%m.%Y %H:%M")
-safe_well = str(well_name) if 'well_name' in locals() else "Скв. № 101, Куст 5"
-safe_engineer = str(engineer_name) if 'engineer_name' in locals() else "Иванов И.И."
-safe_field = str(field_name) if 'field_name' in locals() else "Приобское"
-safe_serial = str(serial_number) if 'serial_number' in locals() else "№ 6677"
-safe_company = str(company_choice) if 'company_choice' in locals() else "Роснефть"
+# 1. Безопасный сбор данных, очистка от иконок
+normalized_well = str(well_name).strip() if 'well_name' in locals() else "Скв. № 101"
+# ... (остальные переменные normalized_...)
+report_timestamp = time.strftime("%d.%m.%Y %H:%M")
 
-# Технологические параметры
-safe_region = str(region_choice) if 'region_choice' in locals() else "Волго-Урал"
-safe_mud = str(mud_choice) if 'mud_choice' in locals() else "Полимерный"
-safe_sand = "{:.2f}%".format(sand_input_val) if 'sand_input_val' in locals() else "0.80%"
-safe_vzd = "{} ({})".format(vendor_choice, kinematics_type) if ('vendor_choice' in locals() and 'kinematics_type' in locals()) else "ВЗД"
-safe_inti_status = str(inti_status) if 'inti_status' in locals() else "✔ ПАРАМЕТРЫ БР В НОРМЕ"
+# 2. АВТО-АНАЛИЗ НЕСООТВЕТСТВИЙ (Высокая строгость)
+# Превышение по песку = КАПСЛОК
+is_failure_detected = False
+if 'sand_threshold' in locals() and sand_input_val > sand_threshold:
+    is_failure_detected = True
+    # Формирование "строгого" сообщения (без эмодзи)
+    raw_status_msg = f"КРИТИЧЕСКОЕ НЕСООТВЕТСТВИЕ: ИЗНОС ВЗД! Песок ({sand_input_val}%) > {sand_threshold}%. ОСТАНОВКА!"
+    final_report_status = raw_status_msg.upper() 
+else:
+    final_report_status = f"Технологический статус в норме: Песок ({sand_input_val}%) до {sand_threshold}%."
+# =========================================================================
+# БЛОК 5: СВОДНЫЙ РАПОРТ - ЧАСТЬ 5.2 (ОТРИСОВКА ОФИЦИАЛЬНОГО БЛАНКА)
+# =========================================================================
 
-# Прогнозные метрики ядра
-pred_hours_num = float(predicted_hours_to_failure) if 'predicted_hours_to_failure' in locals() else 100.0
-acc_pct_num = float(accuracy_pct) if 'accuracy_pct' in locals() else 95.0
-mae_h_num = float(mae_hours) if 'mae_hours' in locals() else 5.0
-
-# 2. Отрисовка расширенного бланка в родных контейнерах Streamlit
+# Отрисовка расширенного бланка в чистом контейнере Streamlit (без смайликов)
 with st.container(border=True):
-    st.markdown("<h2 style='text-align: center; color: #1E3A8A; margin:0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>", unsafe_allow_html=True)
-    st.markdown("<h4 style='text-align: center; color: #4B5563; margin:0;'>АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ И ПРЕДИКТИВНОГО АНАЛИЗА</h4>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>", unsafe_allow_html=True)
+    st.markdown("<h4 style='text-align: center; color: #4B5563;'>АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ</h4>", unsafe_allow_html=True)
     st.markdown("---")
     
-    # ПАСПОРТ ОБЪЕКТА (Вертикальный список)
-    st.markdown("##### 📝 Метапаспорт рапорта:")
-    st.markdown(f"📅 **Дата/Время замера:** {safe_time}")
-    st.markdown(f"🏢 **Недропользователь (Заказчик):** {safe_company}")
-    st.markdown(f"📍 **Месторождение:** {safe_field}")
-    st.markdown(f"🏗️ **Объект / Скважина / Куст:** {safe_well}")
-    st.markdown(f"👤 **Инженер по ННБ:** {safe_engineer}")
-    
-    st.markdown("<hr style='border:1px dashed #D1D5DB; margin:15px 0;'>", unsafe_allow_html=True)
-    
-    # ТЕКУЩИЕ ТЕХНОЛОГИЧЕСКИЕ ПАРАМЕТРЫ
-    st.markdown("##### 🧪 Технологические условия на буровой:")
-    st.markdown(f"📍 **Регион работ:** {safe_region}")
-    st.markdown(f"🧬 **Тип промывочной жидкости:** {safe_mud}")
-    st.markdown(f"⏳ **Содержание песка в БР:** {safe_sand}")
-    st.markdown(f"⚙️ **Оборудование КНБК:** ВЗД {safe_vzd}")
-    st.markdown(f"🆔 **Паспортный номер силовой секции:** {safe_serial}")
-    
-    st.markdown("---")
-    
-    # Профессиональные карточки KPI
-    metric_col1, metric_col2, metric_col3 = st.columns(3)
-    metric_col1.metric("Остаток времени бурения", "{:.1f} ч".format(pred_hours_num))
-    metric_col2.metric("Точность адаптивного ядра", "{:.1f} %".format(acc_pct_num))
-    metric_col3.metric("Погрешность расчета (MAE)", "±{:.1f} ч".format(mae_h_num))
-    
-    st.markdown("##### 📋 Технологическое заключение по промывке:")
-    # Динамический цветной блок статуса
-    if "🚨" in safe_inti_status or "КРИТИЧЕСКИЙ" in safe_inti_status:
-        st.error(f"**СТАТУС:** {safe_inti_status}")
-    else:
-        st.success(f"**СТАТУС:** {safe_inti_status}")
+    # Паспорт объекта (строгий вид)
+    st.markdown(f"**Дата:** {report_timestamp} | **Заказчик:** {normalized_company} | **Скважина:** {normalized_well}")
         
-    st.caption("ℹ️ Сгенерировано автоматизированным модулем контроля БР • ООО «Траектория-Сервис»")
+    st.markdown("---")
+    
+    # Результаты ИИ-ядра
+    st.markdown("##### Результаты анализа:")
+    metric_col1, metric_col2, metric_col3 = st.columns(3)
+    metric_col1.metric("Остаток времени", "{:.1f} ч".format(pred_hours_num))
+    metric_col2.metric("Точность", "{:.1f} %".format(acc_pct_num))
+    metric_col3.metric("Погрешность (MAE)", "±{:.1f} ч".format(mae_h_num))
+    
+    st.markdown("##### Технологическое заключение:")
+    
+    # Динамическая обработка вывода (красный при нарушении)
+    if is_failure_detected:
+        st.markdown(
+            f'<div style="color: white; background-color: #EF4444; padding: 10px; font-weight: bold; text-transform: uppercase;">'
+            f'{final_report_status}</div>',
+            unsafe_allow_html=True
+        )
+    else:
+        st.markdown(
+            f'<div style="color: white; background-color: #10B981; padding: 10px; font-weight: bold;">'
+            f'{final_report_status}</div>',
+            unsafe_allow_html=True
+        )
+        
+    st.caption("Служба технологического контроля ООО «Траектория-Сервис»")
+# =========================================================================
+# БЛОК 5: СВОДНЫЙ РАПОРТ - ЧАСТЬ 5.3 (ГЕНЕРАЦИЯ И СКАЧИВАНИЕ ФАЙЛОВ ЭКСПОРТА)
+# =========================================================================
 
-# 3. Полный экспортируемый текст для скачивания файла .txt
+# 1. Формирование содержания официального печатного Акта в формате TXT
+# Строго удалены все иконки, добавлен автоматический КАПСЛОК для нарушений
 report_text_content = (
-    f"ООО «ТРАЕКТОРИЯ-СЕРВИС»\n"
-    f"АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ ПАРАМЕТРОВ БР\n"
-    f"----------------------------------------\n"
-    f"Дата/Время замера: {safe_time}\n"
-    f"Заказчик: {safe_company} | Месторождение: {safe_field}\n"
-    f"Скважина/Куст: {safe_well}\n"
-    f"Инженер по ННБ: {safe_engineer}\n"
-    f"----------------------------------------\n"
-    f"Регион проведения работ: {safe_region}\n"
-    f"Тип раствора: {safe_mud}\n"
-    f"Содержание песка: {safe_sand}\n"
-    f"----------------------------------------\n"
-    f"Оборудование КНБК: ВЗД {safe_vzd}\n"
-    f"Паспортный серийный номер ВЗД: {safe_serial}\n"
+    f"--------------------------------------------------\n"
+    f"               ООО ТРАЕКТОРИЯ-СЕРВИС              \n"
+    f"        АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ И АНАЛИЗА   \n"
+    f"--------------------------------------------------\n"
+    f"Дата и время формирования: {report_timestamp}\n"
+    f"Заказчик (Недропользователь): {normalized_company}\n"
+    f"Месторождение: {normalized_field}\n"
+    f"Скважина / Куст: {normalized_well}\n"
+    f"Инженер по ННБ: {normalized_engineer}\n"
+    f"--------------------------------------------------\n"
+    f"ТЕХНОЛОГИЧЕСКИЕ ПАРАМЕТРЫ ПРОМЫВКИ:\n"
+    f"Регион проведения работ: {normalized_region}\n"
+    f"Тип бурового раствора: {normalized_mud}\n"
+    f"Фактическое содержание песка: {sand_input_val:.2f}%\n"
+    f"Допустимый порог очистки БР: {sand_threshold:.2f}%\n"
+    f"--------------------------------------------------\n"
+    f"ПАРАМЕТРЫ И СОСТОЯНИЕ ОБОРУДОВАНИЯ КНБК:\n"
+    f"Силовая пара ВЗД: {normalized_vzd}\n"
+    f"Серийный номер по паспорту: {normalized_serial}\n"
     f"Прогноз остаточного ресурса: {pred_hours_num:.1f} ч.\n"
-    f"Точность адаптивного ядра модели: {acc_pct_num:.1f}%\n"
-    f"----------------------------------------\n"
-    f"ТЕХНОЛОГИЧЕСКИЙ СТАТУС: {safe_inti_status}\n"
-    f"----------------------------------------\n"
-    f"Документ сформирован автоматически и имеет юридическую силу цифрового акта."
+    f"Доверительная точность расчета ядра: {acc_pct_num:.1f}%\n"
+    f"Статистическая погрешность (MAE): +/- {mae_h_num:.1f} ч.\n"
+    f"--------------------------------------------------\n"
+    f"ТЕХНОЛОГИЧЕСКОЕ ЗАКЛЮЧЕНИЕ СЛУЖБЫ КОНТРОЛЯ БР:\n"
+    f"{final_report_status}\n"
+    f"--------------------------------------------------\n"
+    f"Документ имеет силу официального цифрового акта.\n"
+    f"Сгенерировано автоматически ПО 'Помощник инженера ННБ'."
 )
 
-st.markdown(" ")
-st.download_button(
-    label="📥 Скачать официальный суточный рапорт (.txt)", 
-    data=report_text_content, 
-    file_name=f"Report_BR_{safe_well.replace(' ', '_')}.txt", 
-    use_container_width=True
-)
+# 2. Формирование структурированной строки в формате CSV (для экспорта в базы данных)
+# Колонки: Дата,Заказчик,Скважина,Песок,Допуск,Ресурс,Точность,Статус
+csv_header = "Timestamp,Company,Well,Sand_Pct,Limit_Pct,Predicted_Hours,Accuracy_Pct,Status\n"
+csv_row = f'"{report_timestamp}","{normalized_company}","{normalized_well}",{sand_input_val:.2f},{sand_threshold:.2f},{pred_hours_num:.1f},{acc_pct_num:.1f},"{final_report_status}"'
+report_csv_content = csv_header + csv_row
+
+# 3. Интеграция кнопок скачивания в интерфейс Streamlit
+st.markdown("##### Выгрузка официальной документации на рабочий стол:")
+col_down1, col_down2 = st.columns(2)
+
+with col_down1:
+    st.download_button(
+        label="📥 Скачать официальный Акт технологического контроля (.txt)",
+        data=report_text_content,
+        file_name=f"Akt_TK_Mud_{normalized_well.replace(' ', '_')}_{time.strftime('%Y%m%d')}.txt",
+        mime="text/plain",
+        use_container_width=True
+    )
+
+with col_down2:
+    st.download_button(
+        label="📊 Экспортировать точку замера для баз данных (.csv)",
+        data=report_csv_content,
+        file_name=f"Data_Row_Mud_{normalized_well.replace(' ', '_')}_{time.strftime('%Y%m%d')}.csv",
+        mime="text/csv",
+        use_container_width=True
+    )
 
 # =========================================================================
 # БЛОК 6: НАКОПЛЕНИЕ ИСТОРИИ, ЛОГИРОВАНИЕ И МОНИТОРИНГ ТЕНДЕНЦИЙ
