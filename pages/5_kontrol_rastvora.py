@@ -105,12 +105,14 @@ current_sand_val = st.number_input("Песок, %:", min_value=0.0, max_value=10
 # Чекбокс максимального расхода
 max_flow_active = st.checkbox("🚀 Макс. расход насосов (повышенная гидродинамическая нагрузка)")
 
-# Динамическое определение критического порога
+# Изменение логики порогов внутри Блока 2:
+base_limit = max_sand_limit if 'max_sand_limit' in locals() else 0.5
+
 if max_flow_active:
-    sand_threshold = 0.3  # При максимальном расходе критический порог жестче!
+    sand_threshold = base_limit - 0.1  # Сужаем рамки безопасности при высоком расходе!
     flow_context = " при МАКСИМАЛЬНОМ расходе насосов"
 else:
-    sand_threshold = 0.5  # Стандартный порог при умеренном режиме бурения
+    sand_threshold = base_limit
     flow_context = ""
 
 # Проверка условий и вывод технологических рекомендаций
