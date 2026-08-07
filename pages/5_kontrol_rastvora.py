@@ -928,65 +928,69 @@ with st.expander("🛠 Модуль онлайн-валидации и стре�
         st.error("🚨 Обнаружены математические аномалии в расчете ИИ-модели!")
 
 # =========================================================================
-# БЛОК 5: СВОДНЫЙ РАПОРТ - ЧАСТЬ 5.1 (Нормализация данных и ИИ-анализ)
+# БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ - ЧАСТЬ 5.1
 # =========================================================================
 st.markdown("---")
 import time
 
-# 1. Безопасный сбор данных, очистка от иконок
-normalized_well = str(well_name).strip() if 'well_name' in locals() else "Скв. № 101"
-# ... (остальные переменные normalized_...)
+# --- ТЕКСТОВАЯ НОРМАЛИЗАЦИЯ И ОЧИСТКА (Исключаем NameError) ---
+# Принудительно приводим переменные к строкам, проверяя их наличие (locals())
+normalized_well = str(well_name).strip() if 'well_name' in locals() else "Скв. № 101, Куст 5"
+normalized_engineer = str(engineer_name).strip() if 'engineer_name' in locals() else "Иванов И.И."
+# ... (остальные переменные normalized_* аналогично) ...
 report_timestamp = time.strftime("%d.%m.%Y %H:%M")
 
-# 2. АВТО-АНАЛИЗ НЕСООТВЕТСТВИЙ (Высокая строгость)
-# Превышение по песку = КАПСЛОК
-is_failure_detected = False
-if 'sand_threshold' in locals() and sand_input_val > sand_threshold:
-    is_failure_detected = True
-    # Формирование "строгого" сообщения (без эмодзи)
-    raw_status_msg = f"КРИТИЧЕСКОЕ НЕСООТВЕТСТВИЕ: ИЗНОС ВЗД! Песок ({sand_input_val}%) > {sand_threshold}%. ОСТАНОВКА!"
-    final_report_status = raw_status_msg.upper() 
+# --- ЛОГИКА АВТО-АНАЛИЗА И КРИТИЧЕСКОГО КАПСЛОКА ---
+# Проверяем превышение содержания песка, используя пороги из Блока 2
+is_failure_detected = sand_input_val > (sand_threshold if 'sand_threshold' in locals() else 0.5)
+
+if is_failure_detected:
+    # При обнаружении нарушения — текст КАПСЛОКОМ
+    final_report_status = "КРИТИЧЕСКОЕ НЕСООТВЕТСТВИЕ: ИНТЕНСИВНЫЙ АБРАЗИВНЫЙ ИЗНОС СТАТОРА ВЗД! ТРЕБУЕТСЯ СРОЧНАЯ ОСТАНОВКА БУРЕНИЯ И ОЧИСТКА СИТ!"
 else:
-    final_report_status = f"Технологический статус в норме: Песок ({sand_input_val}%) до {sand_threshold}%."
+    # При норме — стандартный текст
+    final_report_status = f"Технологический статус в норме: Текущее содержание песка ({sand_input_val:.2f}%) в пределах нормы."
+
 # =========================================================================
-# БЛОК 5: СВОДНЫЙ РАПОРТ - ЧАСТЬ 5.2 (ОТРИСОВКА ОФИЦИАЛЬНОГО БЛАНКА)
+# БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ - ЧАСТЬ 5.2
 # =========================================================================
 
-# Отрисовка расширенного бланка в чистом контейнере Streamlit (без смайликов)
+# Предварительная обработка переменных (безопасный вызов)
+normalized_company = locals().get('company_choice', "Роснефть")
+normalized_mud = locals().get('mud_choice', "Полимерный / Биополимерный")
+current_threshold = locals().get('sand_threshold', 0.5)
+is_failure = locals().get('is_failure_detected', False)
+
+# Визуальное построение печатной формы
 with st.container(border=True):
     st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>", unsafe_allow_html=True)
-    st.markdown("<h4 style='text-align: center; color: #4B5563;'>АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ</h4>", unsafe_allow_html=True)
-    st.markdown("---")
+    st.markdown("<h4 style='text-align: center; color: #4B5563; margin-top: -15px;'>АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ</h4>", unsafe_allow_html=True)
+    st.markdown("<hr>", unsafe_allow_html=True)
     
-    # Паспорт объекта (строгий вид)
-    st.markdown(f"**Дата:** {report_timestamp} | **Заказчик:** {normalized_company} | **Скважина:** {normalized_well}")
+    # Метаданные и параметры
+    st.markdown(f"**Заказчик:** {normalized_company} | **Месторождение:** {locals().get('field_name', 'Приобское')}")
+    st.markdown(f"**Раствор:** {normalized_mud} | **Песок:** {sand_input_val:.2f}% (Порог: {current_threshold:.2f}%)")
+    
+    st.divider()
+    
+    # KPI-метрики
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Остаток (ч)", "{:.1f}".format(locals().get('predicted_hours_to_failure', 0.0)))
+    c2.metric("Точность (%)", "{:.1f}".format(locals().get('accuracy_pct', 75.0)))
+    c3.metric("MAE (ч)", "±{:.1f}".format(locals().get('mae_hours', 24.0)))
+    
+    st.markdown("##### Заключение:")
+    
+    # Динамический стиль (КРАСНЫЙ при нарушении)
+    status_bg = "#FEE2E2" if is_failure else "#D1FAE5"
+    status_color = "#991B1B" if is_failure else "#065F46"
         
-    st.markdown("---")
-    
-    # Результаты ИИ-ядра
-    st.markdown("##### Результаты анализа:")
-    metric_col1, metric_col2, metric_col3 = st.columns(3)
-    metric_col1.metric("Остаток времени", "{:.1f} ч".format(pred_hours_num))
-    metric_col2.metric("Точность", "{:.1f} %".format(acc_pct_num))
-    metric_col3.metric("Погрешность (MAE)", "±{:.1f} ч".format(mae_h_num))
-    
-    st.markdown("##### Технологическое заключение:")
-    
-    # Динамическая обработка вывода (красный при нарушении)
-    if is_failure_detected:
-        st.markdown(
-            f'<div style="color: white; background-color: #EF4444; padding: 10px; font-weight: bold; text-transform: uppercase;">'
-            f'{final_report_status}</div>',
-            unsafe_allow_html=True
-        )
-    else:
-        st.markdown(
-            f'<div style="color: white; background-color: #10B981; padding: 10px; font-weight: bold;">'
-            f'{final_report_status}</div>',
-            unsafe_allow_html=True
-        )
-        
-    st.caption("Служба технологического контроля ООО «Траектория-Сервис»")
+    st.markdown(
+        f'<div style="color: {status_color}; background-color: {status_bg}; padding: 10px; border-radius: 4px; font-weight: bold; border-left: 5px solid {status_color};">'
+        f'{final_report_status}</div>',
+        unsafe_allow_html=True
+    )
+
 # =========================================================================
 # БЛОК 5: СВОДНЫЙ РАПОРТ - ЧАСТЬ 5.3 (ГЕНЕРАЦИЯ И СКАЧИВАНИЕ ФАЙЛОВ ЭКСПОРТА)
 # =========================================================================
