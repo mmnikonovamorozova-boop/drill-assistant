@@ -1027,41 +1027,116 @@ with col_down2:
     st.download_button("📊 Скачать CSV", report_csv_content, file_name=f"Data_{normalized_well}.csv")
 
 # =========================================================================
-# БЛОК 6: НАКОПЛЕНИЕ ИСТОРИИ, ЛОГИРОВАНИЕ И МОНИТОРИНГ ТЕНДЕНЦИЙ
+# БЛОК 6: НАКОПЛЕНИЕ ИСТОРИИ, ЛОГИРОВАНИЕ И МОНИТОРИНГ ТЕНДЕНЦИЙ - ЧАСТЬ 6.1
 # =========================================================================
-st.markdown("---")
 st.markdown("### 💾 Блок 6: Цифровой журнал и мониторинг трендов")
-st.caption("Накопление замеров, контроль динамики и раннее обнаружение аномалий БР")
+st.caption("Накопление замеров, контроль динамики параметров промывки и раннее обнаружение технологических аномалий")
 
-# 1. Инициализация и управление историей
+# 1. Проверка и безопасная инициализация хранилища истории в текущей сессии
 if "history_log" not in st.session_state:
     st.session_state.history_log = []
 
+# Формируем двухколоночный интерфейс управления журналом рейса
 col_log_ctrl1, col_log_ctrl2 = st.columns(2)
+
 with col_log_ctrl1:
-    if st.button("➕ Зафиксировать замер", use_container_width=True):
-        # ... (сбор данных, аналогично оригиналу)
-        st.success("Точка зафиксирована")
+    if st.button("➕ Зафиксировать текущую точку замера в лог", use_container_width=True):
+        # Собираем актуальные временные и технологические параметры
+        current_time_str = time.strftime("%H:%M:%S")
+        active_sand_val = float(sand_input_val) if 'sand_input_val' in locals() else 0.5
+        active_limit = float(sand_threshold) if 'sand_threshold' in locals() else 0.5
+        active_resource = float(predicted_hours_to_failure) if 'predicted_hours_to_failure' in locals() else 100.0
+        
+        # Определяем статус нарушения для данной конкретной точки
+        is_point_failed = active_sand_val > active_limit
+        
+        if is_point_failed:
+            log_text_status = f"ЗАМЕР {current_time_str} - КРИТИЧЕСКОЕ НЕСООТВЕТСТВИЕ: ПЕСОК {active_sand_val:.2f}% ПРЕВЫШАЕТ ПРЕДЕЛ {active_limit:.2f}%! ОСТАТОК РЕСУРСА ВЗД: {active_resource:.1f} Ч."
+        else:
+            log_text_status = f"Замер {current_time_str} - Параметры в норме. Содержание песка: {active_sand_val:.2f}% (Предел: {active_limit:.2f}%), Прогноз ресурса ВЗД: {active_resource:.1f} ч."
+            
+        # Записываем структурированный словарь в историю замеров
+        st.session_state.history_log.append({
+            "Время": current_time_str,
+            "Содержание песка (%)": active_sand_val,
+            "Предел Заказчика (%)": active_limit,
+            "Прогноз ресурса (ч)": active_resource,
+            "Авария": is_point_failed,
+            "Заключение": log_text_status
+        })
+        st.success(f"Точка технологического замера зафиксирована в журнале в {current_time_str}!")
+
 with col_log_ctrl2:
-    if st.button("🗑 Очистить журнал", use_container_width=True):
+    if st.button("🗑 Очистить журнал замеров текущего рейса", use_container_width=True):
         st.session_state.history_log = []
         st.rerun()
+# =========================================================================
+# БЛОК 6: НАКОПЛЕНИЕ ИСТОРИИ, ЛОГИРОВАНИЕ И МОНИТОРИНГ ТЕНДЕНЦИЙ - ЧАСТЬ 6.2
+# =========================================================================
 
-# 2. Визуализация трендов (улучшенная)
+# Проверяем, есть ли в базе сохраненные точки замеров для отрисовки
 if st.session_state.history_log:
+    # Конвертируем список словарей в DataFrame для работы с графиками
     df_log = pd.DataFrame(st.session_state.history_log)
     
-    # График песка с линией предела (добавлена визуализация уровня)
-    st.markdown("##### 📈 Тренд содержания песка и предел (0.5%)")
-    st.line_chart(df_log.set_index("Время")[["Содержание песка (%)", "Предел Заказчика (%)"]])
+    st.markdown("---")
+    st.markdown("#### 📊 Гидродинамические тренды и износ оборудования в динамике:")
     
-    # 3. Улучшенный журнал с цветовой индикацией
-    st.markdown("##### 📋 Журнал замеров:")
-    for _, row in df_log.iterrows():
-        # Добавлена логика окрашивания (в стиле 5 блока)
-        style = "background-color: #FEE2E2; color: #991B1B;" if row["Авария"] else "background-color: #F3F4F6;"
-        st.markdown(f'<div style="{style} padding: 10px; border-radius: 4px;">{row["Заключение"]}</div>', unsafe_allow_html=True)
+    # Разворачиваем двухколоночную сетку для графиков
+    col_chart1, col_chart2 = st.columns(2)
+    
+    with col_chart1:
+        st.markdown("##### Изменение содержания твердой фазы (песка):")
+        # Строим график, где одновременно выводятся фактический песок и линия допуска Заказчика
+        st.line_chart(
+            df_log.set_index("Время")[["Содержание песка (%)", "Предел Заказчика (%)"]],
+            color=["#3B82F6", "#EF4444"]  # Синяя линия для факта, красная — для предела
+        )
+        st.caption("Красная опорная линия указывает на критическую границу безопасной эксплуатации по регламенту ВИНК.")
+        
+    with col_chart2:
+        st.markdown("##### Динамика выработки остаточного ресурса статора ВЗД:")
+        # Строим график падения или стабилизации ресурса в часах
+        st.line_chart(
+            df_log.set_index("Время")[["Прогноз ресурса (ч)"]],
+            color=["#F59E0B"]  # Оранжевая линия тренда ресурса
+        )
+        st.caption("График отображает адаптивное изменение остаточного времени работы мотора с учетом химии и абразива.")
 
+    # --- 3. СТРОГИЙ ЦИФРОВОЙ ЖУРНАЛ ЗАМЕРОВ (СООТВЕТСТВИЕ БЛОКУ 5) ---
+    st.markdown(" ")
+    st.markdown("##### 📜 Хронологический журнал выполненных замеров параметров БР:")
+    
+    # Итерируемся по истории в обратном порядке, чтобы свежие замеры были наверху
+    for _, row in df_log.iloc[::-1].iterrows():
+        # Настройка условного форматирования стилей на основе флага аварии
+        if row["Авария"]:
+            # Аварийная точка: светло-красный фон, темно-красный текст, текст уже в КАПСЛОКЕ из Части 6.1
+            status_style = (
+                "background-color: #FEE2E2; "
+                "color: #991B1B; "
+                "padding: 12px; "
+                "border-radius: 4px; "
+                "font-weight: bold; "
+                "border-left: 5px solid #EF4444; "
+                "margin-bottom: 8px; "
+                "font-family: monospace;"
+            )
+        else:
+            # Штатная точка: нейтральный серый фон, темный текст, стандартный регистр
+            status_style = (
+                "background-color: #F3F4F6; "
+                "color: #374151; "
+                "padding: 12px; "
+                "border-radius: 4px; "
+                "border-left: 5px solid #9CA3AF; "
+                "margin-bottom: 8px;"
+            )
+            
+        # Рендерим строку журнала в интерфейс
+        st.markdown(f'<div style="{status_style}">{row["Заключение"]}</div>', unsafe_allow_html=True)
 else:
-    st.info("Журнал пуст.")
+    st.markdown("---")
+    st.info("Цифровой журнал замеров текущего рейса пуст. Зафиксируйте первую технологическую точку с помощью кнопки выше.")
+
 
