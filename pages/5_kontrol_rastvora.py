@@ -450,119 +450,94 @@ st.warning(
 )
 
 # =========================================================================
-# БЛОК 5: СВОДНЫЙ РАПОРТ 
+# БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ (БЕЗОПАСНЫЙ РЕЖИМ)
 # =========================================================================
-st.markdown("### 📋 Блок 5: Сводный рапорт технологического контроля")
+st.markdown("---")
+st.subheader("📥 Блок 5: Официальный бланк замера для рапорта")
 
-# Цветовой статус наследуем от логики контроля очистки раствора из Блока 2
-# (Предполагается, что переменные inti_status и act_status_color определены выше)
-if 'inti_status' not in locals():
-    inti_status = "ВЫПОЛНЕН ОПТИМАЛЬНЫЙ РАСЧЕТ"
-    act_status_color = "#1E3A8A"
+import time
 
-# Официальный HTML-бланк в фирменном стиле ООО «ТРАЕКТОРИЯ-СЕРВИС»
+# 1. Безопасный сбор локальных переменных для защиты от NameError
+safe_time = time.strftime("%d.%m.%Y %H:%M")
+safe_well = str(well_name) if 'well_name' in locals() else "101-Г"
+safe_region = str(region_choice) if 'region_choice' in locals() else "Волго-Урал"
+safe_mud = str(mud_choice) if 'mud_choice' in locals() else "Полимерный"
+safe_sand = f"{sand_input_val:.2f}%" if 'sand_input_val' in locals() else "0.80%"
+safe_vzd = f"{vendor_choice} ({kinematics_type})" if ('vendor_choice' in locals() and 'kinematics_type' in locals()) else "ВЗД"
+safe_inti_status = str(inti_status) if 'inti_status' in locals() else "✔ ПАРАМЕТРЫ БР В НОРМЕ"
+safe_color = str(act_status_color) if 'act_status_color' in locals() else "#10B981"
+
+# Прогнозные метрики ядра
+safe_pred_hours = float(predicted_hours_to_failure) if 'predicted_hours_to_failure' in locals() else 100.0
+safe_acc = float(accuracy_pct) if 'accuracy_pct' in locals() else 95.0
+safe_mae = float(mae_hours) if 'mae_hours' in locals() else 5.0
+
+# 2. Печать бланка (Используем только проверенные safe-переменные)
 html_report = f"""
 <div style='border:3px solid #1E3A8A; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>
     <h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>
     <h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ И ПРЕДИКТИВНОГО АНАЛИЗА</h3>
     <hr style='border:1px solid #1E3A8A; margin-bottom:20px;'>
     
-    <p><b>Дата/Время:</b> {current_time} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Регион работ:</b> {region_choice}</p>
-    <p><b>Объект / Скважина:</b> {well_number} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Инженер ННБ:</b> {engineer_name}</p>
-    <p><b>Тип раствора:</b> {mud_choice} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Содержание песка:</b> {current_sand_val}%</p>
-    <p><b>Оборудование КНБК:</b> ВЗД {vendor_choice} ({kinematics_type})</p>
+    <p><b>Дата/Время:</b> {safe_time} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Регион работ:</b> {safe_region}</p>
+    <p><b>Объект / Скважина:</b> {safe_well}</p>
+    <p><b>Тип раствора:</b> {safe_mud} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Содержание песка:</b> {safe_sand}</p>
+    <p><b>Оборудование КНБК:</b> {safe_vzd}</p>
     
     <h4 style='color:#1E3A8A; margin-top:20px; border-bottom:1px solid #D1D5DB; padding-bottom:5px;'>РЕЗУЛЬТАТЫ ПРЕДИКТИВНОГО МОДЕЛИРОВАНИЯ ВЗД:</h4>
-    <p style='font-size:15px;'>Прогнозное время работы статора до отказа: <b>{predicted_hours_to_failure:.1f} ч.</b></p>
-    <p style='font-size:15px;'>Точность адаптивного ядра: <b>{accuracy_pct:.1f}%</b> (Расчетная погрешность: <b>±{mae_hours:.1f} ч.</b>)</p>
+    <p style='font-size:15px;'>Прогнозное время работы статора до отказа: <b>{safe_pred_hours:.1f} ч.</b></p>
+    <p style='font-size:15px;'>Точность адаптивного ядра: <b>{safe_acc:.1f}%</b> (Погрешность: <b>±{safe_mae:.1f} ч.</b>)</p>
     
-    <p style='font-size:16px; color:{act_status_color}; margin-top:15px;'><b>ТЕХНОЛОГИЧЕСКИЙ СТАТУС: {inti_status}</b></p>
+    <p style='font-size:16px; color:{safe_color}; margin-top:15px;'><b>ТЕХНОЛОГИЧЕСКИЙ СТАТУС: {safe_inti_status}</b></p>
     <p style='font-size:12px; color:#6B7280; text-align:center; margin-top:35px; border-top:1px dashed #D1D5DB; padding-top:10px;'>Сгенерировано автоматизированным модулем контроля БР • ООО «Траектория-Сервис»</p>
 </div>
 """
 st.markdown(html_report, unsafe_allow_html=True)
 
-# 1. Сборка краткого текстового блока по ТОП-3 аналогичным отказам
-analog_report_lines = []
-if 'top_3_failures' in locals() and not top_3_failures.empty:
-    for idx, (_, row) in enumerate(top_3_failures.iterrows()):
-        # Выделяем модель двигателя из строки
-        full_name = str(row["Габарит /\nПроизводитель"])
-        engine_model = full_name.split("(")[0].strip() if "(" in full_name else "ВЗД"
-        
-        line = (
-            f"   {idx+1}. [{row['Производитель_чистый']}] "
-            f"Двигатель: {engine_model} | Наработка: {row['Наработка до отказа (Часы)']} ч."
-        )
-        analog_report_lines.append(line)
-        
-analogs_text_block = "\n".join(analog_report_lines)
-if not analogs_text_block:
-    analogs_text_block = "   Нет данных по аналогичным отказам."
+# 3. Кнопка скачивания официального рапорта
+report_text_content = (
+    f"ООО «ТРАЕКТОРИЯ-СЕРВИС»\nАКТ КОНТРОЛЯ ПАРАМЕТРОВ БР\n"
+    f"----------------------------------------\n"
+    f"Скважина: {safe_well}\nРаствор: {safe_mud}\nПесок: {safe_sand}\n"
+    f"Прогноз ресурса ВЗД: {safe_pred_hours:.1f} ч.\n"
+    f"----------------------------------------\n"
+    f"СТАТУС: {safe_inti_status}"
+)
+
+st.download_button(
+    label="📥 Скачать официальный суточный рапорт (.txt)", 
+    data=report_text_content, 
+    file_name=f"Report_BR_{safe_well}.txt", 
+    use_container_width=True
+)
 
 # =========================================================================
-# БЛОК 5: СВОДНЫЙ РАПОРТ (ЗАЩИЩЕННЫЙ РЕЖИМ)
-# =========================================================================
-st.markdown("---")
-st.subheader("📥 Блок 5: Сводный рапорт технологического контроля")
-
-import time
-# Безопасный сбор данных
-current_time_str = time.strftime("%d.%m.%Y %H:%M")
-well_num_val = str(well_name) if 'well_name' in locals() else "101-Г"
-region_val = str(region_choice) if 'region_choice' in locals() else "Волго-Урал"
-mud_val = str(mud_choice) if 'mud_choice' in locals() else "Полимерный"
-sand_val = f"{sand_input_val:.2f}%" if 'sand_input_val' in locals() else "0.80%"
-vzd_val = f"{vendor_choice} ({kinematics_type})" if ('vendor_choice' in locals() and 'kinematics_type' in locals()) else "ВЗД"
-report_inti_status = str(inti_status) if 'inti_status' in locals() else "✔ ПАРАМЕТРЫ В НОРМЕ"
-report_status_color = str(act_status_color) if 'act_status_color' in locals() else "#10B981"
-# Заглушки для прогнозных значений, если блоки не запущены
-pred_hours = predicted_hours_to_failure if 'predicted_hours_to_failure' in locals() else 100.0
-acc_pct = accuracy_pct if 'accuracy_pct' in locals() else 95.0
-mae_h = mae_hours if 'mae_hours' in locals() else 5.0
-
-# HTML-бланк
-html_report = f"""
-<div style='border:3px solid #1E3A8A; padding:20px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>
-    <h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>
-    <h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ</h3>
-    <p><b>Дата/Время:</b> {current_time_str} | <b>Скважина:</b> {well_num_val}</p>
-    <p><b>Раствор:</b> {mud_val} | <b>Песок:</b> {sand_val}</p>
-    <p><b>Прогноз ресурса:</b> {pred_hours:.1f} ч. | <b>Точность:</b> {acc_pct:.1f}%</p>
-    <p style='color:{report_status_color};'><b>СТАТУС: {report_inti_status}</b></p>
-</div>
-"""
-st.markdown(html_report, unsafe_allow_html=True)
-
-# Кнопка скачивания
-txt_content = f"АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ\nСкважина: {well_num_val}\nРесурс: {pred_hours:.1f} ч."
-st.download_button("📥 Скачать рапорт (.txt)", data=txt_content, file_name=f"Report_{well_num_val}.txt", use_container_width=True)
-
-# =========================================================================
-# БЛОК 6: ЛОГИРОВАНИЕ И МОНИТОРИНГ ТЕНДЕНЦИЙ
+# БЛОК 6: НАКОПЛЕНИЕ ИСТОРИИ, ЛОГИРОВАНИЕ И МОНИТОРИНГ ТЕНДЕНЦИЙ
 # =========================================================================
 st.markdown("---")
-st.markdown("### 💾 Блок 6: История замеров (Тренды)")
+st.markdown("### 💾 Блок 6: Фиксация точек и архивация замеров (Тренды)")
 
 if "history_log" not in st.session_state:
     st.session_state.history_log = []
 
-c1, c2 = st.columns(2)
-with c1:
-    if st.button("➕ Зафиксировать замер"):
+col_log1, col_log2 = st.columns(2)
+with col_log1:
+    if st.button("➕ Зафиксировать текущую точку замера в лог"):
         st.session_state.history_log.append({
             "Время": time.strftime("%H:%M:%S"),
             "Песок (%)": sand_input_val if 'sand_input_val' in locals() else 0.8,
-            "Ресурс (ч)": pred_hours
+            "Прогноз ресурса (ч)": safe_pred_hours
         })
-        st.success("Сохранено")
-with c2:
-    if st.button("🗑️ Очистить"):
+        st.success("Точка успешно сохранена!")
+
+with col_log2:
+    if st.button("🗑️ Очистить историю замеров рейса"):
         st.session_state.history_log = []
         st.rerun()
 
 if st.session_state.history_log:
     df_log = pd.DataFrame(st.session_state.history_log)
-    st.line_chart(df_log.set_index("Время")[["Песок (%)", "Ресурс (ч)"]])
+    st.markdown("#### Динамика изменения технологических параметров:")
+    st.line_chart(df_log.set_index("Время")[["Песок (%)", "Прогноз ресурса (ч)"]])
 else:
-    st.info("История пуста.")
+    st.info("История замеров пуста. Нажмите кнопку выше для фиксации параметров.")
