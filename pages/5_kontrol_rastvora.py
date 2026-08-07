@@ -344,13 +344,16 @@ else:
 
 # --- 1. ОПРЕДЕЛЕНИЕ ДИНАМИЧЕСКОГО БУФЕРА БЕЗОПАСНОСТИ ПО ТРЕБОВАНИЯМ ТК ---
 selected_client = company_choice if 'company_choice' in locals() else "Прочие"
-# Установка буфера в зависимости от компании
+
 if selected_client == "Роснефть":
     tk_buffer = 0.030
     client_label = "ПАО «НК «Роснефть»"
 elif selected_client == "Газпром нефть":
     tk_buffer = 0.020
     client_label = "ПАО «Газпром нефть»"
+elif selected_client == "ЛУКОЙЛ":
+    tk_buffer = 0.020
+    client_label = "ПАО «ЛУКОЙЛ»"
 else:
     tk_buffer = 0.025
     client_label = f"ТК «{selected_client}»"
@@ -366,16 +369,17 @@ if calculated_ecd < orange_zone_threshold:
 elif calculated_ecd < red_zone_threshold:
     ecd_status = "🟡 Оранжевая зона (Повышенный риск)"
     status_color = "#F59E0B"
-    status_msg = f"ВНИМАНИЕ: Оранжевая зона {client_label}. Контролировать скорость спуска инструмента!"
+    status_msg = f"ВНИМАНИЕ: Нарушен буфер безопасности {client_label}. Контролировать скорость спуска инструмента!"
 else:
     ecd_status = "🔴 Красная зона (Критическая угроза ГРП!)"
     status_color = "#EF4444"
-    status_msg = f"КРИТИЧЕСКИЙ РЕЖИМ {client_label}: Расчетная ЭЦП ({calculated_ecd:.3f}) превышает предел!"
+    status_msg = f"КРИТИЧЕСКИЙ РЕЖИМ {client_label}: Расчетная ЭЦП превышает безопасный предел пласта!"
 
 # --- 3. ОТОБРАЖЕНИЕ РЕЗУЛЬТАТОВ ГИДРОДИНАМИЧЕСКОГО МОНИТОРИНГА ---
-st.markdown("#### Результаты гидродинамического мониторинга:")
-col_res1, col_res2, col_res3 = st.columns(3)
+st.markdown("#### 📈 Результаты гидродинамического мониторинга:")
 
+# Строка 1: Относительные показатели (ЭЦП)
+col_res1, col_res2, col_res3 = st.columns(3)
 with col_res1:
     st.metric("Расчетная ЭЦП (ECD)", f"{calculated_ecd:.3f} г/см³")
 with col_res2:
@@ -387,10 +391,23 @@ with col_res3:
         unsafe_allow_html=True
     )
 
-# Вывод статуса
-if "🔴" in ecd_status: st.error(f"❌ **{status_msg}**")
-elif "🟡" in ecd_status: st.warning(f"⚠️ **{status_msg}**")
-else: st.success(f"{status_msg}")
+# Строка 2: Абсолютные гидродинамические давления (в атмосферах)
+st.markdown("##### Абсолютные давления на забое скважины:")
+col_press1, col_press2, col_press3 = st.columns(3)
+with col_press1:
+    st.metric("Гидростатика смеси", f"{p_hydrostatic_atm:.1f} атм", help="Давление чистого столба раствора со шламом и песком")
+with col_press2:
+    st.metric("Потери на трение в КСП", f"{p_friction_atm:.1f} атм", help="Гидравлические потери при движении потока вверх")
+with col_press3:
+    st.metric("Полное забойное давление", f"{p_total_bottomhole_atm:.1f} атм", help="Суммарная нагрузка на пласт в динамике")
+
+# Вывод текстового предупреждения
+if "🔴" in ecd_status: 
+    st.error(f"❌ **{status_msg}**")
+elif "🟡" in ecd_status: 
+    st.warning(f"⚠️ **{status_msg}**")
+else: 
+    st.success(f"{status_msg}")
 
 st.markdown("---")
 
