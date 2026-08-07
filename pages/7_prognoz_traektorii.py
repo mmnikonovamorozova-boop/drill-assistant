@@ -30,7 +30,7 @@ st.markdown(
 @st.cache_data(ttl=60)  # Уменьшили кэш до 60 секунд, чтобы изменения применялись быстрее
 def load_calibrations_from_github_api(target_well_name):
     """Считывает архив калибровок и ищет исторические веса под конкретную скважину"""
-    url = "https://api.github/repos/mmnikonovamorozova-boop/drill-assistant/contents/calibrations_db.json"
+    url = "https://api.github.com/repos/mmnikonovamorozova-boop/drill-assistant/contents/calibrations_db.json"
     headers = {"Accept": "application/vnd.github.v3+json", "Authorization": f"token {st.secrets.get('GITHUB_TOKEN', '')}"}
     
     try:
