@@ -65,10 +65,6 @@ calculated_axial_delta = size_a - size_b
 calculated_axial_delta = size_a - size_b
 
 # =========================================================================
-# БЛОК 2: НОРМАТИВНЫЕ БАЗЫ ДАННЫХ И КАТЕГОРИРОВАНИЕ ВЗД - ЧАСТЬ 2.1
-# =========================================================================
-
-# =========================================================================
 # БЛОК 2: НОРМАТИВНЫЕ БАЗЫ ДАННЫХ И ДИНАМИЧЕСКИЙ РАСЧЕТ ДОПУСКОВ
 # =========================================================================
 
@@ -155,28 +151,38 @@ else:
 # Выводим развернутое ИИ-заключение на экран в синюю рамку инфо-панели
 st.info(vzd_expert_review)
 
-# БЛОК 4: РЕЗУЛЬТАТЫ И ОТБРАКОВКА
+# =========================================================================
+# БЛОК 4: ФИНАЛЬНАЯ КЛАССИФИКАЦИЯ РЕЗУЛЬТАТОВ РАСЧЕТА И ОТБРАКОВКА ОПОР
+# =========================================================================
 st.markdown("---")
 st.markdown("#### Результаты комплексной проверки шпиндельного узла:")
 
-# Логика оценки
-is_axial_failed = calculated_axial_delta > effective_max_axial
-is_radial_failed = radial_ich > effective_max_radial
+# ГАРАНТИЯ ИНИЦИАЛИЗАЦИИ ПЕРЕМЕННЫХ ДЛЯ ЗАЩИТЫ ОТ NAMEERROR
+final_max_axial = effective_max_axial if 'effective_max_axial' in locals() else limit_wear
+final_max_radial = effective_max_radial if 'effective_max_radial' in locals() else 1.00
+
+is_axial_failed = calculated_axial_delta > final_max_axial
+is_radial_failed = radial_ich > final_max_radial
 is_measurement_error = calculated_axial_delta <= 0
 
-# Определение стиля и текста
+# --- ЛОГИКА АВАРИЙНОГО ТЕКСТА И ЦВЕТОВОГО ОФОРМЛЕНИЯ ---
 if is_measurement_error:
-    res_text = "ОШИБКА ИЗМЕРЕНИЙ! ПЕРЕПРОВЕРЬТЕ ИЧ."
-    style = "color: #795203; background-color: #FEF3C7;"
+    res_text = "ОШИБКА ИЗМЕРЕНИЙ! РАЗМЕР 'А' ДОЛЖЕН БЫТЬ БОЛЬШЕ РАЗМЕРА 'Б'. ПЕРЕПРОВЕРЬТЕ ПОКАЗАНИЯ ИНДИКАТОРА ИЧ."
+    box_style = "color: #795203; background-color: #FEF3C7; border-left: 5px solid #F59E0B;"
 elif is_axial_failed or is_radial_failed:
-    res_text = "🚨 КРИТИЧЕСКИЙ ИЗНОС! СПУСК ЗАПРЕЩЕН!"
-    style = "color: #991B1B; background-color: #FEE2E2;"
+    res_text = "🚨 КРИТИЧЕСКИЙ ИЗНОС ОПОР ШПИНДЕЛЯ! СПУСК ЗАБОЙНОГО ДВИГАТЕЛЯ В СКВАЖИНУ КАТЕГОРИЧЕСКИ ЗАПРЕЩЕН! ТРЕБУЕТСЯ СРОЧНАЯ ЗАМЕНА ВЗД!"
+    res_text = res_text.upper() # Принудительный перевод в КАПСЛОК при аварии
+    box_style = "color: #991B1B; background-color: #FEE2E2; border-left: 5px solid #EF4444;"
 else:
-    res_text = "Статус в норме. Двигатель допущен к спуску."
-    style = "color: #065F46; background-color: #D1FAE5;"
+    res_text = f"Технологический статус в норме. Осевой зазор ({calculated_axial_delta:.2f} мм) и радиальный зазор ({radial_ich:.2f} мм) соответствуют критериям безопасной эксплуатации КНБК."
+    box_style = "color: #065F46; background-color: #D1FAE5; border-left: 5px solid #10B981;"
 
-# Вывод
-st.markdown(f'<div style="{style} padding: 10px; border-radius: 4px; font-weight: bold;">{res_text}</div>', unsafe_allow_html=True)
+# Вывод результатов на экран инженеру
+st.markdown(
+    f'<div style="{box_style} padding: 12px; border-radius: 4px; font-weight: bold; line-height: 1.4;">'
+    f'{res_text}</div>',
+    unsafe_allow_html=True
+)
 
 # =========================================================================
 # БЛОК 5: ОФИЦИАЛЬНЫЙ СВОДНЫЙ АКТ И ВЫГРУЗКА ДОКУМЕНТАЦИИ (БЕЗ ИКОНОК)
