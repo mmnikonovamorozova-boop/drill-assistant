@@ -146,20 +146,36 @@ st.markdown("---")
 st.markdown("### 📊 Блок 3: Высокоточный расчет и управление ЭЦП/ECD")
 st.caption("Математическое ядро по стандарту API RP 13D интегрировано с уставками ТК и поправкой на абразивную фазу")
 
-# 1. Ввод геолого-технических данных
+# --- Инициализация дефолтных состояний для тестов (в самом начале Блока 3) ---
+if "val_h_tvd" not in st.session_state: st.session_state["val_h_tvd"] = 2500.0
+if "val_d_hole" not in st.session_state: st.session_state["val_d_hole"] = 215.9
+if "val_q_flow" not in st.session_state: st.session_state["val_q_flow"] = 28.0
+if "val_rop" not in st.session_state: st.session_state["val_rop"] = 35.0
+if "val_d_pipe" not in st.session_state: st.session_state["val_d_pipe"] = 127.0
+if "val_p_frac" not in st.session_state: st.session_state["val_p_frac"] = 1.35
+
+# 1. Ввод геолого-технических данных (привязываем к переменным состояния через value)
 col_geo1, col_geo2, col_geo3 = st.columns(3)
 
 with col_geo1:
-    h_tvd = st.number_input("Вертикальная глубина скважины (TVD), м:", min_value=10.0, value=2500.0, step=10.0, key="b3_h_tvd")
-    d_hole = st.number_input("Диаметр скважины, мм:", min_value=50.0, value=215.9, step=0.1, key="b3_d_hole")
+    h_tvd = st.number_input("Вертикальная глубина скважины (TVD), м:", min_value=10.0, value=st.session_state["val_h_tvd"], step=10.0, key="b3_h_tvd_input")
+    d_hole = st.number_input("Диаметр скважины, мм:", min_value=50.0, value=st.session_state["val_d_hole"], step=0.1, key="b3_d_hole_input")
 
 with col_geo2:
-    q_flow = st.number_input("Расход насосов, л/с:", min_value=0.0, value=28.0, step=0.5, key="b3_q_flow")
-    rop = st.number_input("Скорость проходки (ROP), м/ч:", min_value=0.0, value=35.0, step=1.0, key="b3_rop")
+    q_flow = st.number_input("Расход насосов, л/с:", min_value=0.0, value=st.session_state["val_q_flow"], step=0.5, key="b3_q_flow_input")
+    rop = st.number_input("Скорость проходки (ROP), м/ч:", min_value=0.0, value=st.session_state["val_rop"], step=1.0, key="b3_rop_input")
 
 with col_geo3:
-    d_pipe = st.number_input("Наружный диаметр трубы, мм:", min_value=10.0, value=127.0, step=0.1, key="b3_d_pipe")
-    p_frac = st.number_input("Эквивалент ГРП / поглощения, г/см³:", min_value=0.8, value=1.35, step=0.01, key="b3_p_frac")
+    d_pipe = st.number_input("Наружный диаметр трубы, мм:", min_value=10.0, value=st.session_state["val_d_pipe"], step=0.1, key="b3_d_pipe_input")
+    p_frac = st.number_input("Эквивалент ГРП / поглощения, г/см³:", min_value=0.8, value=st.session_state["val_p_frac"], step=0.01, key="b3_p_frac_input")
+
+# Синхронизируем переменные для дальнейших расчетов ядра, если инженер поменял их руками
+st.session_state["val_h_tvd"] = h_tvd
+st.session_state["val_d_hole"] = d_hole
+st.session_state["val_q_flow"] = q_flow
+st.session_state["val_rop"] = rop
+st.session_state["val_d_pipe"] = d_pipe
+st.session_state["val_p_frac"] = p_frac
 
 # --- СТРОГАЯ ГЕОМЕТРИЧЕСКАЯ ВАЛИДАЦИЯ ---
 if d_pipe >= d_hole:
