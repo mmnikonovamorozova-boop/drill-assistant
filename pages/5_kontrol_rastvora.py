@@ -24,10 +24,13 @@ st.markdown("---")
 
 # --- ВЕРИФИКАЦИЯ СТО ИНТИ ---
 st.markdown(
-    "**Верификация стандартами:** Модуль разработан в соответствии с СТО ИНТИ S.QS.7 "
-    "(п. 7.4.3, 7.5.1 - контроль параметров промывки) и СТО ИНТИ S.100.3 "
-    "(раздел 5.7.2, 5.7.2.в - предиктивный анализ износа эластомеров).",
+    "<div style='color: #4B5563; font-size: 13px; background-color: #F3F4F6; padding: 12px; border-radius: 6px; border-left: 4px solid #1E3A8A; margin-bottom: 20px; line-height: 1.5; font-family: Arial, sans-serif;'> "
+    "<b>Верификация стандартами:</b> Модуль контроля соответствует <b>СТО ИНТИ S.QS.7</b> (аудит раствора) "
+    "и <b>СТО ИНТИ S.100.3</b> (ресурс эластомеров ВЗД)."
+    "</div>", 
+    unsafe_allow_html=True
 )
+
 st.markdown("---")
 # --- ВЫБОР ЗАКАЗЧИКА И ТЕХНОЛОГИЧЕСКИЕ ЛИМИТЫ ---
 client_col1, client_col2 = st.columns(2)
