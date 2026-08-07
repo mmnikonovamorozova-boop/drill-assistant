@@ -465,52 +465,99 @@ st.warning(
 )
 
 # --- БЛОК 5: РАПОРТ (Часть 1) ---
-st.markdown("### 📋 Блок 5: Сводный рапорт")
+# =========================================================================
+# БЛОК 5: СВОДНЫЙ РАПОРТ (ЧАСТЬ 1 — HTML БЛАНК)
+# =========================================================================
+# =========================================================================
+# БЛОК 5: СВОДНЫЙ РАПОРТ (ЧАСТЬ 1 — ИСПРАВЛЕННЫЙ HTML БЛАНК)
+# =========================================================================
+st.markdown("### 📋 Блок 5: Сводный рапорт технологического контроля")
 
-# Расчет износа и статуса ИНТИ
-wear_factor = 1.0 + (max(0.0, current_sand_val - 0.5) * 2.5 * current_kin)
-resource_reduction_pct = min(100.0, (3.5 * (wear_factor - 1.0) / 150.0) * 100.0)
+# Цветовой статус наследуем от логики контроля очистки раствора из Блока 2
+# (Предполагается, что переменные inti_status и act_status_color определены выше)
+if 'inti_status' not in locals():
+    inti_status = "ВЫПОЛНЕН ОПТИМАЛЬНЫЙ РАСЧЕТ"
+    act_status_color = "#1E3A8A"
 
-if resource_reduction_pct > 7.0:
-    inti_status, inti_color = "КРИТИЧЕСКИЙ ИЗНОС", "#EF4444"
-else:
-    inti_status, inti_color = "СООТВЕТСТВУЕТ ИНТИ", "#10B981"
-
-# Генерируем HTML-отчет (кратко)
-report_html = f"""
-<div style='border: 1px solid #ccc; padding: 10px;'>
-<h3>АКТ АУДИТА</h3>
-<p>Статус: <b style='color: {inti_color};'>{inti_status}</b></p>
-<p>Износ: {resource_reduction_pct:.2f}%</p>
+# Официальный HTML-бланк в фирменном стиле ООО «ТРАЕКТОРИЯ-СЕРВИС»
+html_report = f"""
+<div style='border:3px solid #1E3A8A; padding:25px; border-radius:10px; background-color:#FAFAFA; font-family:Arial, sans-serif; color:#333333;'>
+    <h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>
+    <h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ И ПРЕДИКТИВНОГО АНАЛИЗА</h3>
+    <hr style='border:1px solid #1E3A8A; margin-bottom:20px;'>
+    
+    <p><b>Дата/Время:</b> {current_time} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Регион работ:</b> {region_choice}</p>
+    <p><b>Объект / Скважина:</b> {well_number} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Инженер ННБ:</b> {engineer_name}</p>
+    <p><b>Тип раствора:</b> {mud_choice} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>Содержание песка:</b> {current_sand_val}%</p>
+    <p><b>Оборудование КНБК:</b> ВЗД {vendor_choice} ({kinematics_type})</p>
+    
+    <h4 style='color:#1E3A8A; margin-top:20px; border-bottom:1px solid #D1D5DB; padding-bottom:5px;'>РЕЗУЛЬТАТЫ ПРЕДИКТИВНОГО МОДЕЛИРОВАНИЯ ВЗД:</h4>
+    <p style='font-size:15px;'>Прогнозное время работы статора до отказа: <b>{predicted_hours_to_failure:.1f} ч.</b></p>
+    <p style='font-size:15px;'>Точность адаптивного ядра: <b>{accuracy_pct:.1f}%</b> (Расчетная погрешность: <b>±{mae_hours:.1f} ч.</b>)</p>
+    
+    <p style='font-size:16px; color:{act_status_color}; margin-top:15px;'><b>ТЕХНОЛОГИЧЕСКИЙ СТАТУС: {inti_status}</b></p>
+    <p style='font-size:12px; color:#6B7280; text-align:center; margin-top:35px; border-top:1px dashed #D1D5DB; padding-top:10px;'>Сгенерировано автоматизированным модулем контроля БР • ООО «Траектория-Сервис»</p>
 </div>
 """
-st.markdown(report_html, unsafe_allow_html=True)
+st.markdown(html_report, unsafe_allow_html=True)
 
-# 1. Формирование списка аналогичных отказов
+# =========================================================================
+# БЛОК 5: СВОДНЫЙ РАПОРТ (ЧАСТЬ 2 — ГЕНЕРАЦИЯ .TXT И СКАЧИВАНИЕ)
+# =========================================================================
+
+# 1. Сборка краткого текстового блока по ТОП-3 аналогичным отказам
 analog_report_lines = []
-if 'top_3_failures' in locals():
+if 'top_3_failures' in locals() and not top_3_failures.empty:
     for idx, (_, row) in enumerate(top_3_failures.iterrows()):
-        line = f"   {idx+1}. [{row['Производитель_чистый']}] Наработка: {row['Наработка до отказа (Часы)']} ч."
+        # Выделяем модель двигателя из строки
+        full_name = str(row["Габарит /\nПроизводитель"])
+        engine_model = full_name.split("(")[0].strip() if "(" in full_name else "ВЗД"
+        
+        line = (
+            f"   {idx+1}. [{row['Производитель_чистый']}] "
+            f"Двигатель: {engine_model} | Наработка: {row['Наработка до отказа (Часы)']} ч."
+        )
         analog_report_lines.append(line)
+        
 analogs_text_block = "\n".join(analog_report_lines)
+if not analogs_text_block:
+    analogs_text_block = "   Нет данных по аналогичным отказам."
 
-# 2. Сборка полного текста рапорта
+# 2. Формирование финального текста официального рапорта
 report_text = (
-    f"ООО «ТРАЕКТОРИЯ-СЕРВИС»\nАУДИТ ПАРАМЕТРОВ ОЧИСТКИ\n"
-    f"---------------------------------\n"
-    f"Скважина: {well_name}\n"
-    f"Раствор: П={f_dens} г/см³, Вязк={f_yp} дПа\n"
-    f"---------------------------------\n"
-    f"Прогноз времени до отказа: {predicted_hours_to_failure:.1f} ч.\n"
-    f"ТОП-3 аналога:\n{analogs_text_block}"
+    f"ООО «ТРАЕКТОРИЯ-СЕРВИС»\n"
+    f"АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ И ПРЕДИКТИВНОГО АНАЛИЗА\n"
+    f"--------------------------------------------------\n"
+    f"Дата/Время замера: {current_time}\n"
+    f"Регион проведения работ: {region_choice}\n"
+    f"Объект / Скважина: {well_number}\n"
+    f"Инженер по ННБ: {engineer_name}\n"
+    f"--------------------------------------------------\n"
+    f"ПАРАМЕТРЫ ТЕКУЩЕГО ЗАМЕРА БУРОВОГО РАСТВОРА:\n"
+    f"Тип промывочной жидкости: {mud_choice}\n"
+    f"Фактическая плотность (г/см³): {f_dens}\n"
+    f"Содержание песка (%): {current_sand_val}%\n"
+    f"Динамическое напряжение сдвига ДНС (дПа): {f_yp}\n"
+    f"--------------------------------------------------\n"
+    f"ОЦЕНКА ОСТАТОЧНОГО РЕСУРСА СТАТОРА ВЗД:\n"
+    f"Оборудование КНБК: {vendor_choice} ({kinematics_type})\n"
+    f"Прогноз времени до отказа статора: {predicted_hours_to_failure:.1f} ч.\n"
+    f"Точность адаптивного ядра модели: {accuracy_pct:.1f}%\n"
+    f"Расчетная погрешность (MAE): ±{mae_hours:.1f} ч.\n"
+    f"--------------------------------------------------\n"
+    f"ТОП-3 СХОЖИХ ИСТОРИЧЕСКИХ ОТКАЗА В РЕГИОНЕ:\n"
+    f"{analogs_text_block}\n"
+    f"--------------------------------------------------\n"
+    f"ТЕХНОЛОГИЧЕСКИЙ СТАТУС: {inti_status}\n"
+    f"Примечание: Данные носят справочно-информационный характер."
 )
 
-# 3. Кнопка скачивания
+# 3. Кнопка скачивания файла рапорта на буровой
 st.download_button(
-    label="📥 Скачать суточный рапорт (.txt)",
+    label="📥 Скачать официальный суточный рапорт (.txt)",
     data=report_text,
-    file_name=f"Akt_Audit_{well_name}.txt",
-    use_container_width=True
+    file_name=f"Akt_Audit_BR_{well_number.replace(' ', '_')}.txt",
+    use_container_width=True,
 )
 st.markdown("---")
 
@@ -556,4 +603,3 @@ if st.session_state.history_log:
     st.line_chart(df_log.set_index("Время")["Прогноз ресурса (ч)"])
 else:
     st.info("История замеров пуста. Нажмите кнопку выше для фиксации текущих параметров раствора.")
-
