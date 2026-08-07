@@ -434,22 +434,22 @@ with st.expander("🛠 Модуль онлайн-валидации и стре�
     st.markdown("##### Симуляция экстремальных режимов бурения")
     st.caption("Выберите тестовый сценарий для проверки устойчивости математических алгоритмов:")
     
-    # Кнопки для быстрой загрузки экстремальных пресетов
+        # Кнопки для быстрой загрузки экстремальных пресетов в модуле валидации
     col_test1, col_test2, col_test3 = st.columns(3)
     
     if col_test1.button("🔴 Тест 1: Статика (Остановка насосов)"):
-        st.session_state["b3_q_flow"] = 0.0
-        st.session_state["b3_rop"] = 0.0
+        st.session_state["val_q_flow"] = 0.0
+        st.session_state["val_rop"] = 0.0
         st.rerun()
         
     if col_test2.button("🔥 Тест 2: Лавинообразный ROP (100 м/ч)"):
-        st.session_state["b3_q_flow"] = 22.0  # Заниженный расход
-        st.session_state["b3_rop"] = 100.0   # Сверхвысокая проходка
+        st.session_state["val_q_flow"] = 22.0
+        st.session_state["val_rop"] = 100.0
         st.rerun()
         
     if col_test3.button("🏔 Тест 3: Экстремальная глубина (5500 м)"):
-        st.session_state["b3_h_tvd"] = 5500.0
-        st.session_state["b3_q_flow"] = 35.0
+        st.session_state["val_h_tvd"] = 5500.0
+        st.session_state["val_q_flow"] = 35.0
         st.rerun()
 
     # Секция автоматической верификации математических логов
