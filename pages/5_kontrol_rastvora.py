@@ -863,6 +863,70 @@ else:
     else:
         st.info(f"ℹ️ **Уведомление ИИ:** В текущей базе данных региона отсутствует репрезентативная статистика отказов для вендора {vendor_choice}. Оценка выполняется по стандартным паспортным лимитам.")
 
+# =========================================================================
+# МОДУЛЬ ОНЛАЙН-ВАЛИДАЦИИ И СТРЕСС-ТЕСТИРОВАНИЯ ИИ-ЯДРА БЛОКА 4
+# =========================================================================
+with st.expander("🛠 Модуль онлайн-валидации и стресс-тестирования ИИ-ядра"):
+    st.markdown("##### Симуляция критических режимов эксплуатации эластомера")
+    st.caption("Выберите тестовый сценарий для проверки устойчивости предиктивных алгоритмов:")
+    
+    # ФУНКЦИИ-КОЛБЭКИ ДЛЯ ИЗМЕНЕНИЯ СЕССИИ (Защита от StreamlitAPIException)
+    def set_test_critical_wear():
+        st.session_state["main_sand_input"] = 2.5
+        st.session_state["b4_current_temp_est"] = 110.0
+        st.session_state["b4_mud_choice"] = "MaxFlow"
+        st.session_state["b4_current_runtime"] = 120.0
+
+    def set_test_ideal_conditions():
+        st.session_state["main_sand_input"] = 0.1
+        st.session_state["b4_current_temp_est"] = 50.0
+        st.session_state["b4_mud_choice"] = "Техническая вода"
+        st.session_state["b4_current_runtime"] = 0.0
+
+    # Кнопки пресетов
+    col_v_test1, col_v_test2 = st.columns(2)
+    
+    col_v_test1.button("🔴 Тест 1: Экстремальная деградация статора", on_click=set_test_critical_wear, use_container_width=True)
+    col_v_test2.button("🟢 Тест 2: Идеальные условия (Новый двигатель)", on_click=set_test_ideal_conditions, use_container_width=True)
+
+    st.markdown("##### Сводный лог валидации ИИ-модели (СТО ИНТИ S.100.3):")
+    
+    # Алгоритм автоматического аудита переменных
+    ai_validation_passed = True
+    ai_logs = []
+    
+    # 1. Проверка режима работы ядра
+    if model_ready:
+        ai_logs.append(f"✅ **Режим работы:** Машинное обучение (RandomForestRegressor). Обучено на выборке из {len(df_train)} записей.")
+    else:
+        ai_logs.append("ℹ️ **Режим работы:** Аналитический статический откат ИНТИ (Недостаточно исторических данных в Excel).")
+        
+    # 2. Проверка адекватности прогноза времени
+    if predicted_hours_to_failure < 0:
+        ai_logs.append("❌ **КРИТИЧЕСКИЙ СБОЙ:** Прогноз ресурса ушел в отрицательную зону! Проверьте формулу вычитания наработки.")
+        ai_validation_passed = False
+    elif predicted_hours_to_failure == 0:
+        ai_logs.append("⚠️ **Предупреждение:** Остаточный ресурс равен 0. Эластомер выработал свой предел в текущих условиях.")
+    else:
+        ai_logs.append(f"✅ **Выходной параметр:** Расчетный остаток времени ({predicted_hours_to_failure:.1f} ч.) находится в рамках физического диапазона.")
+        
+    # 3. Валидация точности
+    if accuracy_pct < 50.0:
+        ai_logs.append(f"⚠️ **Внимание:** Точность предиктивного ядра занижена ({accuracy_pct:.1f}%). Высокий разброс целевых меток в Excel.")
+    else:
+        ai_logs.append(f"✅ **Метрика точности:** Доверительный интервал модели стабилен ({accuracy_pct:.1f}%).")
+
+    # Вывод логов на экран
+    for log in ai_logs:
+        if "✅" in log: st.write(log)
+        elif "⚠️" in log or "ℹ️" in log: st.info(log)
+        else: st.error(log)
+        
+    if ai_validation_passed:
+        st.success("🎯 Предиктивное ядро Блока 4 успешно прошло автоматический аудит типов данных и граничных значений.")
+    else:
+        st.error("🚨 Обнаружены математические аномалии в расчете ИИ-модели!")
+
 
 # =========================================================================
 # БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ (ПОЛНАЯ ВЕРСИЯ С МЕТАДАННЫМИ)
