@@ -169,14 +169,6 @@ with col_geo3:
     d_pipe = st.number_input("Наружный диаметр трубы, мм:", min_value=10.0, step=0.1, key="val_d_pipe")
     p_frac = st.number_input("Эквивалент ГРП / поглощения, г/см³:", min_value=0.8, step=0.01, key="val_p_frac")
 
-# Синхронизируем переменные для дальнейших расчетов ядра, если инженер поменял их руками
-st.session_state["val_h_tvd"] = h_tvd
-st.session_state["val_d_hole"] = d_hole
-st.session_state["val_q_flow"] = q_flow
-st.session_state["val_rop"] = rop
-st.session_state["val_d_pipe"] = d_pipe
-st.session_state["val_p_frac"] = p_frac
-
 # --- СТРОГАЯ ГЕОМЕТРИЧЕСКАЯ ВАЛИДАЦИЯ ---
 if d_pipe >= d_hole:
     st.error(f"🚨 **КРИТИЧЕСКАЯ ОШИБКА:** D трубы ({d_pipe} мм) > D скважины ({d_hole} мм).")
