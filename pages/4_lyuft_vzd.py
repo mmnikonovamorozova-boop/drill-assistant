@@ -303,15 +303,14 @@ with st.expander("🛠 Модуль онлайн-валидации и стре�
     if radial_ich > 5.0: logs.append("❌ Радиальный зазор > 5 мм"); has_err = True
     else: logs.append(f"✅ Радиальный зазор ({radial_ich:.2f} мм) ОК.")
 
-    # Валидация по переменной DLS_max_passport
+        # Валидация по переменной DLS_max_passport
     if DLS_max_passport > 8.0: 
-        logs.append("🚨 Критический DLS! Риск слома.")
+        logs.append("🚨 Критический DLS! Риск слома вала при роторном бурении.")
         has_err = True
-    else: logs.append(f"✅ DLS ({DLS_max_passport:.2f}°/10м) ОК.")
-
-    for log in logs: st.write(log)
-    if not has_err: st.success("✅ Комплексный аудит пройден.")
-    else: st.error("🚨 Обнаружены аномалии!")
+    elif DLS_max_passport == 0.0:
+        logs.append("⚠️ Проектный DLS равен 0.00. Расчет технологических рисков по изгибу неактивен.")
+    else: 
+        logs.append(f"✅ DLS ({DLS_max_passport:.2f}°/10м) в безопасных пределах.")
 
 # --- 11. ФУТЕРЫ СТРАНИЦЫ И ИНСТРУКЦИЯ ПО ПЕЧАТИ ---
 st.markdown(" ")
