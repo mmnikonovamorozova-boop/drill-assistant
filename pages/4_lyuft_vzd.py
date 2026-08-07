@@ -169,11 +169,11 @@ safe_radial_ich = max(0.01, radial_ich)
 safe_limit_wear = max(1.0, limit_wear)
 
 # 2. МАТЕМАТИЧЕСКОЕ ЯДРО 1: Расчет безопасной нагрузки на долото (WOB)
-# Экспоненциальное снижение нагрузки по мере приближения к лимиту отбраковки
-wob_reduction_factor = (1.0 - (safe_axial_delta / safe_limit_wear)) ** 0.6
+# Экспоненциальное снижение нагрузки по мере приближения к лимиту (защита от отрицательных значений)
+wob_base_value = max(0.0, 1.0 - (safe_axial_delta / safe_limit_wear))
+wob_reduction_factor = wob_base_value ** 0.6
 # Верификация границ: коэффициент должен быть в диапазоне [0.1, 1.0]
 wob_reduction_factor = max(0.1, min(1.0, wob_reduction_factor))
-calculated_wob_safe = WOB_max_passport * wob_reduction_factor
 
 # 3. МАТЕМАТИЧЕСКОЕ ЯДРО 2: Расчет допустимой пространственной интенсивности (DLS)
 # Снижение допустимого изгиба КНБК при роторном бурении из-за радиального люфта вала
