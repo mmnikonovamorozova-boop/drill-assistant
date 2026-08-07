@@ -707,8 +707,16 @@ if len(df_train) >= 3:
         # Прогнозируем скорость деградации эластомера для текущих условий
         predicted_wear_speed = max(0.0001, float(rf_model.predict(X_current)))
         
-        # Вычисляем чистый остаток времени бурения с вычетом текущей наработки
-        predicted_hours_to_failure = max(0.0, (1.0 / predicted_wear_speed) - current_runtime)
+        # --- СТРОГОЕ ОГРАНИЧЕНИЕ ПО РЕГЛАМЕНТУ ВИНК (150 ЧАСОВ) ---
+        # Прогнозируем потенциальный полный ресурс эластомера по модели ИИ
+        raw_ai_total_resource = 1.0 / predicted_wear_speed
+        
+        # ВИНК запрещают наработку более 150 часов. Берем наименьшее значение:
+        # либо мотор откажет раньше, либо мы упремся в нормативный лимит 150 ч.
+        allowed_total_resource = min(150.0, raw_ai_total_resource)
+        
+        # Вычисляем остаток времени бурения с учетом текущей фактической наработки
+        predicted_hours_to_failure = max(0.0, allowed_total_resource - current_runtime)
         model_ready = True
         
     except Exception as e:
@@ -720,10 +728,18 @@ if len(df_train) >= 3:
 
 # Если флаг model_ready остался False (выборка пуста или произошел сбой ML),
 # активируется жестко зашитая физико-математическая модель деградации статора
-if not model_ready:
-    # Базовый паспортный ресурс идеальной силовой секции ВЗД без нагрузок (ч)
-    base_stator_life_hours = 180.0
+    # Суммарный коэффициент скорости деградации статора из-за песка, температуры и химии
+    total_degradation_index = sand_wear_multiplier * temp_wear_multiplier * geometry_chemical_impact
     
+    # Расчет теоретического ресурса по СТО ИНТИ
+    raw_analytical_resource = base_stator_life_hours / total_degradation_index
+    
+    # --- СТРОГОЕ ОГРАНИЧЕНИЕ ПО РЕГЛАМЕНТУ ВИНК (150 ЧАСОВ) ---
+    allowed_analytical_resource = min(150.0, raw_analytical_resource)
+    
+    # Финальный остаток времени до нормативной или аварийной остановки ВЗД
+    predicted_hours_to_failure = max(0.0, allowed_analytical_resource - current_runtime)
+
     # 1. Расчет влияния избыточного содержания песка
     # Норма по ГОСТ/API до 0.5%. Все что выше — кратно ускоряет абразивный смыв резины
     sand_excess_factor = max(0.0, sand_input_val - 0.5)
