@@ -18,6 +18,19 @@ if "authenticated" not in st.session_state or not st.session_state["authenticate
 
 # --- КОНФИГУРАЦИЯ И ЗАГОЛОВОК ---
 st.set_page_config(page_title="Контроль растворов", layout="wide")
+
+# --- МЕТАПАСПОРТ РАПОРТА В БОКОВОЙ ПАНЕЛИ ---
+with st.sidebar:
+    st.markdown("### 📋 Метаданные рапорта")
+    well_name = st.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
+    engineer_name = st.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
+    field_name = st.text_input("Месторождение:", value="Приобское")
+    serial_number = st.text_input("Серийный номер ВЗД по паспорту:", value="№ 6677")
+    st.markdown("---")
+    if st.button("🚪 Выйти", use_container_width=True):
+        st.session_state.clear()
+        st.rerun()
+
 # --- ПРОФЕССИОНАЛЬНЫЙ БЛОК ВЕРИФИКАЦИИ ПО СТО ИНТИ ---
 with st.container(border=True):
     st.markdown(
@@ -65,6 +78,24 @@ with st.expander("📍 Плотность, Вязкость, Песок, Рео�
     st.markdown("- **Плотность**: Контроль ЭЦП и прихватов.\n- **Вязкость**: Вынос шлама.\n- **Песок**: Абразивный износ ВЗД и телесистем.\n- **Реология**: Риск прихвата/поршневания.")
 
 st.markdown("---")
+
+# --- ПАРАМЕТРЫ КОНТРАКТА И ЛИМИТЫ ---
+st.markdown("### 🏢 Параметры контракта и лимиты")
+client_col1, client_col2 = st.columns(2)
+
+with client_col1:
+    company_choice = st.selectbox(
+        "Выберите компанию-Заказчика:",
+        ["Роснефть", "Газпром нефть", "ЛУКОЙЛ", "НОВАТЭК", "Прочие"]
+    )
+
+with client_col2:
+    if company_choice == "Роснефть":
+        st.info("⚠️ **Лимиты по ТК Роснефть:** Максимальный порог содержания песка — **0.5%**. Требуется замер каждые 2 часа бурения.")
+    elif company_choice == "Газпром нефть":
+        st.info("⚠️ **Лимиты по ТК Газпром нефть:** Максимальный порог содержания песка — **0.4%**. Строгий контроль ДНС растворов.")
+    else:
+        st.info("ℹ️ **Стандартные технологические лимиты:** Порог песка — **0.5%** согласно РД компании.")
 
 # =========================================================================
 # БЛОК 2: ОЦЕНКА РИСКОВ (СВЯЗКА ПЕСКА И РАСХОДА НАСОСОВ)
@@ -450,15 +481,21 @@ st.warning(
 )
 
 # =========================================================================
-# БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ (РОДНОЙ СТИЛЬ STREAMLIT)
+# БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ (ПОЛНАЯ ВЕРСИЯ С МЕТАДАННЫМИ)
 # =========================================================================
 st.markdown("---")
 
 import time
 
-# 1. Сбор и форматирование локальных переменных для защиты от NameError
+# 1. Безопасный сбор всех новых метаданных из Sidebar и главного экрана
 safe_time = time.strftime("%d.%m.%Y %H:%M")
-safe_well = str(well_name) if 'well_name' in locals() else "101-Г"
+safe_well = str(well_name) if 'well_name' in locals() else "Скв. № 101, Куст 5"
+safe_engineer = str(engineer_name) if 'engineer_name' in locals() else "Иванов И.И."
+safe_field = str(field_name) if 'field_name' in locals() else "Приобское"
+safe_serial = str(serial_number) if 'serial_number' in locals() else "№ 6677"
+safe_company = str(company_choice) if 'company_choice' in locals() else "Роснефть"
+
+# Технологические параметры
 safe_region = str(region_choice) if 'region_choice' in locals() else "Волго-Урал"
 safe_mud = str(mud_choice) if 'mud_choice' in locals() else "Полимерный"
 safe_sand = "{:.2f}%".format(sand_input_val) if 'sand_input_val' in locals() else "0.80%"
@@ -470,33 +507,37 @@ pred_hours_num = float(predicted_hours_to_failure) if 'predicted_hours_to_failur
 acc_pct_num = float(accuracy_pct) if 'accuracy_pct' in locals() else 95.0
 mae_h_num = float(mae_hours) if 'mae_hours' in locals() else 5.0
 
-# 2. Отрисовка бланка через стандартные контейнеры и карточки Streamlit
+# 2. Отрисовка расширенного бланка в родных контейнерах Streamlit
 with st.container(border=True):
     st.markdown("<h2 style='text-align: center; color: #1E3A8A; margin:0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>", unsafe_allow_html=True)
     st.markdown("<h4 style='text-align: center; color: #4B5563; margin:0;'>АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ И ПРЕДИКТИВНОГО АНАЛИЗА</h4>", unsafe_allow_html=True)
     st.markdown("---")
     
-    # Метаданные замера в виде таблицы/колонок
+    # Левая и правая колонки с полным метапаспортом рапорта
     meta_col1, meta_col2 = st.columns(2)
     with meta_col1:
         st.markdown(f"📅 **Дата/Время замера:** {safe_time}")
-        st.markdown(f"📍 **Регион проведения работ:** {safe_region}")
-        st.markdown(f"🏗️ **Объект / Скважина:** {safe_well}")
+        st.markdown(f"🏢 **Недропользователь (Заказчик):** {safe_company}")
+        st.markdown(f"📍 **Месторождение:** {safe_field}")
+        st.markdown(f"🏗️ **Объект / Скважина / Куст:** {safe_well}")
+        st.markdown(f"👤 **Инженер по ННБ:** {safe_engineer}")
     with meta_col2:
+        st.markdown(f"📍 **Регион работ:** {safe_region}")
         st.markdown(f"🧪 **Тип промывочной жидкости:** {safe_mud}")
         st.markdown(f"⏳ **Содержание песка в БР:** {safe_sand}")
         st.markdown(f"⚙️ **Оборудование КНБК:** ВЗД {safe_vzd}")
+        st.markdown(f"🆔 **Паспортный номер силовой секции:** {safe_serial}")
         
-    st.markdown("##### 📊 Результаты предиктивного моделирования ВЗД:")
+    st.markdown("##### 📊 Результаты предиктивного моделирования ВЗД (СТО ИНТИ S.100.3):")
     
-    # Красивые карточки показателей
+    # Профессиональные карточки KPI
     metric_col1, metric_col2, metric_col3 = st.columns(3)
     metric_col1.metric("Остаток времени бурения", "{:.1f} ч".format(pred_hours_num))
     metric_col2.metric("Точность адаптивного ядра", "{:.1f} %".format(acc_pct_num))
     metric_col3.metric("Погрешность расчета (MAE)", "±{:.1f} ч".format(mae_h_num))
     
-    st.markdown("##### 📋 Технологическое заключение:")
-    # Вывод статуса ИНТИ в зависимости от критичности (красный или зеленый блок)
+    st.markdown("##### 📋 Технологическое заключение по промывке:")
+    # Динамический цветной блок статуса
     if "🚨" in safe_inti_status or "КРИТИЧЕСКИЙ" in safe_inti_status:
         st.error(f"**СТАТУС:** {safe_inti_status}")
     else:
@@ -504,21 +545,35 @@ with st.container(border=True):
         
     st.caption("ℹ️ Сгенерировано автоматизированным модулем контроля БР • ООО «Траектория-Сервис»")
 
-# 3. Кнопка скачивания официального текстового рапорта
+# 3. Полный экспортируемый текст для скачивания файла .txt
 report_text_content = (
-    f"ООО «ТРАЕКТОРИЯ-СЕРВИС»\nАКТ КОНТРОЛЯ ПАРАМЕТРОВ БР\n"
+    f"ООО «ТРАЕКТОРИЯ-СЕРВИС»\n"
+    f"АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ ПАРАМЕТРОВ БР\n"
     f"----------------------------------------\n"
-    f"Скважина: {safe_well}\nРаствор: {safe_mud}\nПесок: {safe_sand}\n"
-    f"Прогноз ресурса ВЗД: {pred_hours_num:.1f} ч.\n"
+    f"Дата/Время замера: {safe_time}\n"
+    f"Заказчик: {safe_company} | Месторождение: {safe_field}\n"
+    f"Скважина/Куст: {safe_well}\n"
+    f"Инженер по ННБ: {safe_engineer}\n"
     f"----------------------------------------\n"
-    f"СТАТУС: {safe_inti_status}"
+    f"Регион проведения работ: {safe_region}\n"
+    f"Тип раствора: {safe_mud}\n"
+    f"Содержание песка: {safe_sand}\n"
+    f"----------------------------------------\n"
+    f"Оборудование КНБК: ВЗД {safe_vzd}\n"
+    f"Паспортный серийный номер ВЗД: {safe_serial}\n"
+    f"Прогноз остаточного ресурса: {pred_hours_num:.1f} ч.\n"
+    f"Точность адаптивного ядра модели: {acc_pct_num:.1f}%\n"
+    f"----------------------------------------\n"
+    f"ТЕХНОЛОГИЧЕСКИЙ СТАТУС: {safe_inti_status}\n"
+    f"----------------------------------------\n"
+    f"Документ сформирован автоматически и имеет юридическую силу цифрового акта."
 )
 
 st.markdown(" ")
 st.download_button(
     label="📥 Скачать официальный суточный рапорт (.txt)", 
     data=report_text_content, 
-    file_name=f"Report_BR_{safe_well}.txt", 
+    file_name=f"Report_BR_{safe_well.replace(' ', '_')}.txt", 
     use_container_width=True
 )
 
