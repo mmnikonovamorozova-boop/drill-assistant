@@ -26,7 +26,7 @@ st.markdown(
 @st.cache_data(ttl=300)
 def load_calibrations_from_github_api():
     """Считывает архив калибровок из API GitHub (исправлен эндпоинт)"""
-    url = f"https://github.com"
+    url = "github.com"
     headers = {"Accept": "application/vnd.github.v3+json", "Authorization": f"token {st.secrets.get('GITHUB_TOKEN', '')}"}
     try:
         response = requests.get(url, headers=headers, timeout=10)
@@ -317,8 +317,7 @@ if st.button("📊 Рассчитать параметры прогноза на
 # =========================================================================
 def push_calibration_to_github_api(new_data):
     """Отправляет новые коэффициенты калибровки в репозиторий через ://github.com"""
-    REPO = "mmnikonovamorozova-boop/drill-assistant"
-    url = f"https://github.com{REPO}/contents/calibrations_db.json"
+    url = "github.com"
     
     token = st.secrets.get("GITHUB_TOKEN", None)
     if not token:
