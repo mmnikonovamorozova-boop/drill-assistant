@@ -329,7 +329,7 @@ def push_calibration_to_github_api(new_data):
         "Accept": "application/vnd.github.v3+json"
     }
     
-        try:
+    try:
         # 1. Проверяем наличие файла и получаем его SHA (если есть)
         res = requests.get(url, headers=headers, timeout=10)
         sha = None
