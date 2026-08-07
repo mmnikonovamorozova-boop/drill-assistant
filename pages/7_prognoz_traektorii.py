@@ -317,7 +317,7 @@ if st.button("📊 Рассчитать параметры прогноза на
 # =========================================================================
 def push_calibration_to_github_api(new_data):
     """Отправляет новые коэффициенты калибровки в репозиторий через ://github.com"""
-    url = "https://github.com"
+    url = "https://api.github.com"
     
     token = st.secrets.get("GITHUB_TOKEN", None)
     if not token:
