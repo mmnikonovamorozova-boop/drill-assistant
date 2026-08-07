@@ -512,22 +512,25 @@ with st.container(border=True):
     st.markdown("<h4 style='text-align: center; color: #4B5563; margin:0;'>АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ И ПРЕДИКТИВНОГО АНАЛИЗА</h4>", unsafe_allow_html=True)
     st.markdown("---")
     
-    # Левая и правая колонки с полным метапаспортом рапорта
-    meta_col1, meta_col2 = st.columns(2)
-    with meta_col1:
-        st.markdown(f"📅 **Дата/Время замера:** {safe_time}")
-        st.markdown(f"🏢 **Недропользователь (Заказчик):** {safe_company}")
-        st.markdown(f"📍 **Месторождение:** {safe_field}")
-        st.markdown(f"🏗️ **Объект / Скважина / Куст:** {safe_well}")
-        st.markdown(f"👤 **Инженер по ННБ:** {safe_engineer}")
-    with meta_col2:
-        st.markdown(f"📍 **Регион работ:** {safe_region}")
-        st.markdown(f"🧪 **Тип промывочной жидкости:** {safe_mud}")
-        st.markdown(f"⏳ **Содержание песка в БР:** {safe_sand}")
-        st.markdown(f"⚙️ **Оборудование КНБК:** ВЗД {safe_vzd}")
-        st.markdown(f"🆔 **Паспортный номер силовой секции:** {safe_serial}")
-        
-    st.markdown("##### 📊 Результаты предиктивного моделирования ВЗД (СТО ИНТИ S.100.3):")
+    # ПАСПОРТ ОБЪЕКТА (Вертикальный список)
+    st.markdown("##### 📝 Метапаспорт рапорта:")
+    st.markdown(f"📅 **Дата/Время замера:** {safe_time}")
+    st.markdown(f"🏢 **Недропользователь (Заказчик):** {safe_company}")
+    st.markdown(f"📍 **Месторождение:** {safe_field}")
+    st.markdown(f"🏗️ **Объект / Скважина / Куст:** {safe_well}")
+    st.markdown(f"👤 **Инженер по ННБ:** {safe_engineer}")
+    
+    st.markdown("<hr style='border:1px dashed #D1D5DB; margin:15px 0;'>", unsafe_allow_html=True)
+    
+    # ТЕКУЩИЕ ТЕХНОЛОГИЧЕСКИЕ ПАРАМЕТРЫ
+    st.markdown("##### 🧪 Технологические условия на буровой:")
+    st.markdown(f"📍 **Регион работ:** {safe_region}")
+    st.markdown(f"🧬 **Тип промывочной жидкости:** {safe_mud}")
+    st.markdown(f"⏳ **Содержание песка в БР:** {safe_sand}")
+    st.markdown(f"⚙️ **Оборудование КНБК:** ВЗД {safe_vzd}")
+    st.markdown(f"🆔 **Паспортный номер силовой секции:** {safe_serial}")
+    
+    st.markdown("---")
     
     # Профессиональные карточки KPI
     metric_col1, metric_col2, metric_col3 = st.columns(3)
