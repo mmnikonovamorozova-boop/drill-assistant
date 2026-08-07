@@ -54,9 +54,6 @@ def load_calibrations_from_github_api(target_well_name):
     # Если скважина новая — выдаем чистые заводские уставки
     return {"slide_factor": 1.0, "intensity_correction": 1.0, "rotary_drift_val": 0.03, "info": "Используются заводские уставки (Новая скважина)"}
 
-active_calibration = load_calibrations_from_github_api()
-st.sidebar.markdown(f"🤖 **Статус ИИ-ядра:** {active_calibration['info']}")
-
 # =========================================================================
 # БЛОК 3 — СКВОЗНАЯ ШИНА ДАННЫХ И ЦЕНТРАЛЬНЫЙ АДАПТИВНЫЙ ИНТЕРФЕЙС
 # Функционал: Считывание vink_limits_db.xlsx, разгрузка боковой панели,
@@ -161,6 +158,8 @@ buoyancy_factor = shared_buoyancy # Переменная для сохранен
 # =========================================================================
 st.markdown("### 🗂 Блок 4: Сверка пространственных данных и импорт ГГИ")
 well_name = st.text_input("📝 Номер/Название скважины:", value="101-Г")
+active_calibration = load_calibrations_from_github_api(well_name)
+st.sidebar.markdown(f"🤖 **Статус ИИ-ядра:** {active_calibration['info']}")
 
 # Интерактивный загрузчик ГГИ Заказчика (Приоритетный режим)
 uploaded_ggi = st.file_uploader("Выгрузите Excel/CSV с плановым профилем (ГГИ):", type=["xlsx", "csv"])
