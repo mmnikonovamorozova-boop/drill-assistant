@@ -376,7 +376,9 @@ def push_calibration_to_github_api(new_data):
         st.error(f"🚨 Сбой отправки данных предиктивного анализа: {err}")
         return False
 # =========================================================================
-# БЛОК 7.2 — ИНТЕРФЕЙС ОБРАТНОЙ СВЯЗИ И АВТОМАТИЧЕСКИЙ РАСЧЕТ НЕВЯЗКИ
+# БЛОК 7.2 — ИНТЕРФЕЙС ОБРАТНОЙ СВЯЗИ И АВТОМАТИЧЕСКИЙ РАСЧЕТ НЕВЯЗКИ (ИИ)
+# Функционал: Расчет ошибки прогноза, фильтрация весов по методу наименьших 
+# квадратов (шаг адаптации) и вызов удаленной записи через API GitHub.
 # =========================================================================
 st.markdown("---")
 st.markdown("### 🧠 Блок динамического самообучения системы (Адаптация траектории)")
@@ -385,15 +387,39 @@ col_learn1, col_learn2 = st.columns(2)
 with col_learn1:
     actual_angle_gain = st.number_input("Фактическое изменение зенитного угла (факт), °:", value=1.15)
 with col_learn2:
-    current_well = st.text_input("Имя текущей скважины:", value="102-Г")
+    current_well = st.text_input("Имя текущей скважины:", value=well_name)
 
 if st.button("🔄 Запустить самообучение системы", type="primary"):
-    with st.spinner("Вычисляется невязка и шаг фильтрации..."):
-        # ... [код расчета ошибки и формирования данных] ...
+    with st.spinner("Вычисляется невязка и шаг фильтрации весов КНБК..."):
+        # 1. Математический расчет невязки (ошибки прогноза)
+        prediction_error = actual_angle_gain - total_predicted_angle_gain
         
-        # Данные отправляются через API на GitHub
-        # push_calibration_to_github_api(new_point_to_save)
-        st.success("Данные отправлены для обновления модели.")
+        # 2. Адаптация коэффициентов (Градиентный шаг / Learning Rate = 0.15)
+        # Если КНБК перебирает угол, повышаем агрессивность слайда, если валит — снижаем
+        learning_rate = 0.15
+        new_slide_factor = float(k_slide_current + (prediction_error * learning_rate))
+        new_intensity_correction = float(k_int_current * (1.0 + prediction_error * 0.05))
+        
+        # Ограничиваем поправки физическими пределами, чтобы модель не ушла в разнос
+        new_slide_factor = max(0.5, min(2.0, new_slide_factor))
+        new_intensity_correction = max(0.6, min(1.5, new_intensity_correction))
+        
+        # 3. Формируем структурированный JSON-пакет для базы знаний GitHub
+        new_point_to_save = {
+            "well": current_well,
+            "error_val": round(prediction_error, 4),
+            "slide_factor": round(new_slide_factor, 3),
+            "intensity_correction": round(new_intensity_correction, 3),
+            "rotary_drift_val": round(drift_current, 3),
+            "info": f"Обучено на скважине {current_well}. Ошибка: {prediction_error:.2f}°"
+        }
+        
+        # 4. Вызываем физическую отправку через эндпоинт GitHub REST API
+        success = push_calibration_to_github_api(new_point_to_save)
+        
+        if success:
+            st.toast("🎯 Предиктивная модель успешно адаптирована под текущую свиту!", icon="🚀")
+
 # =========================================================================
 # БЛОК 8 — МОДУЛЬ ОНЛАЙН-ВАЛИДАЦИИ И СТРЕСС-ТЕСТИРОВАНИЯ ЯДРА ТРАЕКТОРИИ
 # Функционал: Защита от математических аномалий, автоматический аудит 
