@@ -45,9 +45,51 @@ active_calibration = load_calibrations_from_github_api()
 st.sidebar.markdown(f"🤖 **Статус ИИ-ядра:** {active_calibration['info']}")
 
 # =========================================================================
-# БЛОК 3 — СКВОЗНАЯ ШИНА ОБМЕНА ДАННЫМИ (STREAMLIT SESSION STATE)
+# БЛОК 3 — СКВОЗНАЯ ШИНА ОБМЕНА ДАННЫМИ С ЛИТОЛОГИЧЕСКИМ СЕЛЕКТОРОМ (РД ВНИИБТ)
+# Функционал: Автоматическое назначение стартовых коэффициентов анизотропии 
+# породы и естественного увода КНБК при отсутствии ГГИ Заказчика.
 # =========================================================================
 st.sidebar.markdown("### 🧬 Автоматическая шина данных КНБК")
+
+# 1. Интеграция геологического разреза с нормативными поправками
+st.sidebar.markdown("##### 🌋 Геологический разрез интервала (при отсутствии ГГИ)")
+lithology_type = st.sidebar.selectbox(
+    "Текущая проходимая свита / литология:",
+    [
+        "Глины, аргиллиты, песчаники (Мягкие породы)",
+        "Переслаивание глин и песчаников (Средняя твердость)",
+        "Известняки, доломиты, ангидриты (Твердые породы)",
+        "Кремнистые и плотные скальные породы (Крепкие)"
+    ],
+    index=1 # По умолчанию ставим Западную Сибирь
+)
+
+# Справочник нормативных коэффициентов анизотропии и базового увода по РД
+if "Мягкие" in lithology_type:
+    default_ani = 0.02
+    default_drift = 0.01
+elif "Средняя" in lithology_type:
+    default_ani = 0.05
+    default_drift = 0.03
+elif "Твердые" in lithology_type:
+    default_ani = 0.12
+    default_drift = 0.08
+else:
+    default_ani = 0.18
+    default_drift = 0.15
+
+# 2. Поля ввода с автоматической подстановкой геологических поправок
+base_ani = st.sidebar.number_input(
+    "Базовая анизотропия породы (H_ani):", 
+    value=default_ani, 
+    step=0.01,
+    help="Коэффициент макронеоднородности пласта. Наследуется из справочника РД ВНИИБТ."
+)
+
+# Переопределяем базовый увод в роторе по геологии, если инженер не ввел его вручную
+default_rotary_drift = float(active_calibration.get("rotary_drift_val", default_drift))
+
+# Остальные параметры сквозной шины данных
 shared_buoyancy = float(st.session_state.get("shared_buoyancy_factor", 0.85))
 buoyancy_factor = st.sidebar.number_input("Коэффициент плавучести (K_pl):", value=shared_buoyancy, step=0.01)
 yield_stress = st.sidebar.number_input("ДНС бурового раствора (дПа):", value=float(st.session_state.get("shared_yield_stress", 40.0)), step=1.0)
@@ -56,6 +98,7 @@ knbc_type = st.sidebar.selectbox("Конфигурация КНБК:", ["Ста�
 target_angle = st.sidebar.number_input("Текущий зенитный угол, °:", min_value=0.0, max_value=90.0, value=45.0)
 target_wob = st.sidebar.number_input("Нагрузка на долото (WOB), т:", value=15.0)
 max_allowed_dls = st.sidebar.number_input("Макс. интенсивность по ТЗ, град/10м:", value=2.5)
+
 # =========================================================================
 # БЛОК 4 — ОБРАБОТКА ГГИ ЗАКАЗЧИКА И РАСЧЕТ ТРАЕКТОРИИ (MINIMUM CURVATURE METHOD)
 # Функционал: Двухвариантный импорт данных инклинометрии, расчет пространственной 
