@@ -726,46 +726,35 @@ if len(df_train) >= 3:
 # БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА - ЧАСТЬ 3.3 (АНАЛИТИЧЕСКИЙ СТАТИЧЕСКИЙ ОТКАТ)
 # =========================================================================
 
-# Если флаг model_ready остался False (выборка пуста или произошел сбой ML),
-# активируется жестко зашитая физико-математическая модель деградации статора
-    # Суммарный коэффициент скорости деградации статора из-за песка, температуры и химии
-    total_degradation_index = sand_wear_multiplier * temp_wear_multiplier * geometry_chemical_impact
-    
-    # Расчет теоретического ресурса по СТО ИНТИ
-    raw_analytical_resource = base_stator_life_hours / total_degradation_index
-    
-    # --- СТРОГОЕ ОГРАНИЧЕНИЕ ПО РЕГЛАМЕНТУ ВИНК (150 ЧАСОВ) ---
-    allowed_analytical_resource = min(150.0, raw_analytical_resource)
-    
-    # Финальный остаток времени до нормативной или аварийной остановки ВЗД
-    predicted_hours_to_failure = max(0.0, allowed_analytical_resource - current_runtime)
-
-    # 1. Расчет влияния избыточного содержания песка
-    # Норма по ГОСТ/API до 0.5%. Все что выше — кратно ускоряет абразивный смыв резины
+# Если ИИ-модель RandomForest не обучилась, активируется аналитический расчет
+if not model_ready:
+    # Базовый ресурс и расчет коэффициентов деградации
+    base_stator_life_hours = 180.0
     sand_excess_factor = max(0.0, sand_input_val - 0.5)
     sand_wear_multiplier = 1.0 + (sand_excess_factor * 3.5)
     
-    # 2. Расчет влияния температурного режима (Закон Вант-Гоффа для полимеров)
-    # Каждые 10 градусов выше базовых 70°C ускоряют деструкцию эластомера NBR в 1.5 раза
-    if current_temp_est > 70.0:
-        temp_wear_multiplier = 1.5 ** ((current_temp_est - 70.0) / 10.0)
-    else:
-        temp_wear_multiplier = 1.0
+    # Температурный множитель (закон Вант-Гоффа)
+    temp_wear_multiplier = 1.5 ** ((current_temp_est - 70.0) / 10.0) if current_temp_est > 70.0 else 1.0
         
-    # 3. Интеграция геометрического фактора (кинематика) и химии раствора
-    # Чем выше заходность (current_kin близко к 1) и агрессивность среды, тем выше сдвиговые напряжения
+    # Геометрический фактор и химическая агрессивность
     geometry_chemical_impact = current_kin * 1.3 * current_mud_aggressiveness
     
-    # Суммарный коэффициент скорости деградации статора
+    # --- ИСПРАВЛЕННЫЙ ПОРЯДОК: Переменные объявлены ВЫШЕ расчета ---
     total_degradation_index = sand_wear_multiplier * temp_wear_multiplier * geometry_chemical_impact
     
-    # Вычисляем скорректированный полный ресурс и отнимаем текущую наработку
-    calculated_total_resource = base_stator_life_hours / total_degradation_index
-    predicted_hours_to_failure = max(0.0, calculated_total_resource - current_runtime)
+    # Защита от деления на ноль
+    if total_degradation_index <= 0.001:
+        total_degradation_index = 1.0
+        
+    # Расчет ресурсов и применение жесткого лимита 150 часов (ВИНК)
+    raw_analytical_resource = base_stator_life_hours / total_degradation_index
+    allowed_analytical_resource = min(150.0, raw_analytical_resource)
     
-    # Фиксируем стандартные экспертные погрешности для базовой модели
+    # Остаток времени и параметры модели
+    predicted_hours_to_failure = max(0.0, allowed_analytical_resource - current_runtime)
     mae_hours = 24.0
     accuracy_pct = 75.0
+
 # =========================================================================
 # БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА - ИСПРАВЛЕННЫЙ ПОИСК АНАЛОГОВ
 # =========================================================================
