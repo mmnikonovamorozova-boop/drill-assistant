@@ -335,7 +335,7 @@ def push_calibration_to_github_api(new_data):
         sha = None
         current_list = []
         
-            if res.status_code == 200:
+                    if res.status_code == 200:
             file_info = res.json()
             sha = file_info.get("sha")
             raw_content = file_info.get("content")
@@ -349,6 +349,7 @@ def push_calibration_to_github_api(new_data):
                     current_list = []
             else:
                 current_list = []
+
                 
         # 2. Добавляем новые данные
         current_list.append(new_data)
