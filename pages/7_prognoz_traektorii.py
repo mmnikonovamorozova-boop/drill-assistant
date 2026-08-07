@@ -24,22 +24,35 @@ st.markdown(
 # БЛОК 2 — ИНТЕГРАЦИЯ С REST API GITHUB И СЧИТЫВАНИЕ АДАПТИВНЫХ ВЕСОВ
 # =========================================================================
 @st.cache_data(ttl=300)
-def load_calibrations_from_github_api():
-    """Считывает архив калибровок из API GitHub (исправлен эндпоинт)"""
-    url = "https://github.com"
+# =========================================================================
+# БЛОК 2 — УМНОЕ ИИ-ЯДРО: ИМПОРТ И СЕЛЕКЦИЯ КАЛИБРОВОК ПО ИМЕНИ СКВАЖИНЫ
+# =========================================================================
+@st.cache_data(ttl=60)  # Уменьшили кэш до 60 секунд, чтобы изменения применялись быстрее
+def load_calibrations_from_github_api(target_well_name):
+    """Считывает архив калибровок и ищет исторические веса под конкретную скважину"""
+    url = "https://api.github/repos/mmnikonovamorozova-boop/drill-assistant/contents/calibrations_db.json"
     headers = {"Accept": "application/vnd.github.v3+json", "Authorization": f"token {st.secrets.get('GITHUB_TOKEN', '')}"}
+    
     try:
         response = requests.get(url, headers=headers, timeout=10)
         if response.status_code == 200:
             file_info = response.json()
             content_str = base64.b64decode(file_info["content"]).decode("utf-8")
             calibrations_list = json.loads(content_str)
+            
             if isinstance(calibrations_list, list) and len(calibrations_list) > 0:
-                last_point = calibrations_list[-1]
-                last_point["info"] = f"Успешно загружено! Скважина {last_point.get('well', 'Н/Д')}"
-                return last_point
+                # Фильтруем массив: ищем все замеры по текущей скважине
+                well_data = [p for p in calibrations_list if str(p.get("well")).strip() == str(target_well_name).strip()]
+                
+                if well_data:
+                    # Если нашли историю по этой скважине, берем самый актуальный (последний) её замер
+                    match = well_data[-1]
+                    match["info"] = f"🤖 ИИ: Адаптировано под скважину {target_well_name}. Замеров в базе: {len(well_data)}"
+                    return match
+                    
     except Exception: pass
-    return {"slide_factor": 1.0, "intensity_correction": 1.0, "info": "Используются заводские уставки"}
+    # Если скважина новая — выдаем чистые заводские уставки
+    return {"slide_factor": 1.0, "intensity_correction": 1.0, "rotary_drift_val": 0.03, "info": "Используются заводские уставки (Новая скважина)"}
 
 active_calibration = load_calibrations_from_github_api()
 st.sidebar.markdown(f"🤖 **Статус ИИ-ядра:** {active_calibration['info']}")
