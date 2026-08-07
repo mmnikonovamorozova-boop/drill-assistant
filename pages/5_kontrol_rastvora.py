@@ -426,23 +426,26 @@ with st.expander("🛠 Модуль онлайн-валидации и стре�
     st.markdown("##### Симуляция экстремальных режимов бурения")
     st.caption("Выберите тестовый сценарий для проверки устойчивости математических алгоритмов:")
     
-# Кнопки для быстрой загрузки экстремальных пресетов
-    col_test1, col_test2, col_test3 = st.columns(3)
-    
-    if col_test1.button("🔴 Тест 1: Статика (Остановка насосов)"):
+    # --- НАДЕЖНЫЕ ФУНКЦИИ-КОЛБЭКИ ДЛЯ ТЕСТОВЫХ ПРЕСЕТОВ ---
+    def set_test_static():
         st.session_state["val_q_flow"] = 0.0
         st.session_state["val_rop"] = 0.0
-        st.rerun()
-        
-    if col_test2.button("🔥 Тест 2: Лавинообразный ROP (100 м/ч)"):
+
+    def set_test_high_rop():
         st.session_state["val_q_flow"] = 22.0
         st.session_state["val_rop"] = 100.0
-        st.rerun()
-        
-    if col_test3.button("🏔 Тест 3: Экстремальная глубина (5500 м)"):
+
+    def set_test_extreme_depth():
         st.session_state["val_h_tvd"] = 5500.0
         st.session_state["val_q_flow"] = 35.0
-        st.rerun()
+
+    # Кнопки для быстрой загрузки экстремальных пресетов с привязкой колбэков
+    col_test1, col_test2, col_test3 = st.columns(3)
+    
+    # При нажатии сначала выполнится функция изменения сессии, и только потом Стримлит чисто перерисует инпуты
+    col_test1.button("🔴 Тест 1: Статика (Остановка насосов)", on_click=set_test_static)
+    col_test2.button("🔥 Тест 2: Лавинообразный ROP (100 м/ч)", on_click=set_test_high_rop)
+    col_test3.button("🏔 Тест 3: Экстремальная глубина (5500 м)", on_click=set_test_extreme_depth)
 
     # Секция автоматической верификации математических логов
     st.markdown("##### Лог верификации параметров API RP 13D:")
