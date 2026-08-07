@@ -292,14 +292,13 @@ else:
 
 # --- 1. ПОТЕРИ ДАВЛЕНИЯ НА ТРЕНИЕ В ЗАТРУБЕ (Па) ---
 if hydraulic_diam > 0:
-    # Дифференциальные потери давления на 1 метр длины
+    # Дифференциальные потери давления на 1 метр длины ствола
     dp_dl_friction = (2.0 * f_friction * rho_base_corrected * (v_annulus ** 2)) / hydraulic_diam
     total_p_friction_pa = dp_dl_friction * h_tvd
 else:
     total_p_friction_pa = 0.0
 
 # --- 2. МАТЕМАТИЧЕСКИЙ РАСЧЕТ КОНЦЕНТРАЦИИ И ВЫНОСА ШЛАМА ---
-# Защита: шлам генерируется только при наличии механического бурения и геометрии скважины
 if rop > 0.01 and d_hole > 0 and (q_flow > 0.01 or v_annulus > 0.01):
     dh_m_local = d_hole / 1000.0
     # Объем выбуренной породы в секунду (м³/с)
@@ -309,7 +308,7 @@ if rop > 0.01 and d_hole > 0 and (q_flow > 0.01 or v_annulus > 0.01):
     
     # Объемная концентрация шлама в затрубном пространстве
     c_cutting = q_solids / (q_fluid_m3s + q_solids)
-    # Жесткое физическое ограничение сверху для исключения математических аномалий
+    # Физическое ограничение сверху для исключения математических аномалий (макс 10%)
     c_cutting = max(0.0, min(0.10, c_cutting)) 
 else:
     c_cutting = 0.0
@@ -318,7 +317,7 @@ else:
 # rho_base_corrected уже учитывает песок из Блока 2, добавляем шлам (rho_rock = 2650 кг/м³)
 rho_eff_mix = (rho_base_corrected * (1.0 - c_cutting)) + (rho_rock * c_cutting)
 
-# --- 4. ФИНАЛЬНЫЙ РАСЧЕТ ДИНАМИЧЕСКОГО ДАВЛЕНИЯ И ЭЦП (ECD) ---
+# --- 4. РАСЧЕТ АБСОЛЮТНЫХ ДАВЛЕНИЙ И ФИНАЛЬНОЙ ЭЦП (ECD) ---
 if h_tvd > 0.1:
     # Общее гидростатическое давление смеси (Па)
     total_hydrostatic_pa = rho_eff_mix * 9.81 * h_tvd
@@ -327,9 +326,18 @@ if h_tvd > 0.1:
     
     # Перевод итоговой ЭЦП (ECD) обратно в г/см³
     calculated_ecd = (total_dynamic_pressure_pa / (9.81 * h_tvd)) / 1000.0
+    
+    # НОВАЯ МЕТРИКА: Перевод давлений в технические атмосферы (атм)
+    p_hydrostatic_atm = total_hydrostatic_pa / 101325.0
+    p_friction_atm = total_p_friction_pa / 101325.0
+    p_total_bottomhole_atm = total_dynamic_pressure_pa / 101325.0
 else:
     # Защитный откат на плотность на входе, если глубина близка к нулю
     calculated_ecd = rho_base_corrected / 1000.0
+    p_hydrostatic_atm = 0.0
+    p_friction_atm = 0.0
+    p_total_bottomhole_atm = 0.0
+
 # =========================================================================
 # БЛОК 3: ВЫСОКОТОЧНЫЙ РАСЧЕТ ЭЦП ПО МОДЕЛИ ГЕРШЕЛЯ-БАЛКЛИ - ЧАСТЬ 5
 # =========================================================================
