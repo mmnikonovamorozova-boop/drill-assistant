@@ -25,7 +25,6 @@ with st.sidebar:
     well_name = st.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
     engineer_name = st.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
     field_name = st.text_input("Месторождение:", value="Приобское")
-    serial_number = st.text_input("Серийный номер ВЗД по паспорту:", value="№ 6677")
     st.markdown("---")
     if st.button("🚪 Выйти", use_container_width=True):
         st.session_state.clear()
@@ -86,7 +85,7 @@ client_col1, client_col2 = st.columns(2)
 with client_col1:
     company_choice = st.selectbox(
         "Выберите компанию-Заказчика:",
-        ["Роснефть", "Газпром нефть", "ЛУКОЙЛ", "НОВАТЭК", "Прочие"]
+        ["Роснефть", "Газпром нефть", "ЛУКОЙЛ", "Прочие"]
     )
 
 with client_col2:
