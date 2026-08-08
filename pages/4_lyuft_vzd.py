@@ -78,24 +78,34 @@ selected_diameter = st.selectbox(
     help="ℹ️ ГАБАРИТ КОРПУСА:\nСмотрите маркировку ВЗД в паспорте на ВЗД или нарезку на статоре (например, 172 мм, 240 мм). От диаметра зависят внутренние зазоры и паспортный лимит износа опор шпинделя."
 )
 
-# 2. Поля ввода геометрических измерений шпиндельной секции
+# 2. Интерактивные поля ввода геометрических измерений
 st.subheader("📋 Результаты прямых измерений износа на устье скважины:")
-# --- ЧАСТЬ 1.1: СИНХРОНИЗИРОВАННЫЙ ТРЕХКОЛОНОЧНЫЙ ИНТЕРФЕЙС ---
+
 col_meas1, col_meas2, col_meas3 = st.columns(3)
 
+# Ввод данных с синхронизацией session_state
 with col_meas1:
-    size_a = st.number_input("Размер 'А', мм:", value=st.session_state["val_size_a"], key="input_size_a", step=0.01)
+    size_a = st.number_input("Размер 'А', мм:", value=st.session_state["val_size_a"], key="input_size_a")
     st.session_state["val_size_a"] = size_a
 
 with col_meas2:
-    size_b = st.number_input("Размер 'Б', мм:", value=st.session_state["val_size_b"], key="input_size_b", step=0.01)
+    size_b = st.number_input("Размер 'Б', мм:", value=st.session_state["val_size_b"], key="input_size_b")
     st.session_state["val_size_b"] = size_b
 
 with col_meas3:
-    radial_ich = st.number_input("Радиальный, мм:", value=st.session_state["val_radial_ich"], key="input_radial", step=0.01)
+    radial_ich = st.number_input("Радиальный, мм:", value=st.session_state["val_radial_ich"], key="input_radial")
     st.session_state["val_radial_ich"] = radial_ich
 
+# МГНОВЕННЫЙ РАСЧЕТ И ИНЖЕНЕРНЫЙ ВЫВОД ФАКТА
 calculated_axial_delta = size_a - size_b
+
+st.markdown(
+    f"<div style='background-color: #F3F4F6; padding: 10px; border-left: 4px solid #4B5563;'>"
+    f"<b>📊 Расчет:</b> Осевой люфт = {size_a:.2f} - {size_b:.2f} = "
+    f"<span style='color: #1E3A8A; font-weight: bold;'>{calculated_axial_delta:.2f} мм</span>"
+    f"</div>", 
+    unsafe_allow_html=True
+)
 
 # =========================================================================
 # БЛОК 2: НОРМАТИВНЫЕ БАЗЫ ДАННЫХ И ДИНАМИЧЕСКИЙ РАСЧЕТ ДОПУСКОВ
