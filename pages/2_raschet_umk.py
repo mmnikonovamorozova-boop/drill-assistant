@@ -156,41 +156,40 @@ with tab_tribology:
     
     angle_alpha = st.number_input("Измеренный угол натяжения троса лебедки (α), град:", min_value=10.0, max_value=90.0, value=90.0, step=1.0)
 # =========================================================================
-# БЛОК 3 — ОБНОВЛЕННОЕ ФИЗИКО-МАТЕМАТИЧЕСКОЕ ЯДРО
+# БЛОК 3 — МАТЕМАТИЧЕСКОЕ ЯДРО ВЫСШЕЙ ТОЧНОСТИ (СТО ИНТИ S.QS.8 / API)
 # =========================================================================
 st.markdown("---")
 st.markdown("### 📊 Блок 3: Предиктивный расчет параметров свинчивания")
 
-L_effective = fact_l  
-M_required = p_moment * k_grease
+# 1. Скорректированный момент с учетом трения
+M_required = p_moment * k_grease 
 g_const = 9.80665
 
-# Разделение логики расчета под старый и новый типы ключей
 if "Электронный" in control_type:
-    alpha_rad = np.radians(angle_alpha)
-    sin_alpha = np.sin(alpha_rad)
-    if sin_alpha < 0.1736:
-        sin_alpha = 0.1736
-        st.error("🚨 КРИТИЧЕСКИЙ УГОЛ: Угол менее 10°! Риск обрыва каната.")
+    # 2. Тригонометрическая защита и расчет усилия (кН*м -> Н*м / плечо / sin)
+    safe_angle = max(angle_alpha, 10.0) # Защита от деления на 0
+    f_pull_tons = ((M_required * 1000.0) / (fact_l * np.sin(np.radians(safe_angle)))) / g_const
     
-    f_pull_newtons = (M_required * 1000.0) / (L_effective * sin_alpha)
-    f_pull_tons = f_pull_newtons / g_const
+    if angle_alpha < 10.0:
+        st.error("🚨 КРИТИЧЕСКИЙ УГОЛ: Угол натяжения менее 10°! Расчет ограничен.")
+
     target_unit = f"{f_pull_tons:.2f} т"
     label_text = "🎯 Целевое усилие натяжения на ИВЭ-50:"
 else:
-    # Расчет давления для гидравлического манометра
+    # 3. Полный расчет давления (МПа -> кгс/см2)
     p_target_mpa = M_required / k_hydr
-    # Переводим в атмосферы/атм (кгс/см²) для старых советских манометров
     p_target_atm = p_target_mpa * 10.1972
-    target_unit = f"{p_target_mpa:.1f} МПа ({p_target_atm:.1f} кгс/см²)"
-    label_text = "🎯 Целевое давление по манометру гидросистемы:"
+    target_unit = f"{p_target_mpa:.2f} МПа ({p_target_atm:.1f} кгс/см²)"
+    label_text = "🎯 Целевое давление гидросистемы ключа:"
 
-# Визуализация результатов
+# 4. Визуализация
 col_res1, col_res2 = st.columns(2)
 with col_res1:
     st.metric(label=label_text, value=target_unit)
 with col_res2:
-    st.metric(label="⚙️ Скорректированный крутящий момент:", value=f"{M_required:.2f} кН·м")
+    st.metric(label="⚙️ Скорректированный момент на резьбе:", value=f"{M_required:.2f} кН·м")
+
+st.info(f"ℹ️ Математика: M_паспорт: {p_moment:.1f} кН·м | K_трения: {k_grease:.2f} | Плечо: {fact_l:.3f} м")
 
 # =========================================================================
 # БЛОК 4 — МОДУЛЬ КОМПЛЕКСНОЙ ОНЛАЙН-ВАЛИДАЦИИ И СТРЕСС-ТЕСТИРОВАНИЯ РИСКОВ
