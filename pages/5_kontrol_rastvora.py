@@ -537,6 +537,20 @@ else: current_kin = 0.50
 # Фильтрация базы данных по географическому признаку
 region_filter = ["ХМАО", "ЯНАО", "Западная Сибирь"] if "Самара" not in region_choice else "Волго-Урал"
 
+def load_advanced_failures_database(file_path):
+    """Безопасная функция загрузки исторических инцидентов отказов ВЗД"""
+    try:
+        df = pd.read_excel(file_path)
+        # Очищаем заголовки от случайных пробелов
+        df.columns = df.columns.astype(str).str.strip()
+        return df
+    except Exception:
+        # Если файла нет, возвращаем пустой DataFrame с нужными колонками
+        return pd.DataFrame(columns=["Регион работ", "Производитель_чистый", "Песок (%)", "Забойная Темп. (°C)", "Кинематика_число", "Наработка до отказа (Часы)", "Скорость_износа"])
+
+# Теперь вызываем её (эта строчка у вас уже есть)
+df_failures = load_advanced_failures_database("failures_db.xlsx")
+
 # Загружаем историческую базу инцидентов перед фильтрацией
 df_failures = load_advanced_failures_database("failures_db.xlsx")
 
