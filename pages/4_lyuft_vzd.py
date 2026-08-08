@@ -80,34 +80,21 @@ selected_diameter = st.selectbox(
 
 # 2. Поля ввода геометрических измерений шпиндельной секции
 st.subheader("📋 Результаты прямых измерений износа на устье скважины:")
-# --- ЧАСТЬ 1.1: ТРЕХКОЛОНОЧНЫЙ ИНТЕРФЕЙС С РЕАЛЬНЫМИ ПОДСКАЗКАМИ ---
+# --- ЧАСТЬ 1.1: СИНХРОНИЗИРОВАННЫЙ ТРЕХКОЛОНОЧНЫЙ ИНТЕРФЕЙС ---
 col_meas1, col_meas2, col_meas3 = st.columns(3)
 
 with col_meas1:
-    size_a = st.number_input(
-        "Размер 'А' (вал выдвинут/висит), мм:", 
-        min_value=0.0, max_value=50.0, value=10.0, step=0.01, key="val_size_a",
-        help="ℹ️ КАК ИЗМЕРИТЬ НА МОСТКАХ:\n1. Когда ВЗД висит на элеваторе (вал максимально выдвинут под собственным весом), нанесите тонким маркером четкую риску на вал шпинделя вплотную к торцу корпуса.\n2. Измерьте штангенциркулем или линейкой расстояние от торца корпуса до этой метки."
-    )
+    size_a = st.number_input("Размер 'А', мм:", value=st.session_state["val_size_a"], key="input_size_a", step=0.01)
+    st.session_state["val_size_a"] = size_a
 
 with col_meas2:
-    size_b = st.number_input(
-        "Размер 'Б' (вал вдавлен/разгружен), мм:", 
-        min_value=0.0, max_value=50.0, value=5.5, step=0.01, key="val_size_b",
-        help="ℹ️ КАК ИЗМЕРИТЬ НА МОСТКАХ:\n1. Опустите КНБК, чтобы долото упёрлось в ротор или приемные мостки (вес частично разгрузился, и вал ушел внутрь корпуса).\n2. Замерьте штангенциркулем новое расстояние от торца корпуса до вашей маркерной риски.\n⚠️ Разность (А - Б) покажет чистый осевой люфт."
-    )
+    size_b = st.number_input("Размер 'Б', мм:", value=st.session_state["val_size_b"], key="input_size_b", step=0.01)
+    st.session_state["val_size_b"] = size_b
 
 with col_meas3:
-    st.markdown("<p style='margin-bottom: 8px; font-size: 14px;'>Радиальный люфт (штангенциркуль), мм:</p>", unsafe_allow_html=True)
-    radial_ich = st.number_input(
-        "Радиальный люфт", 
-        min_value=0.0, max_value=10.0, value=0.20, step=0.01, label_visibility="collapsed", key="val_radial_ich",
-        help="ℹ️ КАК ИЗМЕРИТЬ БЕЗ ИЧ:\n1. Обхватите губками штангенциркуля тело вала у самого выхода из корпуса.\n2. Ломом или рычагом покачайте вал влево-вправо (поперек оси).\n3. Зафиксируйте максимальное смещение по шкале штангенциркуля. Если качание видно визуально «на глаз» без приборов — зазор уже больше 1-2 мм (критический износ втулки)!"
-    )
+    radial_ich = st.number_input("Радиальный, мм:", value=st.session_state["val_radial_ich"], key="input_radial", step=0.01)
+    st.session_state["val_radial_ich"] = radial_ich
 
-calculated_axial_delta = size_a - size_b
-
-# Вычисление фактического осевого перемещения
 calculated_axial_delta = size_a - size_b
 
 # =========================================================================
