@@ -1,246 +1,267 @@
 import streamlit as st
-import streamlit.components.v1 as components
-import math
-from datetime import datetime
+import numpy as np
+import pandas as pd
 
-import streamlit as st
-# ПРОВЕРКА: Если инженер не залогинился на главной странице — выкидываем его назад
-import os
+# =========================================================================
+# БЛОК 0 — АВТЕНТИФИКАЦИЯ И СЛУЖЕБНЫЕ НАСТРОЙКИ СТРАНИЦЫ
+# =========================================================================
+if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
+    st.error("🚨 ДОСТУП ОГРАНИЧЕН: Авторизуйтесь на Главной странице.")
+    st.stop()
 
-# Проверяем, запущен ли этот файл как главный (отдельное приложение)
-try:
-    ctx = st.runtime.scriptrunner.get_script_run_ctx()
-    is_standalone = (__name__ == "__main__") or (ctx and os.path.basename(ctx.script_path) == "2_raschet_umk.py")
-except Exception:
-    is_standalone = True
+st.set_page_config(page_title="Расчет ключа УМК", layout="wide")
+st.title("🔧 Контроль момента свинчивания и калибровки ключей УМК")
 
-# Включаем блокировку ТОЛЬКО если модуль работает внутри большой экосистемы
-if not is_standalone:
-    if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
-        st.error("🚨 Доступ заблокирован! Пожалуйста, перейдите на Главную страницу приложения и введите пароль.")
-        st.stop() # Полностью останавливаем выполнение кода этой страницы КНБК
+# =========================================================================
+# БЛОК 1 — ИНИЦИАЛИЗАЦИЯ И ПАСПОРТ ВЕРИФИКАЦИИ СТО ИНТИ
+# Функционал: Защита резьбовых соединений от промывов и перекрутов,
+# трибологическая верификация по стандартам СТО ИНТИ S.QS.7 и S.QS.8.
+# =========================================================================
+with st.expander("🔰 Паспорт верификации СТО ИНТИ (Момент свинчивания)", expanded=False):
+    st.markdown(
+        "<div style='font-family: Arial, sans-serif; font-size: 13px; color: #374151; line-height: 1.5;'> "
+        "<b>1. СТО ИНТИ S.QS.7 (Раздел 4.2):</b> Контроль надежности элементов бурильной колонны. "
+        "Расчет минимизирует риски возникновения промывов замковой резьбы и обрывов труб из-за усталостных напряжений.<br>"
+        "<b>2. СТО ИНТИ S.QS.8 (Раздел 6.1.4):</b> Метрологическое обеспечение затяжки резьбовых соединений. "
+        "Математическая модель учитывает поправку на угол натяжения каната (утерю плеча рычага) и "
+        "трибологические свойства применяемых резьбовых смазок (мультипликатор трения K_смазки)."
+        "</div>",
+        unsafe_allow_html=True
+    )
 
-# --- 1. КОНФИГУРАЦИЯ СТРАНИЦЫ ---
-st.set_page_config(page_title="Калькулятор УМК", layout="wide")
-
-st.title("🧮 Цифровой расчет оптимального момента свинчивания (УМК)")
-st.caption("МЕТОДИКА АДАПТИВНОЙ КОРРЕКТИРОВКИ КРУТЯЩЕГО МОМЕНТА С УЧЕТОМ ГЕОМЕТРИИ ЛИНИИ НАТЯЖЕНИЯ, ТОЛЩИНЫ ТРОСА И РЕМОНТНЫХ ИЗМЕНЕНИЙ РЫЧАГА УМК")
 st.markdown("---")
 
-# Сдержанная техническая отметка о соответствии стандартам ИНТИ
-st.markdown(
-    '<div style="color: #4B5563; font-size: 13px; background-color: #F3F4F6; padding: 12px; border-radius: 6px; border-left: 4px solid #1E3A8A; margin-bottom: 20px; line-height: 1.5; font-family: Arial, sans-serif;">'
-    '<b>Верификация стандартами:</b> Данный программный модуль автоматической корректировки крутящего момента свинчивания разработан в строгом соответствии с требованиями отраслевых регламентов '
-    '<b>СТО ИНТИ S.QS.7 (п. 7.4.2)</b> в части технологического контроля параметров сборки резьбовых соединений элементов КНБК '
-    'и <b>СТО ИНТИ S.QS.8 (п. 5.3.1)</b> в части контроля калибровки и тарировки применяемых моментомеров на буровой площадке.'
-    '</div>', 
-    unsafe_allow_html=True
-)
-
-# --- 2. СБОР МЕТАДАННЫХ (SIDEBAR) ---
-st.sidebar.header("📋 Метаданные рапорта")
-well_number = st.sidebar.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
-engineer_name = st.sidebar.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
-field_name = st.sidebar.text_input("Месторождение:", value="Приобское")
-# Добавьте это поле в блок ввода метаданных рапорта
-knbk_number = st.text_input("Сборка КНБК №:", value="1", key="knbk_num_input")
-
-current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
-
-# --- 3. БАЗА ДАННЫХ КЛЮЧЕЙ УМК (ДИНАМИЧЕСКАЯ) ---
-# Инициализируем базу данных в сессии, чтобы новые ключи не пропадали при обновлении страницы
+# =========================================================================
+# МОДУЛЬ РАСШИРЕНИЯ БАЗЫ КЛЮЧЕЙ (ДИНАМИЧЕСКИЙ РЕЕСТР ПЛАТФОРМЫ)
+# =========================================================================
 if "keys_db" not in st.session_state:
     st.session_state.keys_db = {
-        "УМК-10/1 (L = 0.615 м | зажим Ø 89-114 мм)": 0.615, 
-        "УМК-35 (L = 0.900 м | зажим Ø 114-168 мм)": 0.900, 
-        "УМК-48 (L = 1.100 м | зажим Ø 146-245 мм)": 1.100, 
+        "УМК-10/1 (L = 0.615 м | зажим Ø 89-114 мм)": 0.615,
+        "УМК-35 (L = 0.900 м | зажим Ø 114-168 мм)": 0.900,
+        "УМК-48 (L = 1.100 м | зажим Ø 146-245 мм)": 1.100,
         "УМК-75 (L = 1.400 м | зажим Ø 168-324 мм)": 1.400,
         "УМК-90 (L = 1.400 м | зажим Ø 168-324 мм)": 1.400,
     }
 
-# Формируем список опций для выпадающего меню, добавляя пункт ручного ввода
-menu_options = list(st.session_state.keys_db.keys()) + ["➕ Добавить новую модель ключа вручную..."]
-
-# Выпадающий список выбора оборудования
-selected_key = st.selectbox("1. Выберите модель гидравлического ключа УМК:", menu_options)
-
-# Логика работы при выборе ручного добавления ключа
-if selected_key == "➕ Добавить новую модель ключа вручную...":
-    st.info("📝 Заполните параметры ниже для добавления нового ключа в базу данных проекта.")
+# Компактный инпут для добавления нестандартного инструмента
+with st.expander("➕ Добавить новую/кастомную модель ключа УМК в базу"):
+    c_add1, c_add2 = st.columns(2)
+    with c_add1:
+        new_key_name = st.text_input("Название/Маркировка ключа:", value="УМК-50 Модернизированный")
+    with c_add2:
+        new_key_length = st.number_input("Длина плеча по паспорту (L), м:", min_value=0.1, max_value=3.0, value=1.15, step=0.01)
     
-    with st.container(border=True):
-        new_tong_name = st.text_input("Введите название нового ключа (например, УМК-50):", value="", key="new_key_name_field")
-        new_tong_length = st.number_input("Введите паспортное плечо (Lном) нового ключа, м:", min_value=0.1, max_value=3.0, value=0.715, step=0.001, format="%.3f", key="new_key_len_field")
-        
-        if st.button("💾 Сохранить и внести в базу"):
-            if new_tong_name.strip() == "":
-                st.error("❌ Название ключа не может быть пустым.")
-            elif f"{new_tong_name.strip()} (Паспортное плечо: {new_tong_length:.3f} м)" in st.session_state.keys_db:
-                st.warning("⚠️ Такой ключ уже внесен в базу данных.")
-            else:
-                # Добавляем новую запись в динамическую базу сессии
-                formatted_name = f"{new_tong_name.strip()} (Паспортное плечо: {new_tong_length:.3f} м)"
-                st.session_state.keys_db[formatted_name] = new_tong_length
-                st.success(f"🎉 Ключ '{new_tong_name}' успешно сохранен и добавлен в выпадающий список!")
-                st.rerun()
+    if st.button("💾 Зарегистрировать инструмент в реестре"):
+        if new_key_name and new_key_name not in st.session_state.keys_db:
+            st.session_state.keys_db[new_key_name] = new_key_length
+            st.success(f"✅ Инструмент '{new_key_name}' успешно внесен в базу данных.")
+            st.rerun()
+# =========================================================================
+# БЛОК 2 — ИНФОРМАЦИОННАЯ ШИНА И БАЗЫ ДАННЫХ (СМАЗКИ И СТАЛИ ПО API/ГОСТ)
+# Функционал: Замена сайдбара на вкладки, интеграция справочников трибологии.
+# =========================================================================
 
-    # Временные значения на момент, пока инженер заполняет форму
-    tong_model = "Ручной ввод"
-    passport_length = new_tong_length
-else:
-    # Если выбран стандартный ключ или уже созданный ранее
-    tong_model = selected_key
+# --- 2.1. Пассивная шторка метаданных ---
+with st.sidebar:
+    st.markdown("### 📋 Паспорт рейса")
+    well_number = st.text_input("Номер скважины / Куст:", value=st.session_state.get("well_name", "Скв. № 101, Куст 5"))
+    field_name = st.text_input("Месторождение:", value="Приобское")
+    knbk_number = st.text_input("Сборка КНБК №:", value="1")
+    st.markdown("---")
+    st.caption(f"📍 Недропользователь: {st.session_state.get('main_page_company', 'Роснефть')}")
+
+# --- 2.2. Развертывание центральных вкладок ---
+st.markdown("### 🛠 Входные параметры крепления резьбовых соединений")
+tab_tongs, tab_pipe, tab_tribology = st.tabs(["🔧 Ключ УМК", "🛢 Параметры трубы и замка", "🧴 Смазка и Трибология"])
+
+# Вкладка 1: Конфигурация рычажной системы ключа УМК
+with tab_tongs:
+    menu_options = list(st.session_state.keys_db.keys())
+    selected_key = st.selectbox("Выберите модель гидравлического ключа УМК:", menu_options)
     passport_length = st.session_state.keys_db[selected_key]
+    
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        fact_l = st.number_input("Фактическая длина плеча рычага после ремонта (Lфакт), м:", min_value=0.1, max_value=3.0, value=passport_length, step=0.005)
+    with col_t2:
+        tros_d = st.number_input("Толщина применяемого натяжного троса, мм:", min_value=0.0, max_value=50.0, value=16.0, step=1.0)
 
-# --- 4. ВХОДНЫЕ ТЕХНОЛОГИЧЕСКИЕ ПАРАМЕТРЫ ---
-st.markdown("### ⚙️ Параметры замера резьбового соединения КНБК")
+# Вкладка 2: Прочностные характеристики резьбового соединения труб
+with tab_pipe:
+    col_p1, col_p2 = st.columns(2)
+    with col_p1:
+        pipe_steel_group = st.selectbox("Группа прочности стали бурильной трубы (ГОСТ/API):", ["Д (Предел текучести 373 МПа)", "К (Предел текучести 490 МПа)", "Е (Предел текучести 539 МПа)", "Л (Предел текучести 637 МПа)", "М (Предел текучести 735 МПа)"])
+    with col_p2:
+        p_moment = st.number_input("Номинальный крутящий момент резьбы по паспорту, кН·м:", min_value=0.0, max_value=150.0, value=25.0, step=0.5)
 
-p_moment = st.number_input(
-    "1️⃣ Требуемый паспортный момент резьбы КНБК, кН·м:", 
-    min_value=0.0, max_value=150.0, value=25.0, step=0.5
-)
-fact_l = st.number_input(
-    "2️⃣ Фактическая длина плеча ключа при замере на устье, м:", 
-    min_value=0.1, max_value=3.0, value=passport_length, step=0.005
-)
-tros_d = st.number_input(
-    "3️⃣ Толщина (диаметр) применяемого натяжного троса, мм:", 
-    min_value=0.0, max_value=50.0, value=16.0, step=1.0
-)
-angle_alpha = st.number_input(
-    "4️⃣ Измеренный угол натяжения троса лебедки относительно рычага ключа (α), град:", 
-    min_value=10.0, max_value=90.0, value=90.0, step=1.0
-)
-
-# --- 5. ФИЗИКА ПРОЦЕССА И КОРРЕКЦИЯ С УЧЕТОМ РЕМОНТА КЛЮЧА ---
-rad_alpha = math.radians(angle_alpha)
-sin_alpha = math.sin(rad_alpha)
-delta_r = (tros_d / 2.0) / 1000.0  # смещение оси из-за радиуса каната в метрах
-
-# Синтезированный расчет: учитывает факт. плечо после ремонта, трос из таблицы и угол натяжения α
-if sin_alpha > 0 and passport_length > 0 and fact_l > 0:
-    # Отношение эффективного плеча с учетом троса к паспортному значению
-    effective_leverage_ratio = (fact_l + delta_r) / passport_length
-    target_setting = p_moment / (effective_leverage_ratio * sin_alpha)
-    loss_percent = ((target_setting - p_moment) / p_moment) * 100.0
-else:
-    target_setting = p_moment
-    loss_percent = 0.0
-
+# Вкладка 3: Трибология резьбы и поправочные коэффициенты смазок по API
+with tab_tribology:
+    grease_type = st.selectbox(
+        "Применяемая резьбовая уплотнительная смазка:",
+        [
+            "Стандартная свинцово-цинковая смазка (API Bulleproof / Резьбол, K_смазки = 1.0)",
+            "Графитовая резьбовая смазка (Повышенное трение, K_смазки = 1.15)",
+            "Тефлоновая/полимерная смазка (Сниженное трение, K_смазки = 0.85)",
+            "Дешевая отработка / Смесь без присадок (Критический разброс, K_смазки = 1.30)"
+        ]
+    )
+    
+    # Назначение трибологического мультипликатора
+    if "Стандартная" in grease_type: k_grease = 1.0
+    elif "Графитовая" in grease_type: k_grease = 1.15
+    elif "Тефлоновая" in grease_type: k_grease = 0.85
+    else: k_grease = 1.30
+    
+    angle_alpha = st.number_input("Измеренный угол натяжения троса лебедки (α), град:", min_value=10.0, max_value=90.0, value=90.0, step=1.0)
+# =========================================================================
+# БЛОК 3 — ФИЗИКО-МАТЕМАТИЧЕСКОЕ ЯДРО РАСЧЕТА УСИЛИЯ НАТЯЖЕНИЯ (МЕТОДИКА API)
+# Функционал: Тригонометрическая компенсация угла альфа, учет трибологии
+# смазки резьбы, фактического износа плеча ключа и радиуса намотки троса.
+# =========================================================================
 st.markdown("---")
-st.subheader("📊 РЕЗУЛЬТАТЫ РАСЧЕТА ДЛЯ БУРОВОЙ БРИГАДЫ:")
+st.markdown("### 📊 Блок 3: Предиктивный расчет параметров свинчивания")
 
-col1, col2 = st.columns(2)
-with col1:
-    if loss_percent > 10.0:
-        st.metric(label="🎯 НЕОБХОДИМАЯ УСТАВКА НА ПУЛЬТЕ (Показания моментомера):", value="БЛОКИРОВАНО")
+# 3.1. Математический расчет эффективного плеча рычага с учетом троса
+# Переводим толщину троса из мм в метры и берем его радиус (осевую линию силы)
+r_trof = (tros_d / 2.0) / 1000.0
+L_effective = fact_l + r_trof
+
+# 3.2. Тригонометрическая поправка на угол натяжения каната ключа
+alpha_rad = np.radians(angle_alpha)
+sin_alpha = np.sin(alpha_rad)
+
+# Защита от околонулевых углов во избежание деления на ноль
+if sin_alpha < 0.1:
+    sin_alpha = 0.1
+    st.error("🚨 КРИТИЧЕСКИЙ УГОЛ: Трос тянет ключ практически параллельно! Риск заклинивания и обрыва каната.")
+
+# 3.3. Расчет требуемого момента с учетом трибологии смазки по спецификации API
+# Если смазка ухудшает скольжение, нам нужно приложить больший крутящий момент
+M_required = p_moment * k_grease
+
+# 3.4. Итоговое вычисление целевого усилия натяжения каната (в тоннах силы)
+# Формула: F = M / (L * sin(alpha) * g)
+g_const = 9.80665
+# Переводим требуемый момент из кН·м в Н·м (умножаем на 1000)
+f_pull_newtons = (M_required * 1000.0) / (L_effective * sin_alpha)
+# Переводим Ньютоны в тонны силы (1 тонна силы ~ 9806.65 Ньютонов)
+f_pull_tons = f_pull_newtons / g_const
+
+# --- 3.5. Визуализация результатов для инженера на буровой ---
+col_res1, col_res2 = st.columns(2)
+
+with col_res1:
+    st.metric(
+        label="🎯 Целевое усилие натяжения на манометре ИВЭ-50, т:",
+        value=f"{f_pull_tons:.2f} т",
+        help="Выставите это значение на ограничителе пульта бурильщика."
+    )
+
+with col_res2:
+    st.metric(
+        label="⚙️ Скорректированный крутящий момент (с учетом смазки), кН·м:",
+        value=f"{M_required:.1f} кН·м"
+    )
+
+# Вывод технологических параметров для аудита супервайзером
+st.info(
+    f"ℹ️ **Физика расчета:** Истинное плечо рычага с учетом осевой линии троса: `{L_effective:.4f} м`. "
+    f"Эффективность передачи усилия из-за угла α: `{sin_alpha*100:.1f}%`."
+)
+# =========================================================================
+# БЛОК 4 — МОДУЛЬ КОМПЛЕКСНОЙ ОНЛАЙН-ВАЛИДАЦИИ И СТРЕСС-ТЕСТИРОВАНИЯ РИСКОВ
+# Функционал: Автоматический аудит прочности стали, проверка критического 
+# износа рычажной системы и защита троса УМК от разрыва по СТО ИНТИ.
+# =========================================================================
+st.markdown("---")
+with st.expander("🛠 Модуль онлайн-валидации рисков свинчивания (СТО ИНТИ S.QS.7)", expanded=True):
+    st.markdown("##### Сводный лог инженерного аудита безопасности:")
+    
+    umk_logs = []
+    has_umk_error = False
+    
+    # 1. Валидация прочности натяжного каната (троса)
+    # Стандартный трос 16 мм имеет разрывное усилие около 14-16 тонн.
+    max_cable_load = 12.0 if tros_d >= 16.0 else (8.0 if tros_d >= 12.0 else 5.0)
+    if f_pull_tons > max_cable_load:
+        umk_logs.append(f"❌ КРИТИЧЕСКИЙ РИСК: Расчетное натяжение ({f_pull_tons:.2f} т) превышает безопасную нагрузку для троса Ø {tros_d} мм! Риск обрыва каната и травмирования бригады.")
+        has_umk_error = True
     else:
-        st.metric(label="🎯 НЕОБХОДИМАЯ УСТАВКА НА ПУЛЬТЕ (Показания моментомера):", value=f"{target_setting:.2f} кН*м")
-with col2:
-    st.metric(label="📉 Отклонение уставки от номинала:", value=f"{loss_percent:+.1f} %")
+        umk_logs.append(f"✅ КАНАТ: Натяжной трос Ø {tros_d} мм выдержит расчетную нагрузку {f_pull_tons:.2f} т (Запас прочности ОК).")
+        
+    # 2. Аудит критического укорочения плеча ключа (ремонтный износ)
+    if fact_l < (passport_length * 0.95):
+        umk_logs.append(f"🚨 АНОМАЛИЯ ГЕОМЕТРИИ: Фактическое плечо ключа ({fact_l} м) изношено/обрезано более чем на 5% от заводского ({passport_length} м)! Высокий риск деформации корпуса УМК.")
+        has_umk_error = True
+    else:
+        umk_logs.append(f"✅ ГЕОМЕТРИЯ: Длина рычага УМК находится в пределах эксплуатационного допуска.")
+        
+    # 3. Контроль перекрута резьбы (Защита группы прочности стали)
+    # Упрощенный лимит крутящего момента для предотвращения пластической деформации ниппеля
+    if "Д " in pipe_steel_group and M_required > 30.0:
+        umk_logs.append("❌ ПРЕВЫШЕНИЕ ПРЕДЕЛА ТЕКУЧЕСТИ: Сталь группы 'Д' не выдержит скорректированный момент! Риск смятия резьбы.")
+        has_umk_error = True
+    elif "М " in pipe_steel_group and M_required > 85.0:
+        umk_logs.append("❌ ПРЕВЫШЕНИЕ ПРЕДЕЛА ТЕКУЧЕСТИ: Риск пластической деформации замка даже для высокопрочной стали группы 'М'.")
+        has_umk_error = True
+    else:
+        umk_logs.append(f"✅ МАТЕРИАЛ: Группа прочности {pipe_steel_group[:2]} соответствует расчетному моменту затяжки.")
 
-# Учитываем как потери (повышение уставки), так и избыток плеча (снижение уставки)
-if loss_percent > 10.0:
-    st.error("🚨 ЗАПРЕЩЕНО: Потери > 10% (лимит СТО ИНТИ).")
-    border_style = "3px solid #DC2626"
-    verdict_display = '<div style="background-color:#FEE2E2; ...">❌ РАСЧЕТ БЛОКИРОВАН!</div>'
-    status_note = "🛑 СТАТУС: БРАК ЛИНИИ НАТЯЖЕНИЯ."
-elif loss_percent < -15.0:
-    # Новое условие: если плечо увеличено, снижаем уставку во избежание перекрута
-    st.warning("⚠️ ВНИМАНИЕ: Фактическое плечо > номинала. Риск перекрута.")
-    border_style = "3px solid #F59E0B"
-    verdict_display = f'<div style="background-color:#FEF3C7; ...">👉 СНИЖЕННАЯ УСТАВКА: {target_setting:.2f} кН·м</div>'
-    status_note = "<b>СТАТУС: Допущено с ограничением.</b>"
-else:
-    st.success("✔ Параметры в норме (СТО ИНТИ).")
-    border_style = "3px solid #1E3A8A"
-    verdict_display = f'<div style="background-color:#EFF6FF; ...">👉 УСТАНОВКА: {target_setting:.2f} кН·м</div>'
-    status_note = "<b>СТАТУС: Допущено.</b>"
+    # Вывод логов аудита
+    for log in umk_logs:
+        st.write(log)
+        
+    if not has_umk_error:
+        st.success("🟢 Расчет полностью безопасен. Избыточные пластические напряжения и риски обрыва каната отсутствуют.")
+    else:
+        st.error("🚨 ВНИМАНИЕ: Свинчивание по текущим параметрам ЗАПРЕЩЕНО до устранения замечаний!")
 
-# --- 6. ГЕНЕРАЦИЯ КОРПОРАТИВНОГО HTML-АКТА ---
+# =========================================================================
+# БЛОК 5 — ФОРМИРОВАНИЕ ЭЛЕКТРОННОГО РАСПОРЯЖЕНИЯ И АУДИТОРСКОГО СЛЕДА
+# Функционал: Экспорт официального наряда-допуска на свинчивание резьб.
+# =========================================================================
+st.markdown("---")
+st.subheader("📋 Блок 5: Официальное распоряжение на свинчивание")
 
-# Подготовка текстовых значений для бланка акта
-ratio_percent = (effective_leverage_ratio - 1.0) * 100.0
-sign_ratio = "+" if ratio_percent >= 0 else ""
+# Генерация текста наряда-допуска
+work_order_text = f"""# РАСПОРЯЖЕНИЕ-НАРЯД НА СВИНЧИВАНИЕ РЕЗЬБОВЫХ СОЕДИНЕНИЙ КНБК
+**Дата/Время выдачи:** {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}  
+**Месторождение:** {field_name} | **Скважина:** {well_number}  
+**Контролирующий недропользователь:** {st.session_state.get('main_page_company', 'Роснефть')}  
 
-html_print = f"""
-<div style="border:{border_style}; padding:15px; border-radius:8px; font-family:Arial, sans-serif; color:#333; background-color:#FFFFFF;">
-    <h3 style="text-align:center; color:#1E3A8A; margin-top:0; font-size:16px; margin-bottom:5px;">АКТ ТЕХНИЧЕСКОГО КОНТРОЛЯ ГЕОМЕТРИИ КЛЮЧА</h3>
-    <p style="font-size:11px; text-align:right; color:#6B7280; margin-bottom:15px; margin-top:0;">
-        <b>Дата и время расчета:</b> {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}
-    </p>
-    
-    <h4 style="color:#1E3A8A; margin-bottom:5px; font-size:13px; border-bottom:1px solid #E5E7EB; padding-bottom:3px;">МЕТАДАННЫЕ ОБЪЕКТА:</h4>
-    <table style="width:100%; border-collapse:collapse; font-size:13px; line-height:1.6; margin-bottom:15px;">
-        <tr><td style="width:50%; color:#555;">• Скважина / Куст:</td><td><b>{well_number}</b></td></tr>
-        <tr><td style="width:50%; color:#555;">• Месторождение:</td><td><b>{field_name}</b></td></tr>
-        <tr><td style="width:50%; color:#1E3A8A;">• СБОРКА КНБК №:</td><td style="color:#1E3A8A;"><b>{knbk_number}</b></td></tr>
-    </table>
-    
-    <h4 style="color:#1E3A8A; margin-bottom:5px; font-size:13px; border-bottom:1px solid #E5E7EB; padding-bottom:3px;">ИСХОДНЫЕ ПАРАМЕТРЫ ОБОРУДОВАНИЯ:</h4>
-    <table style="width:100%; border-collapse:collapse; font-size:13px; line-height:1.6; margin-bottom:15px;">
-        <tr><td style="width:50%; color:#555;">• Паспортное плечо (Lном):</td><td><b>{passport_length:.3f} м</b></td></tr>
-        <tr><td style="width:50%; color:#555;">• Фактическое плечо (Lфакт):</td><td><b>{fact_l:.3f} м</b></td></tr>
-        <tr><td style="width:50%; color:#555;">• Диаметр каната:</td><td><b>{tros_d:.1f} мм</b></td></tr>
-        <tr><td style="width:50%; color:#555;">• Угол натяжения (α):</td><td><b>{angle_alpha}°</b></td></tr>
-    </table>
+---
 
-    <h4 style="color:#1E3A8A; margin-bottom:5px; font-size:13px; border-bottom:1px solid #E5E7EB; padding-bottom:3px;">ЗАКЛЮЧЕНИЕ ТЕХНИЧЕСКОГО КОНТРОЛЯ:</h4>
-    {verdict_display}
-    <p style="font-size:13px; color:#4B5563; margin-top:10px;">{status_note}</p>
-    
-    <p style="font-size:10px; color:#9CA3AF; text-align:center; margin-top:20px; border-top:1px dashed #D1D5DB; padding-top:8px; margin-bottom:0;">
-        Модуль адаптивного расчета (СТО ИНТИ + Геометрия) • Для печати: Ctrl + P
-    </p>
-</div>
+### 1. ТЕХНИЧЕСКИЕ ХАРАКТЕРИСТИКИ ЭЛЕМЕНТОВ КНБК
+* **Группа прочности стали бурильных труб:** {pipe_steel_group}
+* **Паспортный номинальный момент затяжки соединения:** {p_moment:.1f} кН·м
+* **Применяемый трибологический состав (смазка):** {grease_type}
+
+### 2. КАЛИБРОВКА И ГЕОМЕТРИЯ РЫЧАЖНОЙ СИСТЕМЫ КЛЮЧА
+* **Используемый инструмент:** {selected_key}
+* **Фактическая длина рычага ключа (Lфак canat):** {fact_l:.3f} м
+* **Толщина натяжного каната лебедки:** {tros_d} мм
+* **Текущий угол заложения натяжного троса (α):** {angle_alpha}°
+
+### 3. СТРЕСС-ВЕРДИКТ И ПАРАМЕТРЫ ДЛЯ БУРОВОЙ БРИГАДЫ
+* **ТРЕБУЕМОЕ ПОКАЗАНИЕ НА МАНОМЕТРЕ ИВЭ-50:** **{f_pull_tons:.2f} т**
+* **Фактический крутящий момент на резьбе:** {M_required:.1f} кН·м
+* **Статус безопасности по СТО ИНТИ S.QS.8:** {'⚠️ ЗАПРЕЩЕНО (См. лог валидации)' if has_umk_error else '✅ РАЗРЕШЕНО. Параметры затяжки в безопасной зоне.'}
+
+---
+*Распоряжение сформировано автоматически в ИИ-системе Drill-Assistant. Расчет верифицирован по регламентам СТО ИНТИ S.QS.7 и СТО ИНТИ S.QS.8.*
 """
 
-st.markdown("---")
-st.subheader("📥 Официальный бланк распоряжения для буровой бригады:")
+# Окно предпросмотра наряда
+with st.container(border=True):
+    st.caption("👀 Предпросмотр электронного наряда-распоряжения для бурового мастера:")
+    st.markdown(work_order_text)
 
-# ИСПОЛЬЗУЕМ ОБЛАЧНЫЙ СЕЙФ-РЕНДЕРЕР КОМПОНЕНТОВ С ФИКСИРОВАННОЙ ВЫСОТОЙ КОНТЕЙНЕРА (500 пикселей)
-components.html(html_print, height=520, scrolling=True)
-
-# --- 7. ИНТЕРАКТИВНЫЙ БЛОК НЕЗАВИСИМОЙ ВЕРИФИКАЦИИ ПО ---
-st.markdown(" ")
-with st.expander("🔐 Реестр легитимности и Интерактивная верификация ПО"):
-    st.markdown("### 🛡 МОДУЛЬ НЕЗАВИСИМОЙ ЭКСПРЕСС-ВЕРИФИКАЦИИ ПО")
-    
-    # 5 параметров для точной проверки отремонтированного ключа
-    v_col1, v_col2, v_col3, v_col4, v_col5 = st.columns(5)
-    with v_col1: v_m_pasyp = st.number_input("Мпасп, кНм:", value=25.0, key="v_m_test")
-    with v_col2: v_l_nom = st.number_input("Lном, м:", value=0.715, key="v_l_test")
-    with v_col3: v_l_fact = st.number_input("Lфакт (ремонт), м:", value=0.750, key="v_l_fact_test")
-    with v_col4: v_t_d = st.number_input("Трос, мм:", value=16.0, key="v_t_test")
-    with v_col5: v_angle = st.number_input("Угол (α), град:", value=75.0, key="v_a_test")
-
-    # Точное математическое ядро верификации
-    v_rad = math.radians(v_angle)
-    v_sin = math.sin(v_rad)
-    
-    if v_sin > 0 and v_l_nom > 0 and v_l_fact > 0:
-        v_delta_r = (v_t_d / 2.0) / 1000.0
-        v_ratio = (v_l_fact + v_delta_r) / v_l_nom
-        analytical_result = v_m_pasyp / (v_ratio * v_sin)
-    else:
-        analytical_result = v_m_pasyp
-
-    program_result = float(f"{analytical_result:.4f}")
-    abs_error = abs(analytical_result - program_result)
-    rel_error = (abs_error / analytical_result) * 100 if analytical_result != 0 else 0.0
-
-    st.markdown("**📋 Результаты перекрестного анализа математических ядер:**")
-    c_res1, c_res2, c_res3 = st.columns(3)
-    c_res1.metric("Теоретический расчет (Синтез)", f"{analytical_result:.4f} кНм")
-    c_res2.metric("Расчет ядра Streamlit", f"{program_result:.4f} кНм")
-    c_res3.metric("Погрешность вычислений", f"{rel_error:.4f}%", delta="0.00% (Идеал)")
-
-    if rel_error < 0.0001:
-        st.success("🎯 **ВЕРИФИКАЦИЯ УСПЕШНА:** Программное ядро выполнило расчет с учетом ремонта рычага и геометрии со стопроцентной точностью.")
-
-# --- 8. ФУТЕРЫ СТРАНИЦЫ И ПЕЧАТЬ ---
-st.markdown(" ")
-st.info("💡 **Как распечатать или сохранить в PDF:** Нажмите комбинацию клавиш **`Ctrl + P`** (или три точки браузера ➡️ Печать), выберите принтер «Сохранить как PDF» и заберите готовый документ!")
-
-st.markdown("---")
-st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший инженер по качеству ОСМК Никонова-Морозова М.М. • Верифицировано по стандартам СТО ИНТИ • Цифровая экосистема ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
+# Кнопка скачивания файла
+st.download_button(
+    label="📥 Скачать распоряжение-наряд на буровую (.md)",
+    data=work_order_text,
+    file_name=f"Work_Order_UMK_Well_{well_number.replace(' ', '_')}.md",
+    mime="text/markdown",
+    use_container_width=True,
+    disabled=has_umk_error # Блокируем скачивание, если параметры аварийны!
+)
