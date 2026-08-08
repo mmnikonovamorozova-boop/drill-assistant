@@ -198,33 +198,48 @@ with st.expander("🛠️ Модуль комплексной валидации
         has_umk_error = False
     else:
         st.success(f"✅ МАТЕРИАЛ: ... (соответствие стали)")
+    # 4. Итоговый экспертный вердикт системы менеджмента качества (СМК)
+    if 'has_umk_error' not in locals() or not has_umk_error:
+        st.success("🟢 ВЕРИФИКАЦИЯ ПРОЙДЕНА: Параметры свинчивания безопасны и соответствуют СТО ИНТИ.")
+        is_order_disabled = False
+    else:
+        st.error("🚨 СВИНЧИВАНИЕ КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО: Устраните нарушения технологического режима!")
+        is_order_disabled = True
 
 # =========================================================================
-# БЛОК 5 — АДАПТИВНЫЙ НАРЯД-ДОПУСК ---
+# БЛОК 5 — ОФИЦИАЛЬНОЕ НАРЯД-РАСПОРЯЖЕНИЕ НА СВИНЧИВАНИЕ ТРУБ
 # =========================================================================
-# --- БЛОК 5: АДАПТИВНЫЙ НАРЯД-ДОПУСК ---
 st.markdown("---")
 st.subheader("📋 Блок 5: Распоряжение")
 
-# Динамическая строка параметров
+# Формирование директивной строки параметров для буровой бригады
 if "Электронный" in control_type:
-    control_line = f"**ЦЕЛЕВОЕ УСИЛИЕ:** {f_pull_tons:.2f} т\n**Угол:** {angle_alpha}°"
+    control_line = f"**ЦЕЛЕВОЕ УСИЛИЕ НА ИВЭ-50:** {f_pull_tons:.2f} т\n**Угол натяжения каната α:** {angle_alpha} °"
 else:
-    control_line = f"**ДАВЛЕНИЕ:** {p_target_mpa:.1f} МПа"
+    control_line = f"**ЦЕЛЕВОЕ ДАВЛЕНИЕ МАНОМЕТРА:** {p_target_mpa:.2f} МПа ({p_target_mpa * 10.1972:.1f} кгс/см²)"
 
-work_order_text = f"""# РАСПОРЯЖЕНИЕ НА СВИНЧИВАНИЕ
-**Скважина:** {well_number} | **Скорректированный момент:** {M_required:.2f} кН·м
-{control_line}
+# Текст официального распоряжения СМК
+work_order_text = f"""# РАСПОРЯЖЕНИЕ НА КРЕПЛЕНИЕ СОЕДИНЕНИЙ КНБК
+**Месторождение:** {field_name} | **Скважина/Куст:** {well_number}
+**Элемент КНБК:** Бурильная труба (Сталь группы {pipe_steel_group})
+
+**ТЕХНОЛОГИЧЕСКИЕ УСТАВКИ СВИНЧИВАНИЯ:**
+* Номинальный момент резьбы: {p_moment:.1f} кН·м
+* Скорректированный момент (с учетом смазки): {M_required:.2f} кН·м
+* {control_line}
+
 ---
-**Статус СТО ИНТИ:** {"ОШИБКА" if has_umk_error else "БЕЗОПАСНО"}
+Протокол сформирован в соответствии с регламентами СТО ИНТИ S.QS.7 и S.QS.8.
 """
 
+# Отрисовка бланка распоряжения в интерфейсе Streamlit
 with st.container(border=True):
     st.markdown(work_order_text)
+    st.download_button(
+        label="📥 Скачать официальное Распоряжение (.md)",
+        data=work_order_text,
+        file_name=f"Order_UMK_Well_{well_number.replace(' ', '_')}.md",
+        disabled=is_order_disabled,
+        use_container_width=True
+    )
 
-st.download_button(
-    "📥 Скачать .md",
-    work_order_text,
-    file_name=f"Order_{well_number}.md",
-    disabled=has_umk_error
-)
