@@ -493,32 +493,67 @@ with st.expander("🛠 Модуль онлайн-валидации и стре�
 # =========================================================================
 # БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА СИНХРОНИЗАЦИИ И РАСЧЕТА РЕСУРСА СТАТОРА ВЗД
 # =========================================================================
-# --- ЧАСТЬ 4.1: ИНЖЕНЕРНАЯ ОЦЕНКА ХИМИИ РАСТВОРА (Обновлено) ---
+# =========================================================================
+# БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА СИНХРОНИЗАЦИИ И РАСЧЕТА РЕСУРСА СТАТОРА ВЗД
+# =========================================================================
+
+# --- ЧАСТЬ 4.1: ИНЖЕНЕРНАЯ ОЦЕНКА ХИМИИ РАСТВОРА И БЕЗОПАСНАЯ ИНИЦИАЛИЗАЦИЯ ---
 st.markdown("### ⏳ Блок 4: Экспертная система расчета остаточного ресурса")
 
+# 1. Защита от NameError: извлекаем тип кинематики из сессии или ставим стандартный дефолт 5/6
+if "kinematics_type" in st.session_state:
+    kinematics_type = st.session_state["kinematics_type"]
+else:
+    kinematics_type = "5/6"  # Стандартная заходность по умолчанию
+
+# 2. Расширенный выпадающий список типов растворов и агрессивных технологических пачек
+mud_list = [
+    "Полимерный / Биополимерный", 
+    "Гипсокалиевый", 
+    "Гелево-Эмульсионный", 
+    "MaxFlow", 
+    "Вязко-упругий состав (ВУС)",  # Расширение списка
+    "Кислотная пачка",            # Расширение списка
+    "Прочие"
+]
+
 mud_choice = st.selectbox(
-    "Тип раствора / технол. пачки:",
-    ["Полимерный", "ВУС", "Кислотная пачка", "Прочие"],
+    "Тип применяемого бурового раствора / технологической пачки:",
+    mud_list,
     key="b4_mud_choice"
 )
 
-# Весовые коэффициенты согласно методикам СТО ИНТИ S.100.3
-if "ВУС" in mud_choice:
-    current_mud_aggressiveness = 1.85 
+# 3. Базовая инициализация метрик (подстраховка от NameError на дальнейших шагах)
+current_runtime = float(st.session_state.get("current_runtime", 48.0))
+current_temp_est = float(st.session_state.get("current_temp_est", 75.0))
+region_choice = st.session_state.get("region_choice", "ХМАО / Мегион")
+vendor_choice = st.session_state.get("vendor_choice", "Радиус-Сервис")
+
+# 4. Расчет коэффициента химической деструкции по методике СТО ИНТИ S.100.3
+if "Вязко-упругий" in mud_choice:
+    current_mud_aggressiveness = 1.85  # Повышенный износ из-за сверхвязкости состава
 elif "Кислотная" in mud_choice:
-    current_mud_aggressiveness = 3.50  # Критический износ
+    current_mud_aggressiveness = 3.50  # Критический химический износ нитрильного эластомера NBR
+elif "Полимерный" in mud_choice:
+    current_mud_aggressiveness = 1.10
+elif "Гипсокалиевый" in mud_choice:
+    current_mud_aggressiveness = 1.30
+elif "Гелево-Эмульсионный" in mud_choice:
+    current_mud_aggressiveness = 1.35
+elif "MaxFlow" in mud_choice:
+    current_mud_aggressiveness = 1.45
 else:
-    current_mud_aggressiveness = 1.0
+    current_mud_aggressiveness = 1.00
 
-# --- ЧАСТЬ 4.2: ПОДГОТОВКА ДАННЫХ ДЛЯ ИИ-ЯДРА ВЗД ---
-df_geo = pd.DataFrame()
-df_train = pd.DataFrame()
-
-# Преобразование текстового пресета заходности силовой пары бурового мотора
-if "5/6" in kinematics_type: current_kin = 0.83
-elif "7/8" in kinematics_type: current_kin = 0.87
-elif "9/10" in kinematics_type: current_kin = 0.90
-else: current_kin = 0.50
+# 5. Преобразование текстового пресета заходности силовой пары бурового мотора
+if "5/6" in kinematics_type: 
+    current_kin = 0.83
+elif "7/8" in kinematics_type: 
+    current_kin = 0.87
+elif "9/10" in kinematics_type: 
+    current_kin = 0.90
+else: 
+    current_kin = 0.50
 
 # Фильтрация базы данных по географическому признаку
 region_filter = ["ХМАО", "ЯНАО", "Западная Сибирь"] if "Самара" not in region_choice else "Волго-Урал"
