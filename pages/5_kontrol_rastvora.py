@@ -1083,123 +1083,51 @@ with col_down2:
         use_container_width=True
     )
 # =========================================================================
-# БЛОК 6: ЦИФРОВОЙ ЖУРНАЛ И МОНИТОРИНГ ТЕНДЕНЦИЙ НАКОПЛЕНИЯ ИЗНОСА
+# БЛОК 6: ЦИФРОВОЙ ЖУРНАЛ ЗАМЕРОВ ТЕКУЩЕГО РЕЙСА (БЕЗ ОШИБОЧНЫХ ГРАФИКОВ)
 # =========================================================================
 st.markdown("---")
 st.markdown("### 💾 Блок 6: Цифровой журнал и мониторинг трендов")
-st.caption("Накопление замеров, контроль динамики промывки и обнаружение аномалий")
+st.caption("Накопление суточных замеров параметров промывки для архива КНБК")
 
-# Инициализация хранилища истории
 if "history_log" not in st.session_state:
     st.session_state.history_log = []
 
-col1, col2 = st.columns(2)
-with col1:
-    if st.button("➕ Зафиксировать замер", use_container_width=True):
+col_log1, col_log2 = st.columns(2)
+with col_log1:
+    if st.button("➕ Зафиксировать текущую точку замера в лог", use_container_width=True):
         time_now = time.strftime("%H:%M:%S")
         is_acid = "Кислотная" in normalized_mud
-        sand_val = sand_input_val if 'sand_input_val' in locals() else 0.0
+        sand_val = sand_input_val if 'sand_input_val' in locals() else 0.5
         
-        # Логика аварии
         if is_acid:
-            status, info = "🚨 АВАРИЯ / СПО", "КРИТИЧЕСКАЯ АВАРИЯ: Прокачка кислоты. Требуется СПО!"
-        elif sand_val > 0.5:
-            status, info = "🚨 АВАРИЯ / СПО", f"НАРУШЕНИЕ ТК: Песок {sand_val:.2f}% > 0.5%. Интенсивный износ."
+            status, info = "🚨 АВАРИЯ / СПО", "КРИТИЧЕСКАЯ АВАРИЯ: Прокачка кислоты! Требуется подъем КНБК."
+        elif sand_val > (sand_threshold if 'sand_threshold' in locals() else 0.5):
+            status, info = "🚨 НАРУШЕНИЕ", f"Превышен лимит песка! Износ ускорен. Ресурс: {predicted_hours_to_failure:.1f} ч."
         else:
-            status, info = "🟢 Норма", f"Замер {time_now} - Песок: {sand_val:.2f}%, Ресурс: {predicted_hours_to_failure:.1f} ч."
+            status, info = "🟢 Норма", f"Замер в норме. Ресурс ВЗД: {predicted_hours_to_failure:.1f} ч."
 
         st.session_state.history_log.append({
-            "Время": time_now, "Тип раствора": normalized_mud,
-            "Песок (%)": round(sand_val, 2), "Остаток (ч)": round(predicted_hours_to_failure, 1),
-            "Статус": status, "Заключение": info
+            "Время замеров": time_now, 
+            "Тип раствора / пачки": normalized_mud,
+            "Содержание песка (%)": round(sand_val, 2), 
+            "Остаток ресурса (ч)": round(predicted_hours_to_failure, 1),
+            "Технологический статус": status
         })
-        st.success(f"Замер зафиксирован: {time_now}")
+        st.success(f"Точка зафиксирована в {time_now}!")
 
-with col2:
-    if st.button("🗑 Очистить журнал", use_container_width=True):
+with col_log2:
+    if st.button("🗑 Очистить журнал замеров текущего рейса", use_container_width=True):
         st.session_state.history_log = []
         st.rerun()
 
-# Визуализация и скачивание
+# Вывод простого, читаемого и стабильного журнала в виде таблицы
 if st.session_state.history_log:
-    st.markdown("##### 📝 Хронология рейса:")
-    df_log = pd.DataFrame(st.session_state.history_log)
-    st.dataframe(df_log, use_container_width=True, hide_index=True)
+    st.markdown("##### 📝 Хронология выполненного контроля параметров БР:")
+    df_display = pd.DataFrame(st.session_state.history_log)
+    st.dataframe(df_display, use_container_width=True, hide_index=True)
     
-    # Генерация протокола
-    report = "\n".join([f"[{r['Время']}] {r['Тип раствора']} | Песок: {r['Песок (%)']}% | {r['Статус']}" for r in st.session_state.history_log])
-    st.download_button("📥 Скачать журнал (.txt)", data=report, file_name="Journal.txt", use_container_width=True)
+    # Кнопка скачивания архива
+    log_text = "\n".join([f"[{r['Время замеров']}] {r['Тип раствора / пачки']} | Песок: {r['Содержание песка (%)']}% | Статус: {r['Технологический статус']}" for r in st.session_state.history_log])
+    st.download_button("📥 Скачать журнал рейса (.txt)", data=log_text, file_name=f"Journal_{well_number}.txt", use_container_width=True)
 else:
-    st.info("ℹ Журнал пуст.")
-
-
-# =========================================================================
-# БЛОК 6: НАКОПЛЕНИЕ ИСТОРИИ, ЛОГИРОВАНИЕ И МОНИТОРИНГ ТЕНДЕНЦИЙ - ЧАСТЬ 6.2
-# =========================================================================
-
-# Проверяем, есть ли в базе сохраненные точки замеров для отрисовки
-if st.session_state.history_log:
-    # Конвертируем список словарей в DataFrame для работы с графиками
-    df_log = pd.DataFrame(st.session_state.history_log)
-    
-    st.markdown("---")
-    st.markdown("#### 📊 Гидродинамические тренды и износ оборудования в динамике:")
-    
-    # Разворачиваем двухколоночную сетку для графиков
-    col_chart1, col_chart2 = st.columns(2)
-    
-    with col_chart1:
-        st.markdown("##### Изменение содержания твердой фазы (песка):")
-        # Строим график, где одновременно выводятся фактический песок и линия допуска Заказчика
-        st.line_chart(
-            df_log.set_index("Время")[["Содержание песка (%)", "Предел Заказчика (%)"]],
-            color=["#3B82F6", "#EF4444"]  # Синяя линия для факта, красная — для предела
-        )
-        st.caption("Красная опорная линия указывает на критическую границу безопасной эксплуатации по регламенту ВИНК.")
-        
-    with col_chart2:
-        st.markdown("##### Динамика выработки остаточного ресурса статора ВЗД:")
-        # Строим график падения или стабилизации ресурса в часах
-        st.line_chart(
-            df_log.set_index("Время")[["Прогноз ресурса (ч)"]],
-            color=["#F59E0B"]  # Оранжевая линия тренда ресурса
-        )
-        st.caption("График отображает адаптивное изменение остаточного времени работы мотора с учетом химии и абразива.")
-
-    # --- 3. СТРОГИЙ ЦИФРОВОЙ ЖУРНАЛ ЗАМЕРОВ (СООТВЕТСТВИЕ БЛОКУ 5) ---
-    st.markdown(" ")
-    st.markdown("##### 📜 Хронологический журнал выполненных замеров параметров БР:")
-    
-    # Итерируемся по истории в обратном порядке, чтобы свежие замеры были наверху
-    for _, row in df_log.iloc[::-1].iterrows():
-        # Настройка условного форматирования стилей на основе флага аварии
-        if row["Авария"]:
-            # Аварийная точка: светло-красный фон, темно-красный текст, текст уже в КАПСЛОКЕ из Части 6.1
-            status_style = (
-                "background-color: #FEE2E2; "
-                "color: #991B1B; "
-                "padding: 12px; "
-                "border-radius: 4px; "
-                "font-weight: bold; "
-                "border-left: 5px solid #EF4444; "
-                "margin-bottom: 8px; "
-                "font-family: monospace;"
-            )
-        else:
-            # Штатная точка: нейтральный серый фон, темный текст, стандартный регистр
-            status_style = (
-                "background-color: #F3F4F6; "
-                "color: #374151; "
-                "padding: 12px; "
-                "border-radius: 4px; "
-                "border-left: 5px solid #9CA3AF; "
-                "margin-bottom: 8px;"
-            )
-            
-        # Рендерим строку журнала в интерфейс
-        st.markdown(f'<div style="{status_style}">{row["Заключение"]}</div>', unsafe_allow_html=True)
-else:
-    st.markdown("---")
-    st.info("Цифровой журнал замеров текущего рейса пуст. Зафиксируйте первую технологическую точку с помощью кнопки выше.")
-
-
+    st.info("ℹ Журнал текущего рейса пуст. Нажимайте кнопку выше при каждом суточном замере параметров раствора.")
