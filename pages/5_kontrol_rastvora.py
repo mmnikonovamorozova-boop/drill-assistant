@@ -916,187 +916,222 @@ if not df_similarity.empty and "Дистанция_сходства" in df_simil
 st.warning("⚠️ **ВАЖНОЕ УВЕДОМЛЕНИЕ:** Расчеты носят рекомендательный характер.")
 
 # =========================================================================
-# БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ
+# БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ (ЧАСТЬ 5.1)
 # =========================================================================
 st.markdown("---")
 import time
 
-# Строгая логика авто-анализа для печатного Акта (интеграция регламента)
-is_sand_failure = sand_input_val > (sand_threshold if 'sand_threshold' in locals() else 0.5)
-
-if "Кислотная пачка" in mud_choice:
-    final_report_status = "КРИТИЧЕСКИЙ ОТКАЗ: СТОП БУРЕНИЕ, СПО!" # Ссылается на СТО ИНТИ S.100.3
-elif is_sand_failure:
-    final_report_status = "КРИТИЧЕСКОЕ НЕСООТВЕТСТВИЕ: ИЗНОС ВЗД!"
-else:
-    final_report_status = f"Технологический статус в норме: Песок ({sand_input_val:.2f}%) в пределах допуска."
-
-# =========================================================================
-# БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ - ЧАСТЬ 5.2
-# =========================================================================
-
-# Предварительная обработка переменных (безопасный вызов)
+# --- Безопасная инициализация текстовых полей ---
+report_timestamp = time.strftime("%d.%m.%Y %H:%M")
 normalized_company = locals().get('company_choice', "Роснефть")
 normalized_mud = locals().get('mud_choice', "Полимерный / Биополимерный")
+normalized_field = str(locals().get('field_name', "Приобское")).strip()
+normalized_well = str(locals().get('well_number', "Скв. № 101, Куст 5")).strip()
+normalized_engineer = str(locals().get('engineer_name', "Иванов И.И.")).strip()
+normalized_serial = str(locals().get('serial_number', "№ 6677")).strip()
+
+# --- Единая логика нарушений и формирования статуса ---
 current_threshold = locals().get('sand_threshold', 0.5)
-is_failure = locals().get('is_failure_detected', False)
+is_sand_failure = sand_input_val > current_threshold
 
-# Визуальное построение печатной формы
-# Построение печатной формы Акта
-with st.container(border=True):
-    st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>", unsafe_allow_html=True)
-    st.markdown("<h4 style='text-align: center; color: #4B5563; margin-top: -15px;'>АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ И НАДЕЖНОСТИ ВЗД</h4>", unsafe_allow_html=True)
-    st.markdown("<hr>", unsafe_allow_html=True)
-    
-    st.metric("Остаток ресурса (ч)", f"{predicted_hours_to_failure:.1f}")
-    
-    status_bg = "#FEE2E2" if "КРИТИЧЕСКИЙ" in final_report_status else "#D1FAE5"
-    st.markdown(
-        f'<div style="background-color: {status_bg}; padding: 15px; border-radius: 4px; font-weight: bold;">'
-        f'{final_report_status}</div>',
-        unsafe_allow_html=True
-    )
-    
-    # KPI-метрики
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Остаток (ч)", "{:.1f}".format(locals().get('predicted_hours_to_failure', 0.0)))
-    c2.metric("Точность (%)", "{:.1f}".format(locals().get('accuracy_pct', 75.0)))
-    c3.metric("MAE (ч)", "±{:.1f}".format(locals().get('mae_hours', 24.0)))
-    
-    st.markdown("##### Заключение:")
-    
-    # Динамический стиль (КРАСНЫЙ при нарушении)
-    status_bg = "#FEE2E2" if is_failure else "#D1FAE5"
-    status_color = "#991B1B" if is_failure else "#065F46"
-        
-    st.markdown(
-        f'<div style="color: {status_color}; background-color: {status_bg}; padding: 10px; border-radius: 4px; font-weight: bold; border-left: 5px solid {status_color};">'
-        f'{final_report_status}</div>',
-        unsafe_allow_html=True
-    )
-
+if "Кислотная пачка" in normalized_mud:
+    final_report_status = "КРИТИЧЕСКИЙ ОТКАЗ: СТОП БУРЕНИЕ! ПРОКАЧКА КИСЛОТЫ. СУММАРНОЕ РАЗРУШЕНИЕ СИЛОВОЙ ПАРЫ ВЗД. СРОЧНОЕ СПО НА ЗАМЕНУ ДВИГАТЕЛЯ РЕГЛАМЕНТ СТО ИНТИ S.100.3!"
+    is_any_failure = True
+elif is_sand_failure:
+    final_report_status = f"ТЕХНОЛОГИЧЕСКОЕ НЕСООТВЕТСТВИЕ: СОДЕРЖАНИЕ ПЕСКА ({sand_input_val:.2f}%) ПРЕВЫШАЕТ ДОПУСТИМЫЙ ЛИМИТ ЗАКАЗЧИКА {current_threshold:.2f}%!"
+    is_any_failure = True
+else:
+    final_report_status = f"Технологический status в норме. Фактическое содержание песка ({sand_input_val:.2f}%) находится в безопасных пределах допуска."
+    is_any_failure = False
 # =========================================================================
-# БЛОК 5: СВОДНЫЙ РАПОРТ - ЧАСТЬ 5.3 (Сборка и выгрузка)
+# БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ (Шаг 5.2.1)
 # =========================================================================
+st.markdown("---")
+import time
 
-# --- БЕЗОПАСНАЯ ИНИЦИАЛИЗАЦИЯ (Исключаем NameError) ---
+# Безопасное извлечение текстовых переменных (защита от NameError)
+normalized_company = company_choice if 'company_choice' in locals() else "Прочие"
+normalized_mud = mud_choice if 'mud_choice' in locals() else "Полимерный / Bioполимерный"
 normalized_field = str(field_name).strip() if 'field_name' in locals() else "Приобское"
-normalized_well = str(well_name).strip() if 'well_name' in locals() else "Скв. № 101"
+normalized_well = str(well_number).strip() if 'well_number' in locals() else "Скв. № 101, Куст 5"
 normalized_engineer = str(engineer_name).strip() if 'engineer_name' in locals() else "Иванов И.И."
 normalized_serial = str(serial_number).strip() if 'serial_number' in locals() else "№ 6677"
-normalized_vzd = f"{vendor_choice} ({kinematics_type})" if ('vendor_choice' in locals() and 'kinematics_type' in locals()) else "ВЗД"
 
-# --- ВЫВОД НА ЭКРАН (Инженер + Скважина) ---
-st.markdown(f"**Инженер:** {normalized_engineer} | **Скв./Куст:** {normalized_well} | **ВЗД:** {normalized_serial}")
+# Формируем официальный штамп времени генерации документа
+report_timestamp = time.strftime("%d.%m.%Y %H:%M")
+# --- АВТО-АНАЛИЗ И ФОРМИРОВАНИЕ ОФИЦИАЛЬНОГО ЗАКЛЮЧЕНИЯ (Шаг 5.2.2) ---
 
-# --- ФОРМИРОВАНИЕ TXT (Официальный Акт) ---
+# Проверяем факт превышения содержания абразивного песка (из Блока 2)
+is_sand_failure = sand_input_val > (sand_threshold if 'sand_threshold' in locals() else 0.5)
+
+# Каскадная логика определения легитимного статуса для буровой бригады
+if "Кислотная пачка" in normalized_mud:
+    final_report_status = "🚨 КРИТИЧЕСКИЙ ОТКАЗ: ПРОКАЧКА КИСЛОТЫ! ДАЛЬНЕЙШЕЕ БУРЕНИЕ ЗАПРЕЩЕНО. ТРЕБУЕТСЯ СРОЧНЫЙ ПОДЪЕМ КНБК НА СПО ДЛЯ ЗАМЕНЫ ВЗД (РЕГЛАМЕНТ СТО ИНТИ S.100.3)."
+    status_bg = "#FEE2E2"    # Строгий аварийный красный фон
+    status_color = "#991B1B" # Темно-красный текст
+    is_critical_alert = True
+elif is_sand_failure:
+    final_report_status = "⚠️ КРИТИЧЕСКОЕ НЕСООТВЕТСТВИЕ: ИНТЕНСИВНЫЙ АБРАЗИВНЫЙ ИЗНОС СТАТОРА ВЗД! ТРЕБУЕТСЯ СРОЧНАЯ ОСТАНОВКА БУРЕНИЯ И ОЧИСТКА СИТ!"
+    status_bg = "#FEF3C7"    # Предупреждающий желтый фон
+    status_color = "#92400E" # Коричнево-оранжевый текст
+    is_critical_alert = True
+else:
+    final_report_status = f"✔ Технологический статус в норме: Текущее содержание песка ({sand_input_val:.2f}%) находится в пределах допустимого порога."
+    status_bg = "#D1FAE5"    # Безопасный зеленый фон
+    status_color = "#065F46" # Темно-зеленый текст
+    is_critical_alert = False
+# --- ВИЗУАЛЬНОЕ ПОСТРОЕНИЕ ПЕЧАТНОЙ ФОРМЫ АКТА (Шаг 5.2.3) ---
+
+with st.container(border=True):
+    # Логотип и официальная шапка документа
+    st.markdown("<h2 style='text-align: center; color: #1E3A8A; font-family: Arial, sans-serif; font-weight: bold;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>", unsafe_allow_html=True)
+    st.markdown("<h4 style='text-align: center; color: #4B5563; margin-top: -15px; letter-spacing: 1px;'>АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ И НАДЕЖНОСТИ ВЗД</h4>", unsafe_allow_html=True)
+    st.markdown("<hr style='border: 1px solid #E5E7EB;'>", unsafe_allow_html=True)
+    
+    # Сводные метаданные технологического рейса КНБК
+    st.markdown(f"**Заказчик:** {normalized_company} | **Месторождение:** {normalized_field} | **Скважина/Куст:** {normalized_well}")
+    st.markdown(f"**Тип раствора:** {normalized_mud} | **Фактический песок:** {sand_input_val:.2f}% (Лимит ТК: {sand_threshold if 'sand_threshold' in locals() else 0.5:.2f}%)")
+    st.divider()
+    
+    # Вывод трех ключевых предиктивных метрик силовой секции
+    col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
+    with col_kpi1:
+        st.metric("Остаток ресурса ВЗД", f"{predicted_hours_to_failure:.1f} ч", help="Расчетное время безопасной работы до срыва статора")
+    with col_kpi2:
+        st.metric("Точность прогноза", f"{accuracy_pct:.1f} %", help="Статистическая точность ИИ-ядра для данного вендора и региона")
+    with col_kpi3:
+        st.metric("Погрешность расчета (MAE)", f"± {mae_hours:.1f} ч", help="Средняя абсолютная ошибка предиктивной модели")
+        
+    st.markdown("##### Экспертное технологическое заключение:")
+    
+    # Динамический блок официального решения для бурового мастера
+    st.markdown(
+        f'<div style="color: {status_color}; background-color: {status_bg}; padding: 15px; border-radius: 6px; font-weight: bold; border-left: 5px solid {status_color}; font-size: 14px; line-height: 1.5; font-family: monospace;">'
+        f'{final_report_status}</div>',
+        unsafe_allow_html=True
+    )
+    
+    st.markdown(f"<p style='text-align: right; color: #9CA3AF; font-size: 12px; margin-top: 10px;'>Сформировано инженером: {normalized_engineer} | Дата и время: {report_timestamp}</p>", unsafe_allow_html=True)
+# =========================================================================
+# БЛОК 5.3: СБОРКА И СКАЧИВАНИЕ ФАЙЛОВ ОТЧЕТНОСТИ (Шаг 5.3)
+# =========================================================================
+st.markdown(" ")
+
+# 1. Принудительное формирование полной строки технических характеристик ВЗД
+normalized_vzd_profile = f"{vendor_choice} ({kinematics_type})" if ('vendor_choice' in locals() and 'kinematics_type' in locals()) else "ВЗД"
+
+# 2. Формирование официального текстового документа (TXT) для печати
 report_text_content = (
-    f"--- ООО ТРАЕКТОРИЯ-СЕРВИС ---\n"
-    f"АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ\n"
-    f"Дата: {report_timestamp}\n"
-    f"Инженер: {normalized_engineer}\n"
-    f"Скважина: {normalized_well}\n"
-    f"-----------------------------\n"
-    f"Состояние: {final_report_status}\n"
+    f"==================================================\n"
+    f"               ООО ТРАЕКТОРИЯ-СЕРВИС              \n"
+    f"       АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ ИЗНОСА ВЗД    \n"
+    f"==================================================\n"
+    f" Дата и время:      {report_timestamp}\n"
+    f" Инженер по ННБ:    {normalized_engineer}\n"
+    f" Месторождение:     {normalized_field}\n"
+    f" Скважина / Куст:   {normalized_well}\n"
+    f" Заказчик:          {normalized_company}\n"
+    f"--------------------------------------------------\n"
+    f" ХАРАКТЕРИСТИКИ СИЛОВОЙ СЕКЦИИ:\n"
+    f" Двигатель:         {normalized_vzd_profile}\n"
+    f" Серийный номер:    {normalized_serial}\n"
+    f" Текущая наработка: {current_runtime:.1f} ч\n"
+    f"--------------------------------------------------\n"
+    f" ПАРАМЕТРЫ ПРОМЫВОЧНОЙ СРЕДЫ:\n"
+    f" Тип раствора:      {normalized_mud}\n"
+    f" Содержание песка:  {sand_input_val:.2f} %\n"
+    f" Плотность:         {f_dens:.2f} г/см³\n"
+    f" Температура забой: {current_temp_est:.1f} °C\n"
+    f"--------------------------------------------------\n"
+    f" РЕЗУЛЬТАТЫ ПРЕДИКТИВНОГО АНАЛИЗА ИНТИ S.100.3:\n"
+    f" Точность модели:   {accuracy_pct:.1f} %\n"
+    f" Погрешность (MAE):  ± {mae_hours:.1f} ч\n"
+    f" ОСТАТОК РЕСУРСА:   {predicted_hours_to_failure:.1f} ч\n"
+    f"--------------------------------------------------\n"
+    f" ОФИЦИАЛЬНОЕ ЗАКЛЮЧЕНИЕ:\n"
+    f" {final_report_status}\n"
+    f"==================================================\n"
 )
 
-# --- ФОРМИРОВАНИЕ CSV (Данные) ---
-report_csv_content = f"Timestamp,Engineer,Status\n{report_timestamp},{normalized_engineer},{final_report_status}"
+# 3. Формирование таблицы данных (CSV) для ведения архива на сервере
+report_csv_content = (
+    f"Timestamp,Engineer,Field,Well,Company,MudType,SandPct,VzdSN,Runtime,RemainingHours,Status\n"
+    f"{report_timestamp},{normalized_engineer},{normalized_field},{normalized_well},{normalized_company},"
+    f"{normalized_mud},{sand_input_val:.2f},{normalized_serial},{current_runtime:.1f},"
+    f"{predicted_hours_to_failure:.1f},{final_report_status.replace(',', ';')}"
+)
 
-# --- КНОПКИ СКАЧИВАНИЯ ---
+# 4. Отрисовка кнопок выгрузки файлов в интерфейсе приложения
+st.markdown("##### 💾 Экспорт сформированных документов:")
 col_down1, col_down2 = st.columns(2)
+
 with col_down1:
-    st.download_button("📥 Скачать Акт (.txt)", report_text_content, file_name=f"Akt_{normalized_well}.txt")
-with col_down2:
-    st.download_button("📊 Скачать CSV", report_csv_content, file_name=f"Data_{normalized_well}.csv")
-
-# =========================================================================
-# БЛОК 6: НАКОПЛЕНИЕ ИСТОРИИ, ЛОГИРОВАНИЕ И МОНИТОРИНГ ТЕНДЕНЦИЙ - ЧАСТЬ 6.1
-# =========================================================================
-st.markdown("### 💾 Блок 6: Цифровой журнал и мониторинг трендов")
-st.caption("Накопление замеров, контроль динамики параметров промывки и раннее обнаружение технологических аномалий")
-
-# 1. Проверка и безопасная инициализация хранилища истории в текущей сессии
-if "history_log" not in st.session_state:
-    st.session_state.history_log = []
-
-# Формируем двухколоночный интерфейс управления журналом рейса
-col_log_ctrl1, col_log_ctrl2 = st.columns(2)
-
-with col_log_ctrl1:
-    if st.button("➕ Зафиксировать текущую точку замера в лог", use_container_width=True):
-        # Собираем актуальные временные и технологические параметры
-        current_time_str = time.strftime("%H:%M:%S")
-        active_sand_val = float(sand_input_val) if 'sand_input_val' in locals() else 0.5
-        active_limit = float(sand_threshold) if 'sand_threshold' in locals() else 0.5
-        active_resource = float(predicted_hours_to_failure) if 'predicted_hours_to_failure' in locals() else 100.0
-        
-        # Определяем статус нарушения для данной конкретной точки
-        is_point_failed = active_sand_val > active_limit
-        
-        if is_point_failed:
-            log_text_status = f"ЗАМЕР {current_time_str} - КРИТИЧЕСКОЕ НЕСООТВЕТСТВИЕ: ПЕСОК {active_sand_val:.2f}% ПРЕВЫШАЕТ ПРЕДЕЛ {active_limit:.2f}%! ОСТАТОК РЕСУРСА ВЗД: {active_resource:.1f} Ч."
-        else:
-            log_text_status = f"Замер {current_time_str} - Параметры в норме. Содержание песка: {active_sand_val:.2f}% (Предел: {active_limit:.2f}%), Прогноз ресурса ВЗД: {active_resource:.1f} ч."
-            
-        # Записываем структурированный словарь в историю замеров
-        st.session_state.history_log.append({
-            "Время": current_time_str,
-            "Содержание песка (%)": active_sand_val,
-            "Предел Заказчика (%)": active_limit,
-            "Прогноз ресурса (ч)": active_resource,
-            "Авария": is_point_failed,
-            "Заключение": log_text_status
-        })
-        st.success(f"Точка технологического замера зафиксирована в журнале в {current_time_str}!")
-
-with col_log_ctrl2:
-    if st.button("🗑 Очистить журнал замеров текущего рейса", use_container_width=True):
-        st.session_state.history_log = []
-        st.rerun()
-
-# =========================================================================
-# БЛОК 6: НАКОПЛЕНИЕ ИСТОРИИ - ДОПОЛНЕНИЕ (ЭКСПОРТ АРХИВА ЖУРНАЛА В TXT)
-# =========================================================================
-
-# Проверяем, есть ли записи в журнале, чтобы зря не показывать пустую кнопку
-if st.session_state.history_log:
-    # 1. Формируем шапку официального архивного протокола (без эмодзи, строго по ГОСТ)
-    archive_txt_lines = [
-        "--------------------------------------------------",
-        "               ООО ТРАЕКТОРИЯ-СЕРВИС              ",
-        "          ПРОТОКОЛ ИСТОРИИ ТЕХНОЛОГИЧЕСКИХ ЗАМЕРОВ ",
-        "--------------------------------------------------",
-        f"Дата выгрузки архива: {time.strftime('%d.%m.%Y %H:%M:%S')}",
-        f"Заказчик (Недропользователь): {normalized_company}",
-        f"Скважина / Куст: {normalized_well}",
-        f"Инженер по ННБ: {normalized_engineer}",
-        "--------------------------------------------------",
-        "ХРОНОЛОГИЯ ВЫПОЛНЕННОГО КОНТРОЛЯ ПАРАМЕТРОВ БР:",
-        ""
-    ]
-    
-    # 2. Построчно добавляем каждый зафиксированный факт контроля (от старых к свежим)
-    for idx, record in enumerate(st.session_state.history_log, 1):
-        archive_txt_lines.append(f"Запись №{idx:02d} | Время: {record['Время']}")
-        archive_txt_lines.append(f"Параметры: Песок = {record['Содержание песка (%)']:.2f}%, Предел = {record['Предел Заказчика (%)']:.2f}%, Ресурс ВЗД = {record['Прогноз ресурса (ч)']:.1f} ч.")
-        archive_txt_lines.append(f"Заключение: {record['Заключение']}")
-        archive_txt_lines.append("-" * 35)
-        
-    archive_txt_lines.append("\nКонец протокола. Контроль произведен ПО 'Помощник инженера ННБ'.")
-    
-    # Объединяем массив строк в единый текстовый контент для файла
-    final_archive_txt_content = "\n".join(archive_txt_lines)
-    
-    # 3. Выводим строгую кнопку скачивания архива на всю ширину под основными кнопками
-    st.markdown(" ")
     st.download_button(
-        label="📥 Скачать полный текстовый архив журнала замеров (.txt)",
-        data=final_archive_txt_content,
-        file_name=f"Архив_Журнала_БР_{normalized_well.replace(' ', '_')}_{time.strftime('%Y%m%d')}.txt",
+        label="📥 Скачать официальный Акт (.txt)",
+        data=report_text_content,
+        file_name=f"Akt_Tech_Control_{normalized_well.replace(' ', '_')}.txt",
         mime="text/plain",
         use_container_width=True
     )
+
+with col_down2:
+    st.download_button(
+        label="📊 Скачать строку базы замеров (.csv)",
+        data=report_csv_content,
+        file_name=f"Data_Row_{normalized_well.replace(' ', '_')}.csv",
+        mime="text/csv",
+        use_container_width=True
+    )
+# =========================================================================
+# БЛОК 6: ЦИФРОВОЙ ЖУРНАЛ И МОНИТОРИНГ ТЕНДЕНЦИЙ НАКОПЛЕНИЯ ИЗНОСА
+# =========================================================================
+st.markdown("---")
+st.markdown("### 💾 Блок 6: Цифровой журнал и мониторинг трендов")
+st.caption("Накопление замеров, контроль динамики промывки и обнаружение аномалий")
+
+# Инициализация хранилища истории
+if "history_log" not in st.session_state:
+    st.session_state.history_log = []
+
+col1, col2 = st.columns(2)
+with col1:
+    if st.button("➕ Зафиксировать замер", use_container_width=True):
+        time_now = time.strftime("%H:%M:%S")
+        is_acid = "Кислотная" in normalized_mud
+        sand_val = sand_input_val if 'sand_input_val' in locals() else 0.0
+        
+        # Логика аварии
+        if is_acid:
+            status, info = "🚨 АВАРИЯ / СПО", "КРИТИЧЕСКАЯ АВАРИЯ: Прокачка кислоты. Требуется СПО!"
+        elif sand_val > 0.5:
+            status, info = "🚨 АВАРИЯ / СПО", f"НАРУШЕНИЕ ТК: Песок {sand_val:.2f}% > 0.5%. Интенсивный износ."
+        else:
+            status, info = "🟢 Норма", f"Замер {time_now} - Песок: {sand_val:.2f}%, Ресурс: {predicted_hours_to_failure:.1f} ч."
+
+        st.session_state.history_log.append({
+            "Время": time_now, "Тип раствора": normalized_mud,
+            "Песок (%)": round(sand_val, 2), "Остаток (ч)": round(predicted_hours_to_failure, 1),
+            "Статус": status, "Заключение": info
+        })
+        st.success(f"Замер зафиксирован: {time_now}")
+
+with col2:
+    if st.button("🗑 Очистить журнал", use_container_width=True):
+        st.session_state.history_log = []
+        st.rerun()
+
+# Визуализация и скачивание
+if st.session_state.history_log:
+    st.markdown("##### 📝 Хронология рейса:")
+    df_log = pd.DataFrame(st.session_state.history_log)
+    st.dataframe(df_log, use_container_width=True, hide_index=True)
+    
+    # Генерация протокола
+    report = "\n".join([f"[{r['Время']}] {r['Тип раствора']} | Песок: {r['Песок (%)']}% | {r['Статус']}" for r in st.session_state.history_log])
+    st.download_button("📥 Скачать журнал (.txt)", data=report, file_name="Journal.txt", use_container_width=True)
+else:
+    st.info("ℹ Журнал пуст.")
+
 
 # =========================================================================
 # БЛОК 6: НАКОПЛЕНИЕ ИСТОРИИ, ЛОГИРОВАНИЕ И МОНИТОРИНГ ТЕНДЕНЦИЙ - ЧАСТЬ 6.2
