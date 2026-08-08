@@ -1,6 +1,8 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
+import json
+import os
 
 # =========================================================================
 # БЛОК 0 — АВТЕНТИФИКАЦИЯ И СЛУЖЕБНЫЕ НАСТРОЙКИ СТРАНИЦЫ
@@ -34,14 +36,39 @@ st.markdown("---")
 # =========================================================================
 # МОДУЛЬ РАСШИРЕНИЯ БАЗЫ КЛЮЧЕЙ (ДИНАМИЧЕСКИЙ РЕЕСТР ПЛАТФОРМЫ)
 # =========================================================================
-if "keys_db" not in st.session_state:
-    st.session_state.keys_db = {
-        "УМК-10/1 (L = 0.615 м | зажим Ø 89-114 мм)": 0.615,
-        "УМК-35 (L = 0.900 м | зажим Ø 114-168 мм)": 0.900,
-        "УМК-48 (L = 1.100 м | зажим Ø 146-245 мм)": 1.100,
-        "УМК-75 (L = 1.400 м | зажим Ø 168-324 мм)": 1.400,
-        "УМК-90 (L = 1.400 м | зажим Ø 168-324 мм)": 1.400,
-    }
+# Путь к файлу базы данных в корне проекта
+DB_FILE_PATH = "keys_db.json"
+
+# Базовые модели ключей на случай отсутствия файла
+DEFAULT_KEYS = {
+    "УМК-10/1 (L = 0.615 м | зажим Ø 89-114 мм)": 0.615,
+    "УМК-35 (L = 0.900 м | зажим Ø 114-168 мм)": 0.900,
+    "УМК-48 (L = 1.100 м | зажим Ø 146-245 мм)": 1.100,
+    "УМК-75 (L = 1.400 м | зажим Ø 168-324 мм)": 1.400,
+    "УМК-90 (L = 1.400 м | зажим Ø 168-324 мм)": 1.400,
+}
+
+def load_keys():
+    """Загрузка базы ключей из JSON-файла"""
+    if not os.path.exists(DB_FILE_PATH):
+        with open(DB_FILE_PATH, "w", encoding="utf-8") as f:
+            json.dump(DEFAULT_KEYS, f, ensure_ascii=False, indent=4)
+        return DEFAULT_KEYS
+    try:
+        with open(DB_FILE_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return DEFAULT_KEYS
+
+def save_key(name, length):
+    """Сохранение нового ключа в JSON-файл"""
+    current_db = load_keys()
+    current_db[name] = length
+    with open(DB_FILE_PATH, "w", encoding="utf-8") as f:
+        json.dump(current_db, f, ensure_ascii=False, indent=4)
+
+# Чтение актуальной базы при каждой отрисовке страницы
+active_keys_db = load_keys()
 
 # Компактный инпут для добавления нестандартного инструмента
 with st.expander("➕ Добавить новую/кастомную модель ключа УМК в базу"):
@@ -52,10 +79,12 @@ with st.expander("➕ Добавить новую/кастомную модел�
         new_key_length = st.number_input("Длина плеча по паспорту (L), м:", min_value=0.1, max_value=3.0, value=1.15, step=0.01)
     
     if st.button("💾 Зарегистрировать инструмент в реестре"):
-        if new_key_name and new_key_name not in st.session_state.keys_db:
-            st.session_state.keys_db[new_key_name] = new_key_length
-            st.success(f"✅ Инструмент '{new_key_name}' успешно внесен в базу данных.")
+        if new_key_name and new_key_name not in active_keys_db:
+            save_key(new_key_name, new_key_length)
+            st.success(f"✅ Инструмент '{new_key_name}' успешно внесен в JSON-базу данных.")
+            # Перерисовываем страницу, чтобы данные обновились в selectbox
             st.rerun()
+
 # =========================================================================
 # БЛОК 2 — ИНФОРМАЦИОННАЯ ШИНА И БАЗЫ ДАННЫХ (СМАЗКИ И СТАЛИ ПО API/ГОСТ)
 # Функционал: Замена сайдбара на вкладки, интеграция справочников трибологии.
@@ -75,11 +104,11 @@ st.markdown("### 🛠 Входные параметры крепления ре�
 tab_tongs, tab_pipe, tab_tribology = st.tabs(["🔧 Ключ УМК", "🛢 Параметры трубы и замка", "🧴 Смазка и Трибология"])
 
 # Вкладка 1: Конфигурация рычажной системы ключа УМК
-with tab_tongs:
-    menu_options = list(st.session_state.keys_db.keys())
-    selected_key = st.selectbox("Выберите модель ключа УМК:", menu_options)
-    passport_length = st.session_state.keys_db[selected_key]
-    
+# Вместо старого st.session_state.keys_db.keys() пишем:
+menu_options = list(active_keys_db.keys())
+selected_key = st.selectbox("Выберите модель ключа УМК:", menu_options)
+passport_length = active_keys_db[selected_key]
+
     # Новый переключатель типа измерения
     control_type = st.radio(
         "Тип контроля момента на буровой:",
