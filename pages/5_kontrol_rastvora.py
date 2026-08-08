@@ -709,7 +709,6 @@ if not df_similarity.empty and "Дистанция_сходства" in df_simil
 
 st.warning("⚠️ **ВАЖНОЕ УВЕДОМЛЕНИЕ:** Расчеты носят рекомендательный характер.")
 
-
 # =========================================================================
 # МОДУЛЬ ОНЛАЙН-ВАЛИДАЦИИ И СТРЕСС-ТЕСТИРОВАНИЯ ИИ-ЯДРА БЛОКА 4
 # =========================================================================
@@ -786,34 +785,6 @@ normalized_well = str(well_name).strip() if 'well_name' in locals() else "Скв
 normalized_engineer = str(engineer_name).strip() if 'engineer_name' in locals() else "Иванов И.И."
 # ... (остальные переменные normalized_* аналогично) ...
 report_timestamp = time.strftime("%d.%m.%Y %H:%M")
-
-# --- ЛОГИКА АВТО-АНАЛИЗА И КРИТИЧЕСКОГО КАПСЛОКА ---
-## =========================================================================
-# БЛОК 4.5: ПОИСК СХОЖИХ ИНЦИДЕНТОВ И СТРАХОВКА ОТ NAMEERROR
-# =========================================================================
-
-# Инициализируем пустой df_similarity для предотвращения NameError
-df_similarity = pd.DataFrame()
-
-if df_failures is not None and not df_failures.empty and 'df_geo' in locals() and not df_geo.empty:
-    df_similarity = df_geo.copy()
-    # Расчет дистанции сходства (сокращено для лаконичности)
-    p_sand = pd.to_numeric(df_similarity["Песок (%)"], errors="coerce").fillna(0) if "Песок (%)" in df_similarity.columns else 0
-    df_similarity["Дистанция_сходства"] = np.sqrt((10.0 * (p_sand - sand_input_val)) ** 2) # Упрощенный пример
-
-# Безопасный вывод карточек
-if not df_similarity.empty and "Дистанция_сходства" in df_similarity.columns:
-    st.markdown("---")
-    st.markdown(f"#### 🔍 Топ-3 схожих исторических отказа в регионе ({region_choice}):")
-    top_3 = df_similarity.sort_values(by="Дистанция_сходства").head(3)
-    card_cols = st.columns(3)
-    for idx, (_, row) in enumerate(top_3.iterrows()):
-        with card_cols[idx]:
-            with st.container(border=True):
-                st.markdown(f"🔹 **{row.get('ВЗД', 'ВЗД')}**") # Пример вывода
-                st.caption(f"Песок: {row.get('Песок (%)', 0)}%")
-
-st.warning("⚠️ **ВАЖНОЕ УВЕДОМЛЕНИЕ:** Расчеты носят рекомендательный характер.")
 
 # =========================================================================
 # БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ (ЧАСТЬ 5.1)
