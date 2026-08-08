@@ -121,21 +121,6 @@ client_limits_db = {
     "ПАО Лукойл": {"малый": 4.0, "средний": 5.0, "большой": 5.5}
 }
 
-# 2. Дефолтная база, загрузка внешней таблицы Excel (vzd_limits_db.xlsx)
-base_vzd = {
-    "Радиус-Сервис": {"172 мм": 10.0, "240 мм": 10.0},
-    "ВНИИБТ": {"Д-172": 4.5, "ДГР-240М": 6.0}
-}
-try:
-    df_excel_vzd = pd.read_excel("vzd_limits_db.xlsx")
-    df_excel_vzd.columns = df_excel_vzd.columns.astype(str).str.strip()
-    uploaded_base = {}
-    for _, row in df_excel_vzd.iterrows():
-        brand, model, axial_lim = str(row["Производитель"]).strip(), str(row["Габарит"]).strip(), float(row["Лимит_Осевой"])
-        uploaded_base.setdefault(brand, {})[model] = axial_lim
-    if uploaded_base: base_vzd = uploaded_base
-except Exception: pass
-
 # 3. Селекторы оборудования и расчет лимитов
 selected_brand = st.selectbox("2. Выберите производителя:", list(base_vzd.keys()), key="b4_brand_select")
 selected_diameter = st.selectbox("3. Выберите габарит:", list(base_vzd[selected_brand].keys()), key="b4_unified_selector")
