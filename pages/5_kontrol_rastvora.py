@@ -556,6 +556,41 @@ def load_advanced_failures_database(file_path="failures_db.xlsx"):
 # =========================================================================
 # БЛОК 4.1: ОБУЧЕНИЕ ИИ-МОДЕЛИ СЛУЧАЙНОГО ЛЕСА (RANDOM FOREST)
 # =========================================================================
+# =========================================================================
+# БЛОК 4.0: КАСКАДНАЯ СТАТИСТИЧЕСКАЯ ФИЛЬТРАЦИЯ ДАННЫХ
+# =========================================================================
+df_geo = pd.DataFrame()
+df_train = pd.DataFrame()
+
+# Приведение региона к стандарту
+region_filter = ["ХМАО", "ЯНАО", "Западная Сибирь"] if region_choice != "Волго-Урал" else "Волго-Урал"
+
+# Многоуровневый отбор исторических инцидентов из Excel-базы
+if df_failures is not None and not df_failures.empty:
+    # Уровень 1: Географический отбор
+    if isinstance(region_filter, list):
+        df_geo = df_failures[df_failures["Регион работ"].isin(region_filter)].copy()
+    else:
+        df_geo = df_failures[df_failures["Регион работ"] == region_filter].copy()
+
+    # Уровень 2: Отбор по производителю оборудования
+    vendor_cols = [c for c in df_geo.columns if "Производитель" in c or "Габарит" in c]
+    if vendor_cols:
+        target_vendor_col = vendor_cols[0]
+        short_vendor_name = str(vendor_choice).split("-")[0].split(" ")[0].upper()
+        df_vendor_slice = df_geo[df_geo[target_vendor_col].astype(str).str.upper().str.contains(short_vendor_name, na=False)].copy()
+        
+        # Каскадный спуск: если по конкретному вендору мало точек, берем весь регион
+        df_train = df_vendor_slice.copy() if len(df_vendor_slice) >= 3 else df_geo.copy()
+    else:
+        df_train = df_geo.copy()
+
+# Инициализация метрик перед обучением
+model_ready = False
+predicted_hours_to_failure = 0.0
+mae_hours = 24.0
+accuracy_pct = 75.0
+
 if len(df_train) >= 3:
     try:
         # Извлекаем факторы износа статора ВЗД
