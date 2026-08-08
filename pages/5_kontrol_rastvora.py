@@ -24,7 +24,7 @@ st.markdown("---")
 
 # Паспорт верификации СТО ИНТИ, скрытый под фирменный спойлер
 # --- СТАТИЧЕСКИЙ ПАСПОРТ ВЕРИФИКАЦИИ СТО ИНТИ ---
-with st.expander("📋 Паспорт верификации СТО ИНТИ (Силовая секция эластомера)"):
+with st.expander("🔰 Паспорт верификации СТО ИНТИ (Силовая секция эластомера)"):
     st.markdown(
         """
         <div style="background-color: #F8FAFC; padding: 15px; border-radius: 6px; border-left: 5px solid #2563EB;">
