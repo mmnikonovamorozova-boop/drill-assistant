@@ -259,13 +259,6 @@ else:
 
 st.markdown(f'<div style="{style} padding: 10px; border-left: 5px solid;">{res}</div>', unsafe_allow_html=True)
 
-# Вывод результатов на экран инженеру
-st.markdown(
-    f'<div style="{box_style} padding: 12px; border-radius: 4px; font-weight: bold; line-height: 1.4;">'
-    f'{res_text}</div>',
-    unsafe_allow_html=True
-)
-
 # =========================================================================
 # БЛОК 5: ОФИЦИАЛЬНЫЙ СВОДНЫЙ АКТ (АДАПТИВНЫЙ И ЗАЩИЩЕННЫЙ)
 # =========================================================================
