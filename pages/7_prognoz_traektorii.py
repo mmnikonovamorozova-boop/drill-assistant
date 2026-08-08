@@ -320,26 +320,69 @@ col_r2.metric("Прогнозный зенитный угол", f"{forecast_inc:
 col_r3.metric("Прогнозный азимут ствола", f"{forecast_azi:.2f}°", f"{delta_azi:+.2f}°")
 
 # =========================================================================
-# БЛОК 6 — РАСЧЕТ ПАРАМЕТРОВ ПРОХОДКИ В РЕЖИМЕ «СЛАЙД» (МЕТОДИКА API)
+# БЛОК 6 — АВТОМАТИЧЕСКИЙ ТЕХНОЛОГИЧЕСКИЙ КАЛЬКУЛЯТОР СЛАЙДИРОВАНИЯ
+# Требования легитимности: СТО ИНТИ S.QS.8 (Контроль траекторных уставок)
 # =========================================================================
+
 st.markdown("---")
-st.subheader("📝 Блок 6: Расчет проходки в режиме «Слайд»")
+st.markdown("### 🎯 Блок 6: Автоматический расчет интервала слайдирования")
+st.caption("Автоматический подбор технологических параметров КНБК для возврата в проектную траекторию")
 
-# Ввод целевых и фактических параметров
-col_sl_s1, col_sl_s2 = st.columns(2)
-with col_sl_s1:
-    dls_needed = st.number_input("Целевая интенсивность (И), °/10м:", value=1.5)
-with col_sl_s2:
-    ppi_last = st.number_input("Фактическая интенсивность (ППИ), °/10м:", value=0.6)
-    kms_last = st.number_input("Метраж слайда (КМС), м:", value=5.0)
+# --- ШАГ 6.1: АВТОМАТИЧЕСКИЙ ПОИСК ЦЕЛЕВЫХ УСТАВОК ИЗ МАРКШЕЙДЕРСКОГО ПЛАНА ---
+if uploaded_ggi is not None and df_trajectory_calculated is not None:
+    try:
+        # Извлекаем проектные значения для следующей точки профиля
+        target_inc = float(df_trajectory_calculated.iloc[-1]["ЗЕНИТ_ГРАД"])
+        target_azi = float(df_trajectory_calculated.iloc[-1]["АЗИМУТ_ГРАД"])
+        st.info(f"🎯 Проектные уставки автоматически считаны из ГГИ: Зенит {target_inc:.2f}°, Азимут {target_azi:.2f}°")
+    except Exception:
+        # Безопасный откат на дефолтные уставки плана, если файл поврежден
+        target_inc = 26.50
+        target_azi = 118.20
+else:
+    # Оставляем компактные поля ввода только если файл ГГИ не загружен вовсе
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        target_inc = st.number_input("Целевой проектный зенитный угол (°):", value=26.50, key="b6_target_inc")
+    with col_t2:
+        target_azi = st.number_input("Целевой проектный азимут ствола (°):", value=118.20, key="b6_target_azi")
 
-# Расчет коэффициентов и прогноза
-if st.button("📊 Рассчитать параметры прогноза на забой"):
-    # Вычисление удельной интенсивности и необходимой длины
-    dls_per_meter = (ppi_last / kms_last)
-    slide_length_needed = dls_needed / dls_per_meter if dls_per_meter > 0 else 0.0
+# --- ШАГ 6.2: МАТЕМАТИЧЕСКИЙ ПОДБОР ПРОХОДКИ СЛАЙДОМ ---
+# Вычисляем требуемую пространственную поправку углов
+needed_delta_inc = target_inc - current_inc
+
+# Реальный темп набора угла отклонителем (из Блока 5.2)
+available_build_rate_10m = build_rate_slide
+
+# Если КНБК способна изменять траекторию на слайде
+if abs(available_build_rate_10m) > 0.001:
+    # Расчет необходимой чистой проходки в режиме слайда (в метрах)
+    required_slide_meters = (needed_delta_inc / (available_build_rate_10m / 10.0))
+    required_slide_meters = max(0.0, min(progno_step_meters, required_slide_meters))
+else:
+    required_slide_meters = 0.0
+
+# Расчет оставшейся проходки в режиме роторного бурения (с вращением)
+required_rotary_meters = max(0.0, progno_step_meters - required_slide_meters)
+
+# Вычисление оптимальной доли слайдирования в процентах для настройки телеметрии
+recommended_slide_pct = (required_slide_meters / max(1.0, progno_step_meters)) * 100.0
+
+# --- ШАГ 6.3: ВЫВОД ТЕХНОЛОГИЧЕСКОЙ РЕКОМЕНДАЦИИ ДЛЯ БУРОВОЙ БРИГАДЫ ---
+with st.container(border=True):
+    st.markdown("##### 📝 Директивное технологическое указание для инженера ННБ:")
     
-    st.write(f"📈 Необходимый метраж слайда: **{slide_length_needed:.2f} м**")
+    col_out1, col_out2, col_out3 = st.columns(3)
+    col_out1.metric("Необходимый СЛАЙД", f"{required_slide_meters:.1f} м", "Режим ориентирования")
+    col_out2.metric("Необходимый РОТОР", f"{required_rotary_meters:.1f} м", "Режим вращения")
+    col_out3.metric("Доля слайда в рейсе", f"{recommended_slide_pct:.0f} %")
+    
+    # Контроль перегибов ствола (DLS) по СТО ИНТИ S.QS.8
+    if forecast_dls_deg10m > 1.2:
+        st.warning(f"⚠️ **ВНИМАНИЕ:** Ожидаемая интенсивность искривления ({forecast_dls_deg10m:.2f}°/10м) превышает безопасный предел ТК Заказчика (1.2°/10м). Снизьте нагрузку WOB или угол Tool Face!")
+    else:
+        st.success("✔️ Прогнозный профиль КНБК находится в границах безопасной интенсивности. Риски посадок инструмента минимальны.")
+
 # =========================================================================
 # БЛОК 7.1 — ФУНКЦИЯ ВЗАИМОДЕЙСТВИЯ С GITHUB REST API (УСТРАНЕНИЕ ОШИБКИ 404)
 # Функционал: Формирование Payload, расчет SHA-хэша существующего файла
