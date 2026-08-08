@@ -51,7 +51,7 @@ def load_calibrations_from_github_api(target_well_name):
     # Репозиторий хранения калибровочных паспортов компании
     repo = "mmnikonovamorozova-boop/drill-assistant"
     path = "calibrations_db.json"
-    url = f"https://github.com{repo}/contents/{path}"
+    url = "https://api.github.com/repos/mmnikonovamorozova-boop/drill-assistant/contents/calibrations_db.json"
     
     # Формирование дефолтного (базового) паспорта КНБК на случай сбоя связи
     default_passport = {
@@ -552,7 +552,7 @@ def push_calibration_to_github_api(target_well_name, updated_k_slide, updated_k_
     token = st.secrets.get("GITHUB_TOKEN", None)
     repo = "mmnikonovamorozova-boop/drill-assistant"
     path = "calibrations_db.json"
-    url = f"https://github.com{repo}/contents/{path}"
+    url = "https://api.github.com/repos/mmnikonovamorozova-boop/drill-assistant/contents/calibrations_db.json"
     
     if not token:
         st.error("🚨 ОШИБКА АВТОРИЗАЦИИ: В системе Streamlit Secrets отсутствует токен GITHUB_TOKEN. Запись невозможна.")
