@@ -79,7 +79,7 @@ with tab_tongs:
     col_t1, col_t2 = st.columns(2)
     with col_t1:
         fact_l = st.number_input("Длина плеча (Lфакт), м:", value=float(passport_length))
-        with col_t2:
+    with col_t2:
         if "Электронный" in control_type:
             tros_d = st.number_input("Толщина троса, мм:", value=16.0)
         else:
