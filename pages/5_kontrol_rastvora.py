@@ -615,72 +615,62 @@ if len(df_train) >= 3:
 # --- ЧАСТЬ 4.4: АНАЛИТИКА, РАСЧЕТ ДЕГРАДАЦИИ И РЕГЛАМЕНТНЫЕ ОТСЕЧКИ ---
 # =========================================================================
 
-# 1. Принудительный спуск инпутов в интерфейс для контроля инженером ННБ
+# 1. Интерфейс ввода параметров
 st.markdown("##### ⚙️ Фактические параметры эксплуатации эластомера:")
 col_in1, col_in2, col_in3 = st.columns(3)
 with col_in1:
-    current_runtime = st.number_input(
-        "Текущая наработка ВЗД за рейс (ч):", 
-        min_value=0.0, max_value=300.0, value=48.0, step=1.0, key="b4_current_runtime"
-    )
+    current_runtime = st.number_input("Текущая наработка ВЗД (ч):", value=48.0, key="b4_current_runtime")
 with col_in2:
-    current_temp_est = st.number_input(
-        "Расчетная забойная температура (°C):", 
-        min_value=20.0, max_value=200.0, value=75.0, step=1.0, key="b4_current_temp_est"
-    )
+    current_temp_est = st.number_input("Расчетная забойная температура (°C):", value=75.0, key="b4_current_temp_est")
 with col_in3:
-    # Отображаем текущий коэффициент агрессивности среды для понимания физики процесса
-    st.metric("Коэффициент агрессивности среды (СТО ИНТИ)", f"{current_mud_aggressiveness:.2f}")
+    st.metric("Коэффициент агрессивности среды", f"{current_mud_aggressiveness:.2f}")
 
-# 2. Математический расчет износа по методике СТО ИНТИ S.100.3
+# 2. Математический расчет (Физика по СТО ИНТИ)
 if not model_ready:
-    # Базовая деградация от абразива (песка) и температурного расширения
-    base_degradation = (1.0 + (max(0.0, sand_input_val - 0.5) * 3.5)) * \
-                       (1.5 ** ((current_temp_est - 70.0) / 10.0) if current_temp_est > 70.0 else 1.0)
+    # --- ШАГ А: ФУНДАМЕНТАЛЬНЫЕ ФИЗИЧЕСКИЕ КОНСТАНТЫ ---
+    R_GAS_CONSTANT = 8.314          # Дж/(моль·К)
+    E_ACTIVATION_NBR = 78200.0      # Энергия активации, Дж/моль
+    MAX_DESIGN_LIFETIME = 150.0     # Макс наработка, ч
+
+    # --- ШАГ Б: ТЕРМОДИНАМИЧЕСКИЙ РАСЧЕТ (АРРЕНИУС) ---
+    temp_kelvin_actual = current_temp_est + 273.15
+    temp_kelvin_nominal = 70.0 + 273.15  # Номинал
     
-    # Итоговый коэффициент износа с учетом геометрии и химии пачки
-    total_degradation = base_degradation * (current_kin * 1.3 * current_mud_aggressiveness)
-    
-    # Вычисление аналитического ресурса по СТО ИНТИ
-    allowed_analytical = min(150.0, 180.0 / max(0.001, total_degradation))
-    
-    # Применение жестких регламентных технологических лимитов и отсечек компании
+    k_thermal_aging = math.exp((E_ACTIVATION_NBR / R_GAS_CONSTANT) * ((1.0 / temp_kelvin_nominal) - (1.0 / temp_kelvin_actual))) if current_temp_est > 70.0 else 1.0
+
+    # --- ШАГ В: РАСЧЕТ ЭРОЗИОННОГО СМЫВА ---
+    sand_limit_tk = 0.5
+    k_abrasive_wear = 1.0 + (2.50 * ((sand_input_val - sand_limit_tk) ** 1.2)) if sand_input_val > sand_limit_tk else 1.0 + (0.50 * sand_input_val)
+
+    # --- ШАГ Г-Д: ИНТЕГРАЛЬНЫЙ РАСЧЕТ ---
+    total_degradation_rate = k_thermal_aging * k_abrasive_wear * (current_kin * 1.15) * current_mud_aggressiveness
+    allowed_analytical_hours = MAX_DESIGN_LIFETIME / max(0.001, total_degradation_rate)
+
+    # Регламентные отсечки
     if "Кислотная пачка" in mud_choice:
-        allowed_analytical = 0.0  # Срочное СПО, 99% разрушения силовой пары ВЗД
+        allowed_analytical_hours = 0.0
     elif "Вязко-упругий состав (ВУС)" in mud_choice:
-        allowed_analytical = min(60.0, allowed_analytical)  # Защитное ограничение по давлению
-        
-    predicted_hours_to_failure = max(0.0, allowed_analytical - current_runtime)
+        allowed_analytical_hours = min(50.0, allowed_analytical_hours)
 
-# 3. Синхронизация со сквозным шлюзом данных сессии Streamlit
+    predicted_hours_to_failure = max(0.0, allowed_analytical_hours - current_runtime)
+
+# 3. Синхронизация данных
 st.session_state["predicted_hours_to_failure"] = predicted_hours_to_failure
-st.session_state["shared_buoyancy_factor"] = 1.0 - (f_dens / 7.85)
-st.session_state["shared_yield_stress"] = f_yp_corrected
-st.session_state["shared_flow_index"] = n_hb
-st.session_state["shared_sand_pct"] = sand_input_val
 
-# 4. Вывод KPI-метрик (Возвращаем наработку, точность и погрешность MAE)
-st.markdown("#### 📊 Результаты предиктивного анализа силовой секции:")
+# 4. Визуализация результатов
+st.markdown("#### 📊 Результаты предиктивного анализа:")
 
-# Если прокачана кислота — выводим критический аварийный баннер вместо стандартного счетчика
 if "Кислотная пачка" in mud_choice:
-    st.error("🚨 КРИТИЧЕСКИЙ СТАТУС: ПРОКАЧКА КИСЛОТЫ! ОСТАТОК РЕСУРСА ВЗД ОБНУЛЕН. ТРЕБУЕТСЯ СРОЧНЫЙ ПОДЪЕМ КНБК НА СПО И ЗАМЕНА ДВИГАТЕЛЯ!")
-    col_m1, col_m2, col_m3 = st.columns(3)
-    with col_m1: st.metric("Остаток времени бурения", "0.0 ч", delta="-100%", delta_color="inverse")
-    with col_m2: st.metric("Точность ядра (учет ТК)", f"{accuracy_pct:.1f} %")
-    with col_m3: st.metric("Погрешность расчета (MAE)", f"± {mae_hours:.1f} ч")
+    st.error("🚨 КРИТИЧЕСКИЙ СТАТУС: Прокачка кислоты! Срочный подъем КНБК.")
+    st.metric("Остаток времени", "0.0 ч", delta="-100%", delta_color="inverse")
 else:
     col_m1, col_m2, col_m3 = st.columns(3)
-    with col_m1: 
-        # Если ресурс исчерпан по времени наработки
-        if predicted_hours_to_failure == 0:
-            st.metric("Остаток времени бурения", "0.0 ч", "Ресурс исчерпан!", delta_color="inverse")
-        else:
-            st.metric("Остаток времени бурения", f"{predicted_hours_to_failure:.1f} ч")
-    with col_m2: 
-        st.metric("Точность ядра (учет ТК)", f"{accuracy_pct:.1f} %")
-    with col_m3: 
-        st.metric("Погрешность расчета (MAE)", f"± {mae_hours:.1f} ч", help="Средняя абсолютная ошибка модели на основе исторических отказов")
+    col_m1.metric("Остаток времени", f"{predicted_hours_to_failure:.1f} ч")
+    col_m2.metric("Точность ядра", f"{accuracy_pct:.1f} %")
+    col_m3.metric("Погрешность (MAE)", f"± {mae_hours:.1f} ч")
+
+    with st.expander("🔍 Детальные параметры (Телеметрия)"):
+        st.write(f"📈 Множитель старения: {k_thermal_aging:.2f}x | ⏳ Абразивный износ: {k_abrasive_wear:.2f}x")
 
     # =========================================================================
 # БЛОК 4.5: ПОИСК СХОЖИХ ИНЦИДЕНТОВ И СТРАХОВКА ОТ NAMEERROR
