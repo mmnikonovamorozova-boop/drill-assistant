@@ -79,14 +79,14 @@ with tab_tongs:
     col_t1, col_t2 = st.columns(2)
     with col_t1:
         fact_l = st.number_input("Длина плеча (Lфакт), м:", value=float(passport_length))
-    with col_t2:
+        with col_t2:
         if "Электронный" in control_type:
             tros_d = st.number_input("Толщина троса, мм:", value=16.0)
         else:
-            k_hydr = st.number_input("Коэффициент пересчета:", value=5.25)
-            "Коэффициент пересчета ключа (кН·м на 1 МПа):",
-            min_value=0.1, max_value=20.0, value=5.25, step=0.05,
-            help="Паспортная пропорция Давление-Момент для гидроключа."
+            k_hydr = st.number_input(
+                "Коэффициент пересчета ключа (кН·м на 1 МПа):",
+                min_value=0.1, max_value=20.0, value=5.25, step=0.05,
+                help="Паспортная пропорция Давление-Момент для гидроключа."
             )
 
    # === Вкладка 2: Характеристики бурильных труб (Исправлены пробелы в сталях) ===
