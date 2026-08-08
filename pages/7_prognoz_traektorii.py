@@ -229,36 +229,96 @@ with col_f2:
 side_force_calculated = wob_force_kn * (1.0 - formation_anisotropy) * k_slide_current * rheology_modifier
 
 # =========================================================================
-# БЛОК 5.2 — РАСЧЕТ ПРОГНОЗНОЙ ГЕОМЕТРИИ ТРАЕКТОРИИ НА ЗАБОЕ
-# Функционал: Интеграция режимов бурения (Слайд/Ротор), расчет изменения
-# зенитного угла с учетом сил КНБК, анизотропии пласта и увода.
+# БЛОК 5.2 — ИНТЕЛЛЕКТУАЛЬНЫЙ РАСЧЕТ ПРОГНОЗНОЙ ТРАЕКТОРИИ (СТО ИНТИ S.100.3)
 # =========================================================================
 
-# Расчет раздельного вклада интервалов бурения
-actual_slide_work = planned_slide * k_slide_current
-predicted_angle_gain_slide = (actual_slide_work / 10.0) * (target_intensity * k_int_current)
-predicted_angle_gain_rotary = (planned_rotary / 10.0) * drift_current
+st.markdown("##### 🔮 Параметры планирования прогнозного интервала:")
+col_p1, col_p2, col_p3 = st.columns(3)
 
-# Итоговое предиктивное изменение угла КНБК
-total_predicted_angle_gain = predicted_angle_gain_slide + predicted_angle_gain_rotary
+with col_p1:
+    progno_step_meters = st.number_input("Длина прогнозного интервала (м):", 
+                                         min_value=10.0, max_value=300.0, value=30.0, step=10.0)
+with col_p2:
+    planned_slide_pct = st.slider("Доля слайдирования на интервале (%):", 
+                                  min_value=0.0, max_value=100.0, value=30.0, step=5.0)
+with col_p3:
+    tool_face_angle = st.slider("Угол установки отклонителя (Tool Face, °):", 
+                                min_value=0.0, max_value=360.0, value=45.0, step=5.0)
 
-# Отображение результатов на интерфейсе
-st.markdown("##### 🎯 Результаты прогнозного моделирования траектории:")
-st.metric(
-    label="Прогнозное изменение зенитного угла на интервале КНБК:", 
-    value=f"{total_predicted_angle_gain:.2f} °"
-)
+# Перевод процента слайда в долевой коэффициент
+slide_fraction = planned_slide_pct / 100.0
 
-# Краткая инженерная аналитика сил взаимодействия
-st.markdown("##### 🧠 Экспертная оценка динамики КНБК:")
-col_stat1, col_stat2 = st.columns(2)
-with col_stat1:
-    st.write(f"🔹 **Эффективная отклоняющая сила:** `{P_b_effective:.1f} кгс` (с учетом износа шпинделя)")
-with col_stat2:
-    if abs(P_b_effective) > 100.0:
-        st.warning("⚠️ **Внимание:** Высокие изгибающие силы на долоте. Повышенный риск микроизвилистости ствола!")
-    else:
-        st.success("🟢 Динамика сил стабильна. Прогнозируется плавный профиль набора кривизны.")
+# 1. Извлечение последних фактических маркшейдерских точек траектории
+if df_trajectory_calculated is not None and not df_trajectory_calculated.empty:
+    last_row = df_trajectory_calculated.iloc[-1]
+    current_md = float(last_row["ГЛУБИНА_MD"])
+    current_inc = float(last_row["ЗЕНИТ_ГРАД"])
+    current_azi = float(last_row["АЗИМУТ_ГРАД"])
+    current_tvd = float(last_row["TVD"])
+    current_north = float(last_row["NORTH"])
+    current_east = float(last_row["EAST"])
+else:
+    # Безопасные стартовые значения по умолчанию (если файл ГГИ не загружен)
+    current_md = 1500.0
+    current_inc = 25.0
+    current_azi = 120.0
+    current_tvd = 1420.0
+    current_north = 150.0
+    current_east = 320.0
+
+# --- ШАГ 5.2.1: РАСЧЕТ ЕСТЕСТВЕННОГО И ПРИНУДИТЕЛЬНОГО ИСКРИВЛЕНИЯ КНБК ---
+# Интенсивность изменения зенитного угла под влиянием слайда и боковой силы (град/10м)
+# Учитываем физический увод долота side_force_calculated из Блока 5.1
+build_rate_slide = 0.45 * k_slide_current * math.cos(math.radians(tool_face_angle))
+build_rate_rotary = 0.02 * k_rotary_current + (side_force_calculated * 0.001)
+
+# Итоговая интенсивность изменения зенитного угла (град/10м)
+total_build_rate = (build_rate_slide * slide_fraction) + (build_rate_rotary * (1.0 - slide_fraction))
+
+# Интенсивность изменения азимута (град/10м) с учетом естественного увода породы
+turn_rate_slide = 0.45 * k_slide_current * math.sin(math.radians(tool_face_angle))
+turn_rate_rotary = -0.015 * (1.0 - formation_anisotropy) # Естественный увод вправо/влево по породе
+
+# Итоговый темп изменения азимута (град/10м)
+total_turn_rate = (turn_rate_slide * slide_fraction) + (turn_rate_rotary * (1.0 - slide_fraction))
+
+# --- ШАГ 5.2.2: ИНТЕГРАЛЬНЫЙ ПРОГНОЗ ПОЛОЖЕНИЯ СТВОЛА ---
+forecast_md = current_md + progno_step_meters
+# Вычисление приращений углов на длину прогнозной проходки
+delta_inc = (total_build_rate / 10.0) * progno_step_meters
+delta_azi = (total_turn_rate / 10.0) * progno_step_meters
+
+forecast_inc = max(0.0, min(90.0, current_inc + delta_inc))
+forecast_azi = (current_azi + delta_azi) % 360.0
+
+# Усредненные углы интервала для тригонометрического шага по API RP 7G
+avg_inc_rad = math.radians((current_inc + forecast_inc) / 2.0)
+avg_azi_rad = math.radians((current_azi + forecast_azi) / 2.0)
+
+# Приращения пространственных координат (метод сбалансированных тангенсов)
+forecast_tvd = current_tvd + progno_step_meters * math.cos(avg_inc_rad)
+forecast_north = current_north + progno_step_meters * math.sin(avg_inc_rad) * math.cos(avg_azi_rad)
+forecast_east = current_east + progno_step_meters * math.sin(avg_inc_rad) * math.sin(avg_azi_rad)
+
+# Расчет пространственной интенсивности (DLS) на прогнозном интервале
+cos_dl = math.cos(math.radians(current_inc)) * math.cos(math.radians(forecast_inc)) + \
+         math.sin(math.radians(current_inc)) * math.sin(math.radians(forecast_inc)) * math.cos(math.radians(forecast_azi - current_azi))
+cos_dl = max(-1.0, min(1.0, cos_dl))
+forecast_dls = (math.acos(cos_dl) * 10.0) / max(0.001, progno_step_meters)
+
+# Сохранение результатов прогнозирования в сессию Streamlit
+st.session_state["forecast_md"] = forecast_md
+st.session_state["forecast_inc"] = forecast_inc
+st.session_state["forecast_azi"] = forecast_azi
+st.session_state["forecast_dls_deg10m"] = np.degrees(forecast_dls)
+
+# --- ШАГ 5.2.3: ВЫВОД ПРЕДИКТИВНЫХ РЕЗУЛЬТАТОВ НА ЭКРАН ---
+st.markdown("##### 📊 Прогноз пространственного положения КНБК на забое:")
+col_r1, col_r2, col_r3 = st.columns(3)
+col_r1.metric("Прогнозная глубина MD", f"{forecast_md:.1f} м", f"+{progno_step_meters:.1f} м")
+col_r2.metric("Прогнозный зенитный угол", f"{forecast_inc:.2f}°", f"{delta_inc:+.2f}°")
+col_r3.metric("Прогнозный азимут ствола", f"{forecast_azi:.2f}°", f"{delta_azi:+.2f}°")
+
 # =========================================================================
 # БЛОК 6 — РАСЧЕТ ПАРАМЕТРОВ ПРОХОДКИ В РЕЖИМЕ «СЛАЙД» (МЕТОДИКА API)
 # =========================================================================
