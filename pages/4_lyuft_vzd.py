@@ -214,21 +214,19 @@ st.markdown("#### Результаты комплексной проверки �
 final_max_axial = effective_max_axial if 'effective_max_axial' in locals() else limit_wear
 final_max_radial = effective_max_radial if 'effective_max_radial' in locals() else 1.00
 
-is_axial_failed = calculated_axial_delta > final_max_axial
-is_radial_failed = radial_ich > final_max_radial
+# === БЛОК 4: КЛАССИФИКАЦИЯ ===
+is_axial_failed = calculated_axial_delta > eff_max
+is_radial_failed = radial_ich > 1.0
 is_measurement_error = calculated_axial_delta <= 0
 
-# --- ЛОГИКА АВАРИЙНОГО ТЕКСТА И ЦВЕТОВОГО ОФОРМЛЕНИЯ ---
 if is_measurement_error:
-    res_text = "ОШИБКА ИЗМЕРЕНИЙ! РАЗМЕР 'А' ДОЛЖЕН БЫТЬ БОЛЬШЕ РАЗМЕРА 'Б'. ПЕРЕПРОВЕРЬТЕ ПОКАЗАНИЯ ИНДИКАТОРА ИЧ."
-    box_style = "color: #795203; background-color: #FEF3C7; border-left: 5px solid #F59E0B;"
+    res, style = "ОШИБКА ИЗМЕРЕНИЙ", "color: #795203; background-color: #FEF3C7;"
 elif is_axial_failed or is_radial_failed:
-    res_text = "🚨 КРИТИЧЕСКИЙ ИЗНОС ОПОР ШПИНДЕЛЯ! СПУСК ЗАБОЙНОГО ДВИГАТЕЛЯ В СКВАЖИНУ КАТЕГОРИЧЕСКИ ЗАПРЕЩЕН! ТРЕБУЕТСЯ СРОЧНАЯ ЗАМЕНА ВЗД!"
-    res_text = res_text.upper() # Принудительный перевод в КАПСЛОК при аварии
-    box_style = "color: #991B1B; background-color: #FEE2E2; border-left: 5px solid #EF4444;"
+    res, style = "🚨 КРИТИЧЕСКИЙ ИЗНОС ОПОР!", "color: #991B1B; background-color: #FEE2E2;"
 else:
-    res_text = f"Технологический статус в норме. Осевой зазор ({calculated_axial_delta:.2f} мм) и радиальный зазор ({radial_ich:.2f} мм) соответствуют критериям безопасной эксплуатации КНБК."
-    box_style = "color: #065F46; background-color: #D1FAE5; border-left: 5px solid #10B981;"
+    res, style = "Норма", "color: #065F46; background-color: #D1FAE5;"
+
+st.markdown(f'<div style="{style} padding: 10px; border-left: 5px solid;">{res}</div>', unsafe_allow_html=True)
 
 # Вывод результатов на экран инженеру
 st.markdown(
