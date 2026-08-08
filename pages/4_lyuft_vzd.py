@@ -168,15 +168,16 @@ safe_axial_delta = max(0.01, calculated_axial_delta)
 safe_radial_ich = max(0.01, radial_ich)
 safe_limit_wear = max(1.0, limit_wear)
 
-# 2. МАТЕМАТИЧЕСКОЕ ЯДРО 1: Расчет безопасной нагрузки на долото (WOB)
-wob_base_value = max(0.0, 1.0 - (safe_axial_delta / safe_limit_wear))
-wob_reduction_factor = wob_base_value ** 0.6
-wob_reduction_factor = max(0.1, min(1.0, wob_reduction_factor))
-calculated_wob_safe = WOB_max_passport * wob_reduction_factor
+# 2. МАТЕМАТИЧЕСКОЕ ЯДРО С ПОЛНОЙ БЛОКИРОВКОЙ ПРИ АВАРИИ
+if calculated_axial_delta >= eff_max or radial_ich > 1.0:
+    wob_reduction_factor = 0.0
+    dls_reduction_factor = 0.0
+else:
+    wob_base_value = max(0.0, 1.0 - (safe_axial_delta / safe_limit_wear))
+    wob_reduction_factor = max(0.1, min(1.0, wob_base_value ** 0.6))
+    dls_reduction_factor = max(0.05, min(1.0, 1.0 - (safe_radial_ich / D_clearance)))
 
-# 3. МАТЕМАТИЧЕСКОЕ ЯДРО 2: Расчет допустимой пространственной интенсивности (DLS)
-dls_reduction_factor = 1.0 - (safe_radial_ich / D_clearance)
-dls_reduction_factor = max(0.05, min(1.0, dls_reduction_factor))
+calculated_wob_safe = WOB_max_passport * wob_reduction_factor
 calculated_dls_safe = DLS_max_passport * dls_reduction_factor
 
 # 4. ВИЗУАЛИЗАЦИЯ
