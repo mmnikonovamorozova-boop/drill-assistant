@@ -188,8 +188,8 @@ g_const = 9.80665
 if "Электронный" in control_type:
     # 2. Тригонометрическая защита и расчет усилия (кН*м -> Н*м / плечо / sin)
     safe_angle = max(angle_alpha, 10.0) # Защита от деления на 0
-    f_pull_tons = ((M_required * 1000.0) / (fact_l * np.sin(np.radians(safe_angle)))) / g_const
-    
+    f_pull_tons = (M_required / (fact_l * np.sin(np.radians(safe_angle)))) / g_const
+
     if angle_alpha < 10.0:
         st.error("🚨 КРИТИЧЕСКИЙ УГОЛ: Угол натяжения менее 10°! Расчет ограничен.")
 
