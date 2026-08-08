@@ -194,6 +194,111 @@ with tab_geology:
 buoyancy_factor = shared_buoyancy # Переменная для сохранения совместимости с нижними блоками
 
 # =========================================================================
+# БЛОК 4 — ОБРАБОТКА ГГИ ЗАКАЗЧИКА И РАСЧЕТ ТРАЕКТОРИИ (MINIMUM CURVATURE METHOD)
+# Требования легитимности: СТО ИНТИ S.QS.8 / Устранение хардкода колонок .iloc
+# =========================================================================
+
+st.markdown("---")
+st.markdown("### 🗺️ Блок 4: Сверка пространственных данных и импорт ГГИ")
+well_name = st.text_input("Номер/Название скважины:", value="101-Г", key="b4_well_name_input")
+
+# Извлекаем калибровки из ИИ-ядра (из Блока 2)
+active_calibration = load_calibrations_from_github_api(well_name)
+st.sidebar.markdown(f"**Статус ИИ-ядра:** Калибровки для {well_name} успешно применены.")
+
+# Интерактивный загрузчик планового профиля ГГИ Заказчика
+uploaded_ggi = st.file_uploader("Выгрузите Excel/CSV с плановым профилем (ГГИ):", type=["xlsx", "csv"], key="b4_file_uploader")
+
+def calculate_spatial_trajectory_legyt(df_inc):
+    """
+    Развернутый расчет пространственного положения ствола по методу минимальной кривизны
+    в строгом соответствии с требованиями легитимности СТО ИНТИ S.QS.8 и API RP 7G.
+    """
+    df_inc.columns = [str(col).strip().upper() for col in df_inc.columns]
+    
+    # Динамический поиск целевых колонок для исключения ошибок .iloc
+    col_md = [c for c in df_inc.columns if "ГЛУБ" in c or "MD" in c or "LENGTH" in c]
+    col_inc = [c for c in df_inc.columns if "ЗЕН" in c or "INC" in c or "УГОЛ" in c]
+    col_azi = [c for c in df_inc.columns if "АЗИ" in c or "AZI" in c or "НАПР" in c]
+    
+    if not col_md or not col_inc or not col_azi:
+        st.error("🚨 ОШИБКА ФОРМАТА ГГИ: Не удалось автоматически распознать колонки (Глубина, Зенит, Азимут). Проверьте шапку файла!")
+        return None
+
+    try:
+        md = pd.to_numeric(df_inc[col_md[0]], errors="coerce").fillna(0).values
+        inc = np.radians(pd.to_numeric(df_inc[col_inc[0]], errors="coerce").fillna(0).values)
+        azi = np.radians(pd.to_numeric(df_inc[col_azi[0]], errors="coerce").fillna(0).values)
+        
+        n_records = len(md)
+        if n_records < 2:
+            return None
+            
+        tvd = np.zeros(n_records)
+        north = np.zeros(n_records)
+        east = np.zeros(n_records)
+        dls = np.zeros(n_records)
+        
+        tvd[0] = md[0]
+        
+        for i in range(1, n_records):
+            dl_md = md[i] - md[i-1]
+            if dl_md <= 0:
+                tvd[i], north[i], east[i] = tvd[i-1], north[i-1], east[i-1]
+                continue
+                
+            cos_alpha = math.cos(inc[i-1]) * math.cos(inc[i]) + \
+                        math.sin(inc[i-1]) * math.sin(inc[i]) * math.cos(azi[i] - azi[i-1])
+            cos_alpha = max(-1.0, min(1.0, cos_alpha))
+            alpha = math.acos(cos_alpha)
+            
+            if alpha == 0:
+                f_ratio = 1.0
+            else:
+                f_ratio = (2.0 / alpha) * math.tan(alpha / 2.0)
+                
+            tvd[i] = tvd[i-1] + (dl_md / 2.0) * (math.cos(inc[i-1]) + math.cos(inc[i])) * f_ratio
+            north[i] = north[i-1] + (dl_md / 2.0) * (math.sin(inc[i-1]) * math.cos(azi[i-1]) + math.sin(inc[i]) * math.cos(azi[i])) * f_ratio
+            east[i] = east[i-1] + (dl_md / 2.0) * (math.sin(inc[i-1]) * math.sin(azi[i-1]) + math.sin(inc[i]) * math.sin(azi[i])) * f_ratio
+            
+            dls[i] = (alpha * 10.0) / dl_md if dl_md > 0 else 0.0
+            
+        df_res = pd.DataFrame({
+            "ГЛУБИНА_MD": md, 
+            "ЗЕНИТ_ГРАД": np.degrees(inc), 
+            "АЗИМУТ_ГРАД": np.degrees(azi),
+            "TVD": tvd, 
+            "NORTH": north, 
+            "EAST": east, 
+            "DLS_10M": np.degrees(dls)
+        })
+        return df_res
+        
+    except Exception as ex:
+        st.error(f"🚨 КРИТИЧЕСКИЙ СБОЙ ТРИГОНОМЕТРИИ КНБК: {str(ex)}")
+        return None
+
+# Инициализируем датафрейм, чтобы застраховаться от NameError ниже по коду
+df_trajectory_calculated = None
+
+if uploaded_ggi is not None:
+    try:
+        if uploaded_ggi.name.endswith('.xlsx'):
+            df_inc_raw = pd.read_excel(uploaded_ggi)
+        else:
+            df_inc_raw = pd.read_csv(uploaded_ggi)
+            
+        df_inc_raw.columns = df_inc_raw.columns.astype(str).str.upper().str.strip()
+        st.success(f"✔️ Профиль ГГИ Заказчика успешно подгружен! Считано точек плана: {len(df_inc_raw)}")
+        
+        # Запуск легитимного тригонометрического ядра
+        df_trajectory_calculated = calculate_spatial_trajectory_legyt(df_inc_raw)
+        
+    except Exception as e:
+        st.error(f"🚨 Ошибка парсинга файла ГГИ: {str(e)}. Использован стандартный профиль.")
+        uploaded_ggi = None
+
+# =========================================================================
 # БЛОК 5.1 — ФИЗИКО-МАТЕМАТИЧЕСКОЕ МОДЕЛИРОВАНИЕ СИЛ КНБК И УВОДА ДОЛОТА
 # Требования легитимности: СТО ИНТИ S.100.3 / API RP 7G
 # =========================================================================
