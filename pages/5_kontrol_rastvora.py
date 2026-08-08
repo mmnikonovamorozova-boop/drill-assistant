@@ -110,7 +110,6 @@ with col_sand2:
             key="main_max_flow_checkbox"
         )
 
-
 # --- МАТЕМАТИЧЕСКИЙ РАСЧЕТ ДИНАМИЧЕСКОГО ПОРОГА БЕЗОПАСНОСТИ ---
 # Базовый лимит наследуется из Блока 1 (переменная max_sand_limit)
 base_limit = max_sand_limit if 'max_sand_limit' in locals() else 0.5
