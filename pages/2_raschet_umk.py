@@ -145,24 +145,57 @@ with col_res2:
 st.info(f"ℹ️ Плечо: {L_effective:.3f} м | Эффективность угла: {sin_alpha*100:.1f}% | K смазки: {k_grease:.2f}")
 
 # =========================================================================
-# БЛОК 4 — ОПТИМИЗИРОВАННЫЙ МОДУЛЬ ВАЛИДАЦИИ (СТО ИНТИ S.QS.7)
+# БЛОК 4 — МОДУЛЬ КОМПЛЕКСНОЙ ОНЛАЙН-ВАЛИДАЦИИ И СТРЕСС-ТЕСТИРОВАНИЯ РИСКОВ
 # =========================================================================
-st.markdown("---")
-with st.expander("🛠️ Онлайн-валидация безопасности", expanded=True):
-    # 1. Валидация прочности троса: расчет безопасной нагрузки с учетом Ø
-    # Используем коэффициент запаса прочности ~3
-    safe_cable_load = (0.06 * (tros_d ** 2)) / 3.0 
-    
-    if f_pull_tons > safe_cable_load:
-        st.error(f"❌ РИСК ОБРЫВА: Натяжение {f_pull_tons:.2f}т > лимита {safe_cable_load:.2f}т (Ø {tros_d}мм)!")
-    else:
-        st.success(f"✅ КАНАТ Ø {tros_d}мм: Нагрузка {f_pull_tons:.2f}т в пределах нормы.")
 
-    # 2. Аудит критического укорочения плеча ключа
-    if fact_l < (passport_length * 0.95):
-        st.warning(f"🚨 ИЗНОС КЛЮЧА: Плечо ({fact_l}м) < 95% от {passport_length}м! Риск деформации.")
+st.markdown("---")
+with st.expander("🛠️ Модуль онлайн-валидации рисков свинчивания (СТО ИНТИ S.QS.7)", expanded=True):
+    st.markdown("##### Сводный лог инженерного аудита безопасности:")
+    umk_logs = []
+    has_umk_error = False
+
+    # 1. Валидация прочности натяжного каната
+    safe_cable_load = (0.06 * (tros_d ** 2)) / 3.0
+    if f_pull_tons > safe_cable_load:
+        umk_logs.append(f"❌ КРИТИЧЕСКИЙ РИСК: Натяжение ({f_pull_tons:.2f} т) превышает лимит ({safe_cable_load:.2f} т) для троса Ø {tros_d} мм!")
+        has_umk_error = True
     else:
-        st.success("✅ ГЕОМЕТРИЯ: Плечо ключа в допуске.")
+        umk_logs.append(f"✅ КАНАТ: Безопасная нагрузка OK ({f_pull_tons:.2f} т / лимит {safe_cable_load:.2f} т).")
+
+    # 2. Аудит геометрии рычага
+    if fact_l < (passport_length * 0.95):
+        umk_logs.append(f"🚨 АНОМАЛИЯ: Износ плеча (>5%)! Риск деформации УМК.")
+        has_umk_error = True
+    else:
+        umk_logs.append("✅ ГЕОМЕТРИЯ: Длина рычага в норме.")
+
+    # 3. Контроль перекрута резьбы (справочник сталей)
+    steel_max_moments = {"Д ": 35.0, "К ": 45.0, "Е ": 55.0, "Л ": 70.0, "М ": 90.0}
+    max_allowed_moment = 999.0
+    for group, limit in steel_max_moments.items():
+        if group in pipe_steel_group:
+            max_allowed_moment = limit
+            break
+            
+    if p_moment > max_allowed_moment:
+        umk_logs.append(f"❌ ПРЕДЕЛ ТЕКУЧЕСТИ: Момент ({p_moment} кН·м) превышает лимит группы {pipe_steel_group[:2]} ({max_allowed_moment} кН·м)!")
+        has_umk_error = True
+    elif M_required > (max_allowed_moment * 1.15):
+        umk_logs.append(f"🚨 ПРЕДУПРЕЖДЕНИЕ: Момент ({M_required:.1f} кН·м) близок к пределу из-за трения.")
+    else:
+        umk_logs.append(f"✅ МАТЕРИАЛ: Группа {pipe_steel_group[:2]} OK.")
+
+    # Вывод логов
+    for log in umk_logs:
+        if "❌" in log: st.error(log)
+        elif "🚨" in log: st.warning(log)
+        else: st.write(log)
+
+    # Итоговый вердикт
+    if not has_umk_error:
+        st.success("🟢 Расчет безопасен.")
+    else:
+        st.error("🚨 Свинчивание ЗАПРЕЩЕНО!")
 
 # =========================================================================
 # БЛОК 5 — ФОРМИРОВАНИЕ ЭЛЕКТРОННОГО РАСПОРЯЖЕНИЯ И АУДИТОРСКОГО СЛЕДА
