@@ -332,10 +332,13 @@ if h_tvd > 0.1:
     # Перевод итоговой ЭЦП (ECD) обратно в г/см³
     calculated_ecd = (total_dynamic_pressure_pa / (9.81 * h_tvd)) / 1000.0
     
-    # НОВАЯ МЕТРИКА: Перевод давлений в технические атмосферы (атм)
-    p_hydrostatic_atm = total_hydrostatic_pa / 101325.0
-    p_friction_atm = total_p_friction_pa / 101325.0
-    p_total_bottomhole_atm = total_dynamic_pressure_pa / 101325.0
+    # НОВАЯ МЕТРИКА: Перевод давлений в технические атмосферы (атм) с защитой арифметики
+p_hydrostatic_atm = round(total_hydrostatic_pa / 101325.0, 1)
+p_friction_atm = round(total_p_friction_pa / 101325.0, 1)
+
+# Финальное давление жестко формируется из округленных слагаемых
+p_total_bottomhole_atm = p_hydrostatic_atm + p_friction_atm
+
 else:
     # Защитный откат на плотность на входе, если глубина близка к нулю
     calculated_ecd = rho_base_corrected / 1000.0
