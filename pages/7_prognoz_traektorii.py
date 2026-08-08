@@ -320,55 +320,89 @@ col_r2.metric("Прогнозный зенитный угол", f"{forecast_inc:
 col_r3.metric("Прогнозный азимут ствола", f"{forecast_azi:.2f}°", f"{delta_azi:+.2f}°")
 
 # =========================================================================
-# БЛОК 6 — АВТОМАТИЧЕСКИЙ ТЕХНОЛОГИЧЕСКИЙ КАЛЬКУЛЯТОР СЛАЙДИРОВАНИЯ
-# Требования легитимности: СТО ИНТИ S.QS.8 (Контроль траекторных уставок)
+# БЛОК 6 — ТЕХНОЛОГИЧЕСКИЙ КАЛЬКУЛЯТОР И КОНТРОЛЬ ШТРАФНЫХ САНКЦИЙ ЗАКАЗЧИКА
+# Требования легитимности: СТО ИНТИ S.QS.8 / Коммерческие ТК Договора
 # =========================================================================
 
 st.markdown("---")
-st.markdown("### 🎯 Блок 6: Автоматический расчет интервала слайдирования")
-st.caption("Автоматический подбор технологических параметров КНБК для возврата в проектную траекторию")
+st.markdown("### 🎯 Блок 6: Оптимизация слайдирования и аудит штрафных рисков")
+st.caption("Расчет интервалов проходки с контролем правила 3 последовательных нарушений по ТК договора")
 
-# --- ШАГ 6.1: АВТОМАТИЧЕСКИЙ ПОИСК ЦЕЛЕВЫХ УСТАВОК ИЗ МАРКШЕЙДЕРСКОГО ПЛАНА ---
+# --- ШАГ 6.1: ИНТЕРАКТИВНЫЙ ВВОД ШТРАФНЫХ ЛИМИТОВ ТЕКУЩЕГО ДОГОВОРА ---
+st.markdown("##### 📜 Настройка лимитов интенсивности по Договору Заказчика:")
+col_tk1, col_tk2, col_tk3 = st.columns(3)
+
+with col_tk1:
+    tk_dls_max = st.number_input(
+        "Макс. допустимая интенсивность (°/10м):", 
+        min_value=0.5, max_value=3.0, value=1.2, step=0.1, key="tk_dls_max",
+        help="Верхний предел пространственной интенсивности (DLS) по ТК Договора"
+    )
+with col_tk2:
+    tk_dls_min = st.number_input(
+        "Мин. необходимый набор угла (°/10м):", 
+        min_value=0.0, max_value=1.5, value=0.15, step=0.05, key="tk_dls_min",
+        help="Минимальный темп изменения угла для исключения падения траектории"
+    )
+with col_tk3:
+    st.metric("Триггер коммерческого штрафа", "3 точки подряд", help="Согласно условиям договора, 3 последовательных нарушения ведут к финансовым санкциям")
+
+# --- ШАГ 6.2: АВТОМАТИЧЕСКИЙ ПОИСК ЦЕЛЕВЫХ УСТАВОК ИЗ МАРКШЕЙДЕРСКОГО ПЛАНА ---
 if uploaded_ggi is not None and df_trajectory_calculated is not None:
     try:
-        # Извлекаем проектные значения для следующей точки профиля
         target_inc = float(df_trajectory_calculated.iloc[-1]["ЗЕНИТ_ГРАД"])
         target_azi = float(df_trajectory_calculated.iloc[-1]["АЗИМУТ_ГРАД"])
         st.info(f"🎯 Проектные уставки автоматически считаны из ГГИ: Зенит {target_inc:.2f}°, Азимут {target_azi:.2f}°")
     except Exception:
-        # Безопасный откат на дефолтные уставки плана, если файл поврежден
         target_inc = 26.50
         target_azi = 118.20
 else:
-    # Оставляем компактные поля ввода только если файл ГГИ не загружен вовсе
     col_t1, col_t2 = st.columns(2)
-    with col_t1:
-        target_inc = st.number_input("Целевой проектный зенитный угол (°):", value=26.50, key="b6_target_inc")
-    with col_t2:
-        target_azi = st.number_input("Целевой проектный азимут ствола (°):", value=118.20, key="b6_target_azi")
+    with col_t1: target_inc = st.number_input("Целевой проектный зенитный угол (°):", value=26.50, key="b6_target_inc")
+    with col_t2: target_azi = st.number_input("Целевой проектный азимут ствола (°):", value=118.20, key="b6_target_azi")
 
-# --- ШАГ 6.2: МАТЕМАТИЧЕСКИЙ ПОДБОР ПРОХОДКИ СЛАЙДОМ ---
-# Вычисляем требуемую пространственную поправку углов
+# --- ШАГ 6.3: МАТЕМАТИЧЕСКИЙ ПОДБОР ПРОХОДКИ СЛАЙДОМ ---
 needed_delta_inc = target_inc - current_inc
-
-# Реальный темп набора угла отклонителем (из Блока 5.2)
 available_build_rate_10m = build_rate_slide
 
-# Если КНБК способна изменять траекторию на слайде
 if abs(available_build_rate_10m) > 0.001:
-    # Расчет необходимой чистой проходки в режиме слайда (в метрах)
     required_slide_meters = (needed_delta_inc / (available_build_rate_10m / 10.0))
     required_slide_meters = max(0.0, min(progno_step_meters, required_slide_meters))
 else:
     required_slide_meters = 0.0
 
-# Расчет оставшейся проходки в режиме роторного бурения (с вращением)
 required_rotary_meters = max(0.0, progno_step_meters - required_slide_meters)
-
-# Вычисление оптимальной доли слайдирования в процентах для настройки телеметрии
 recommended_slide_pct = (required_slide_meters / max(1.0, progno_step_meters)) * 100.0
 
-# --- ШАГ 6.3: ВЫВОД ТЕХНОЛОГИЧЕСКОЙ РЕКОМЕНДАЦИИ ДЛЯ БУРОВОЙ БРИГАДЫ ---
+# Извлекаем расчетное DLS прогнозного шага из Блока 5.2
+forecast_dls_val = st.session_state.get("forecast_dls_deg10m", 0.0)
+
+# --- ШАГ 6.4: АЛГОРИТМ СКОЛЬЗЯЩЕГО ОКНА КОНТРОЛЯ ШТРАФОВ (3 ТОЧКИ) ---
+# Анализируем историю последних замеров из загруженного файла ГГИ
+consecutive_violations = 0
+violation_history_text = []
+
+if df_trajectory_calculated is not None and "DLS_10M" in df_trajectory_calculated.columns:
+    # Берем последние 2 фактические точки
+    last_actual_dls = df_trajectory_calculated["DLS_10M"].tail(2).values
+    # Создаем цепочку: 2 прошлые точки + 1 наша прогнозная
+    combined_dls_chain = list(last_actual_dls) + [forecast_dls_val]
+    
+    # Проверяем цепочку на превышение или недобор
+    for idx, dls_point in enumerate(combined_dls_chain):
+        point_name = f"Замер №{idx+1}" if idx < 2 else "Текущий Прогноз"
+        if dls_point > tk_dls_max:
+            consecutive_violations += 1
+            violation_history_text.append(f"❌ {point_name}: Превышение лимита ({dls_point:.2f} > {tk_dls_max}°/10м)")
+        elif dls_point < tk_dls_min:
+            consecutive_violations += 1
+            violation_history_text.append(f"❌ {point_name}: Недобор интенсивности ({dls_point:.2f} < {tk_dls_min}°/10м)")
+        else:
+            # Прерываем серию последовательных нарушений, если замер в норме
+            if consecutive_violations < 3:
+                consecutive_violations = 0
+
+# --- ШАГ 6.5: ВЫВОД ДИРЕКТИВЫ И КОММЕРЧЕСКОГО РИСК-МЕНЕДЖМЕНТА ---
 with st.container(border=True):
     st.markdown("##### 📝 Директивное технологическое указание для инженера ННБ:")
     
@@ -377,11 +411,28 @@ with st.container(border=True):
     col_out2.metric("Необходимый РОТОР", f"{required_rotary_meters:.1f} м", "Режим вращения")
     col_out3.metric("Доля слайда в рейсе", f"{recommended_slide_pct:.0f} %")
     
-    # Контроль перегибов ствола (DLS) по СТО ИНТИ S.QS.8
-    if forecast_dls_deg10m > 1.2:
-        st.warning(f"⚠️ **ВНИМАНИЕ:** Ожидаемая интенсивность искривления ({forecast_dls_deg10m:.2f}°/10м) превышает безопасный предел ТК Заказчика (1.2°/10м). Снизьте нагрузку WOB или угол Tool Face!")
+    st.markdown("##### ⚖️ Аудит выполнения Технических Критериев договора:")
+    
+    # Выводим статус на основе скользящего окна
+    if consecutive_violations >= 3:
+        st.error(
+            f"🚨 **КРИТИЧЕСКИЙ ФИНАНСОВЫЙ РИСК: ВЫСТАВЛЕНИЕ ШТРАФА!**\n"
+            f"Зафиксировано 3 последовательных нарушения уставных лимитов ТК Договора подряд (включая прогнозный интервал).\n"
+            f"Срочно измените параметры слайдирования для выравнивания траектории!"
+        )
+        with st.expander("Посмотреть хронологию нарушений цепочки"):
+            for tx in violation_history_text: st.write(tx)
+            
+    elif consecutive_violations > 0 and consecutive_violations < 3:
+        st.warning(
+            f"⚠️ **ВНИМАНИЕ: Нарушение лимитов ТК (Серия: {consecutive_violations} из 3).**\n"
+            f"Текущий тренд ведет к коммерческому штрафу. Ситуация на усмотрении супервайзера Заказчика. "
+            f"Рекомендуется скорректировать угол Tool Face для возврата в коридор."
+        )
+        with st.expander("Посмотреть хронологию нарушений цепочки"):
+            for tx in violation_history_text: st.write(tx)
     else:
-        st.success("✔️ Прогнозный профиль КНБК находится в границах безопасной интенсивности. Риски посадок инструмента минимальны.")
+        st.success("✔️ Профиль КНБК полностью соответствует критериям договора. Риски коммерческих штрафов отсутствуют.")
 
 # =========================================================================
 # БЛОК 7.1 — ФУНКЦИЯ ВЗАИМОДЕЙСТВИЯ С GITHUB REST API (УСТРАНЕНИЕ ОШИБКИ 404)
