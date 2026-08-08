@@ -105,10 +105,13 @@ tab_tongs, tab_pipe, tab_tribology = st.tabs(["🔧 Ключ УМК", "🛢 Па
 
 # Вкладка 1: Конфигурация рычажной системы ключа УМК
 # Вместо старого st.session_state.keys_db.keys() пишем:
-menu_options = list(active_keys_db.keys())
-selected_key = st.selectbox("Выберите модель ключа УМК:", menu_options)
-passport_length = active_keys_db[selected_key]
-
+   # Вкладка 1: Конфигурация рычажной системы ключа УМК
+with tab_tongs:
+    # Вместо старого st.session_state.keys_db.keys() пишем:
+    menu_options = list(active_keys_db.keys())
+    selected_key = st.selectbox("Выберите модель ключа УМК:", menu_options)
+    passport_length = active_keys_db[selected_key]
+    
     # Новый переключатель типа измерения
     control_type = st.radio(
         "Тип контроля момента на буровой:",
