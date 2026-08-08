@@ -1083,15 +1083,17 @@ with col_down2:
         use_container_width=True
     )
 # =========================================================================
-# БЛОК 6: ЦИФРОВОЙ ЖУРНАЛ ЗАМЕРОВ ТЕКУЩЕГО РЕЙСА (БЕЗ ОШИБОЧНЫХ ГРАФИКОВ)
+# БЛОК 6: СТАБИЛЬНЫЙ ЦИФРОВОЙ ЖУРНАЛ ЗАМЕРОВ (УСТРАНЕНИЕ KEYERROR)
 # =========================================================================
 st.markdown("---")
 st.markdown("### 💾 Блок 6: Цифровой журнал и мониторинг трендов")
 st.caption("Накопление суточных замеров параметров промывки для архива КНБК")
 
+# Инициализация хранилища истории в памяти приложения
 if "history_log" not in st.session_state:
     st.session_state.history_log = []
 
+# Кнопки управления логом
 col_log1, col_log2 = st.columns(2)
 with col_log1:
     if st.button("➕ Зафиксировать текущую точку замера в лог", use_container_width=True):
@@ -1099,35 +1101,53 @@ with col_log1:
         is_acid = "Кислотная" in normalized_mud
         sand_val = sand_input_val if 'sand_input_val' in locals() else 0.5
         
+        # Интеллектуальное присвоение статусов для таблицы замеров
         if is_acid:
-            status, info = "🚨 АВАРИЯ / СПО", "КРИТИЧЕСКАЯ АВАРИЯ: Прокачка кислоты! Требуется подъем КНБК."
+            status = "🚨 АВАРИЯ / СПО"
+            info = "КРИТИЧЕСКАЯ АВАРИЯ: Прокачка кислоты! Требуется немедленный подъем КНБК."
         elif sand_val > (sand_threshold if 'sand_threshold' in locals() else 0.5):
-            status, info = "🚨 НАРУШЕНИЕ", f"Превышен лимит песка! Износ ускорен. Ресурс: {predicted_hours_to_failure:.1f} ч."
+            status = "🚨 НАРУШЕНИЕ ТК"
+            info = f"Превышен лимит песка! Износ ускорен. Ресурс: {predicted_hours_to_failure:.1f} ч."
         else:
-            status, info = "🟢 Норма", f"Замер в норме. Ресурс ВЗД: {predicted_hours_to_failure:.1f} ч."
+            status = "🟢 Норма"
+            info = f"Замер в норме. Прогноз ресурса ВЗД: {predicted_hours_to_failure:.1f} ч."
 
+        # Записываем строго фиксированные ключи (устраняем KeyError)
         st.session_state.history_log.append({
-            "Время замеров": time_now, 
-            "Тип раствора / пачки": normalized_mud,
-            "Содержание песка (%)": round(sand_val, 2), 
-            "Остаток ресурса (ч)": round(predicted_hours_to_failure, 1),
-            "Технологический статус": status
+            "Время": time_now, 
+            "Тип раствора": normalized_mud,
+            "Песок (%)": round(sand_val, 2), 
+            "Остаток (ч)": round(predicted_hours_to_failure, 1),
+            "Статус": status,
+            "Заключение": info
         })
-        st.success(f"Точка зафиксирована в {time_now}!")
+        st.success(f"Точка успешно зафиксирована в {time_now}!")
 
 with col_log2:
     if st.button("🗑 Очистить журнал замеров текущего рейса", use_container_width=True):
         st.session_state.history_log = []
         st.rerun()
 
-# Вывод простого, читаемого и стабильного журнала в виде таблицы
+# Отображение таблицы и генерация текстового файла выгрузки
 if st.session_state.history_log:
     st.markdown("##### 📝 Хронология выполненного контроля параметров БР:")
     df_display = pd.DataFrame(st.session_state.history_log)
+    
+    # Выводим чистую таблицу Streamlit
     st.dataframe(df_display, use_container_width=True, hide_index=True)
     
-    # Кнопка скачивания архива
-    log_text = "\n".join([f"[{r['Время замеров']}] {r['Тип раствора / пачки']} | Песок: {r['Содержание песка (%)']}% | Статус: {r['Технологический статус']}" for r in st.session_state.history_log])
-    st.download_button("📥 Скачать журнал рейса (.txt)", data=log_text, file_name=f"Journal_{well_number}.txt", use_container_width=True)
+    # Безопасная сборка текстового файла по совпадающим ключам
+    log_text_output = "ПРОТОКОЛ ХРОНОЛОГИИ ЗАМЕРОВ РЕЙСА:\n" + "\n".join([
+        f"[{row['Время']}] {row['Тип раствора']} | Песок: {row['Песок (%)']}% | Ресурс: {row['Остаток (ч)']}ч | Статус: {row['Статус']}" 
+        for row in st.session_state.history_log
+    ])
+    
+    # Кнопка скачивания лога
+    st.download_button(
+        label="📥 Скачать накопленный журнал рейса (.txt)", 
+        data=log_text_output, 
+        file_name=f"Journal_Well_{normalized_well.replace(' ', '_')}.txt", 
+        use_container_width=True
+    )
 else:
-    st.info("ℹ Журнал текущего рейса пуст. Нажимайте кнопку выше при каждом суточном замере параметров раствора.")
+    st.info("ℹ Журнал текущего рейса пуст. Фиксируйте точки замеров раствора при помощи кнопки выше.")
