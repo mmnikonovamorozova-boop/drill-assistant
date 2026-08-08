@@ -556,6 +556,84 @@ def load_advanced_failures_database(file_path="failures_db.xlsx"):
 # =========================================================================
 # БЛОК 4.0: КАСКАДНАЯ СТАТИСТИЧЕСКАЯ ФИЛЬТРАЦИЯ ДАННЫХ
 # =========================================================================
+
+
+st.markdown("##### 🔬 Инженерная справка по выбранной промывочной среде (СТО ИНТИ S.100.3):")
+
+# Развернутая логика назначения коэффициентов химической деградации NBR эластомера
+if "Полимерный" in mud_choice:
+    st.info("💡 **Щадящая химическая среда (Коэф. агрессивности ~1.10):** Минимальное деструктивное воздействие на углеводородные связи нитрильных резин. Скорость термического старения статора стандартная.")
+    current_mud_aggressiveness = 1.10
+elif "Гипсокалиевый" in mud_choice:
+    st.warning("⚠️ **Умеренно-агрессивная среда (Коэф. агрессивности ~1.30):** Повышенное содержание солей ускоряет вымывание пластификаторов из эластомера, приводя к локальному увеличению жесткости и микрорастрескиванию.")
+    current_mud_aggressiveness = 1.30
+elif "Гелево-Эмульсионный" in mud_choice:
+    st.warning("⚠️ **Высокоагрессивная среда (Коэф. агрессивности ~1.35):** Присутствие углеводородной фазы вызывает интенсивное набухание и деструкцию поверхностного слоя статора. Повышенный риск отслоения (риппинга) резины.")
+    current_mud_aggressiveness = 1.35
+elif "MaxFlow" in mud_choice:
+    st.error("🚨 **Критическая химическая и абразивная нагрузка (Коэф. агрессивности ~1.45):** Специализированная агрессивная рецептура. Риск ускоренной термической деградации и смыва защитной пленки эластомера.")
+    current_mud_aggressiveness = 1.45
+else:
+    st.info("💡 **Нейтральная среда (Коэф. агрессивности ~1.00):** Износ статора обусловлен исключительно механическими факторами (контактные напряжения, трение, гидроабразив).")
+    current_mud_aggressiveness = 1.00
+
+# Ввод параметров наработки и температурного режима
+col_vzd1, col_vzd2 = st.columns(2)
+
+with col_vzd1:
+    current_runtime = st.number_input(
+        "⏱ Текущая фактическая наработка мотора в рейсе, ч:", 
+        min_value=0.0, 
+        max_value=500.0, 
+        value=48.0, 
+        step=1.0,
+        key="b4_current_runtime"
+    )
+
+with col_vzd2:
+    current_temp_est = st.number_input(
+        "🌡 Прогнозная максимальная забойная температура, °C:", 
+        min_value=20.0, 
+        max_value=200.0, 
+        value=75.0, 
+        step=1.0,
+        key="b4_current_temp_est"
+    )
+
+    # Надежная инициализация пустых датафреймов
+df_geo = pd.DataFrame()
+df_train = pd.DataFrame()
+
+# Приведение региона к стандарту
+region_filter = ["ХМАО", "ЯНАО", "Западная Сибирь"] if region_choice != "Волго-Урал" else "Волго-Урал"
+
+# Многоуровневый отбор исторических инцидентов
+if df_failures is not None and not df_failures.empty:
+    # Уровень 1: География
+    df_geo = df_failures[df_failures["Регион работ"].isin(region_filter) if isinstance(region_filter, list) 
+                        else df_failures["Регион работ"] == region_filter].copy()
+
+    # Уровень 2: Производитель
+    vendor_cols = [c for c in df_geo.columns if "Производитель" in c or "Габарит" in c]
+    if vendor_cols:
+        target_vendor_col = vendor_cols[0]
+        short_vendor_name = str(vendor_choice).split("-")[0].split(" ")[0].upper()
+        df_vendor_slice = df_geo[df_geo[target_vendor_col].astype(str).str.upper().str.contains(short_vendor_name, na=False)].copy()
+        
+        # Каскадный спуск
+        df_train = df_vendor_slice.copy() if len(df_vendor_slice) >= 3 else df_geo.copy()
+    else:
+        df_train = df_geo.copy()
+
+# Инициализация метрик
+model_ready = False
+predicted_hours_to_failure = 0.0
+mae_hours = 24.0
+accuracy_pct = 75.0
+
+# =========================================================================
+# БЛОК 4.6: ЭКСПЕРТНАЯ СИСТЕМА - ИСПРАВЛЕННЫЙ ПОИСК АНАЛОГОВ
+# =========================================================================
 df_geo = pd.DataFrame()
 df_train = pd.DataFrame()
 
@@ -642,84 +720,6 @@ st.session_state["shared_buoyancy_factor"] = 1.0 - (f_dens / 7.85)
 st.session_state["shared_yield_stress"] = f_yp_corrected
 st.session_state["shared_flow_index"] = n_hb
 st.session_state["shared_sand_pct"] = sand_input_val  # Актуальный песок улетает в прогноз траектории
-
-st.markdown("##### 🔬 Инженерная справка по выбранной промывочной среде (СТО ИНТИ S.100.3):")
-
-# Развернутая логика назначения коэффициентов химической деградации NBR эластомера
-if "Полимерный" in mud_choice:
-    st.info("💡 **Щадящая химическая среда (Коэф. агрессивности ~1.10):** Минимальное деструктивное воздействие на углеводородные связи нитрильных резин. Скорость термического старения статора стандартная.")
-    current_mud_aggressiveness = 1.10
-elif "Гипсокалиевый" in mud_choice:
-    st.warning("⚠️ **Умеренно-агрессивная среда (Коэф. агрессивности ~1.30):** Повышенное содержание солей ускоряет вымывание пластификаторов из эластомера, приводя к локальному увеличению жесткости и микрорастрескиванию.")
-    current_mud_aggressiveness = 1.30
-elif "Гелево-Эмульсионный" in mud_choice:
-    st.warning("⚠️ **Высокоагрессивная среда (Коэф. агрессивности ~1.35):** Присутствие углеводородной фазы вызывает интенсивное набухание и деструкцию поверхностного слоя статора. Повышенный риск отслоения (риппинга) резины.")
-    current_mud_aggressiveness = 1.35
-elif "MaxFlow" in mud_choice:
-    st.error("🚨 **Критическая химическая и абразивная нагрузка (Коэф. агрессивности ~1.45):** Специализированная агрессивная рецептура. Риск ускоренной термической деградации и смыва защитной пленки эластомера.")
-    current_mud_aggressiveness = 1.45
-else:
-    st.info("💡 **Нейтральная среда (Коэф. агрессивности ~1.00):** Износ статора обусловлен исключительно механическими факторами (контактные напряжения, трение, гидроабразив).")
-    current_mud_aggressiveness = 1.00
-
-# Ввод параметров наработки и температурного режима
-col_vzd1, col_vzd2 = st.columns(2)
-
-with col_vzd1:
-    current_runtime = st.number_input(
-        "⏱ Текущая фактическая наработка мотора в рейсе, ч:", 
-        min_value=0.0, 
-        max_value=500.0, 
-        value=48.0, 
-        step=1.0,
-        key="b4_current_runtime"
-    )
-
-with col_vzd2:
-    current_temp_est = st.number_input(
-        "🌡 Прогнозная максимальная забойная температура, °C:", 
-        min_value=20.0, 
-        max_value=200.0, 
-        value=75.0, 
-        step=1.0,
-        key="b4_current_temp_est"
-    )
-
-    # Надежная инициализация пустых датафреймов
-df_geo = pd.DataFrame()
-df_train = pd.DataFrame()
-
-# Приведение региона к стандарту
-region_filter = ["ХМАО", "ЯНАО", "Западная Сибирь"] if region_choice != "Волго-Урал" else "Волго-Урал"
-
-# Многоуровневый отбор исторических инцидентов
-if df_failures is not None and not df_failures.empty:
-    # Уровень 1: География
-    df_geo = df_failures[df_failures["Регион работ"].isin(region_filter) if isinstance(region_filter, list) 
-                        else df_failures["Регион работ"] == region_filter].copy()
-
-    # Уровень 2: Производитель
-    vendor_cols = [c for c in df_geo.columns if "Производитель" in c or "Габарит" in c]
-    if vendor_cols:
-        target_vendor_col = vendor_cols[0]
-        short_vendor_name = str(vendor_choice).split("-")[0].split(" ")[0].upper()
-        df_vendor_slice = df_geo[df_geo[target_vendor_col].astype(str).str.upper().str.contains(short_vendor_name, na=False)].copy()
-        
-        # Каскадный спуск
-        df_train = df_vendor_slice.copy() if len(df_vendor_slice) >= 3 else df_geo.copy()
-    else:
-        df_train = df_geo.copy()
-
-# Инициализация метрик
-model_ready = False
-predicted_hours_to_failure = 0.0
-mae_hours = 24.0
-accuracy_pct = 75.0
-
-# =========================================================================
-# БЛОК 4.6: ЭКСПЕРТНАЯ СИСТЕМА - ИСПРАВЛЕННЫЙ ПОИСК АНАЛОГОВ
-# =========================================================================
-
 # 1. Вывод KPI-метрик
 st.markdown("#### Результаты предиктивного анализа силовой секции:")
 col1, col2, col3 = st.columns(3)
