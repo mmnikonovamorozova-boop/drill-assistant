@@ -504,53 +504,88 @@ with st.expander("🛠 Модуль онлайн-валидации и стре�
 # =========================================================================
 # БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА СИНХРОНИЗАЦИИ И РАСЧЕТА РЕСУРСА СТАТОРА ВЗД
 # =========================================================================
-st.markdown("### ⏳ Блок 4: Экспертная система расчета остаточного ресурса статора ВЗД")
-st.caption("Прогнозирование скорости деградации нитрильных эластомеров (NBR) по алгоритмам машинного обучения СТО ИНТИ S.100.3")
+# --- ЧАСТЬ 4.1: ИНЖЕНЕРНАЯ ОЦЕНКА ХИМИИ РАСТВОРА ---
+st.markdown("### ⏳ Блок 4: Экспертная система расчета остаточного ресурса")
 
-import re
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_absolute_error
+if "Полимерный" in mud_choice:
+    current_mud_aggressiveness = 1.10
+elif "Гипсокалиевый" in mud_choice:
+    current_mud_aggressiveness = 1.30
+elif "Гелево-Эмульсионный" in mud_choice:
+    current_mud_aggressiveness = 1.35
+elif "MaxFlow" in mud_choice:
+    current_mud_aggressiveness = 1.45
+else:
+    current_mud_aggressiveness = 1.00
+# --- ЧАСТЬ 4.2: ПОДГОТОВКА ДАННЫХ ДЛЯ ИИ-ЯДРА ВЗД ---
+df_geo = pd.DataFrame()
+df_train = pd.DataFrame()
 
-# --- ШАГ 4.1: СБОР ПОЛЕВЫХ ВВОДНЫХ ДАННЫХ И ИНПУТОВ ИНЖЕНЕРА ---
-col_vzd_geo1, col_vzd_geo2 = st.columns(2)
-with col_vzd_geo1:
-    region_choice = st.selectbox(
-        "Выберите регион ведения буровых работ:",
-        ["ХМАО / Мегион", "ЯНАО / Уренгой", "Волго-Урал / Самара"],
-        key="b4_region_choice"
-    )
-    vendor_choice = st.selectbox(
-        "Производитель силовой секции ВЗД:",
-        ["Радиус-Сервис", "ООО ГБС", "Гидромаш", "ВНИИБТ"],
-        key="b4_vendor_choice"
-    )
-    kinematics_type = st.selectbox(
-        "Конфигурация (Заходность силовой пары):",
-        ["5/6", "7/8", "9/10", "1/2 (Однозаходный)"],
-        key="b4_kin_choice"
-    )
+# Преобразование текстового пресета заходности силовой пары бурового мотора
+if "5/6" in kinematics_type: current_kin = 0.83
+elif "7/8" in kinematics_type: current_kin = 0.87
+elif "9/10" in kinematics_type: current_kin = 0.90
+else: current_kin = 0.50
 
-with col_vzd_geo2:
-    mud_choice = st.selectbox(
-        "Текущая рецептура бурового раствора (БР):",
-        ["Полимерный / Биополимерный", "Гипсокалиевый ингибированный", "Гелево-Эмульсионный (РУО)", "Агрессивный MaxFlow"],
-        key="b4_mud_choice"
-    )
-    current_runtime = st.number_input(
-        "⏱ Текущая фактическая наработка мотора в рейсе, ч:",
-        min_value=0.0, max_value=500.0, value=48.0, step=1.0, key="b4_current_runtime"
-    )
-    current_temp_est = st.number_input(
-        "🌡 Прогнозная максимальная забойная температура, °C:",
-        min_value=20.0, max_value=200.0, value=75.0, step=1.0, key="b4_current_temp_est"
-    )
+# Фильтрация базы данных по географическому признаку
+region_filter = ["ХМАО", "ЯНАО", "Западная Сибирь"] if "Самара" not in region_choice else "Волго-Урал"
 
-# ... (код расчета и ИИ-модели)
-# Передаем точные реологические и износные параметры в сквозной глобальный шлюз сессии
+if df_failures is not None and not df_failures.empty:
+    if isinstance(region_filter, list):
+        df_geo = df_failures[df_failures["Регион работ"].isin(region_filter)].copy()
+    else:
+        df_geo = df_failures[df_failures["Регион работ"] == region_filter].copy()
+
+    # Каскадный спуск по вендорам оборудования КНБК
+    vendor_cols = [c for c in df_geo.columns if "Производитель" in c or "Габарит" in c]
+    if vendor_cols:
+        target_vendor_col = vendor_cols[0]
+        short_vendor_name = str(vendor_choice).split("-")[0].split(" ")[0].upper()
+        df_vendor_slice = df_geo[df_geo[target_vendor_col].astype(str).str.upper().str.contains(short_vendor_name, na=False)].copy()
+        df_train = df_vendor_slice.copy() if len(df_vendor_slice) >= 3 else df_geo.copy()
+    else:
+        df_train = df_geo.copy()
+
+# Сброс флагов готовности перед запуском расчетов машинного обучения
+model_ready = False
+predicted_hours_to_failure = 0.0
+mae_hours = 24.0
+accuracy_pct = 75.0
+# --- ЧАСТЬ 4.3: ОБУЧЕНИЕ ИИ-МОДЕЛИ (COMPACT) ---
+if len(df_train) >= 3:
+    try:
+        X_train = df_train[["Песок (%)", "Забойная Темп. (°C)", "Кинематика_число", "Агрессивность_БР"]]
+        y_train = df_train["Скорость_износа"]
+        
+        # Обучение с ограничением глубины
+        rf_model = RandomForestRegressor(n_estimators=30, max_depth=5, random_state=42)
+        rf_model.fit(X_train, y_train)
+        
+        # Прогноз ресурса (max 150 ч)
+        X_curr = np.array([[sand_input_val, current_temp_est, current_kin, current_mud_aggressiveness]])
+        pred_speed = max(0.0001, float(rf_model.predict(X_curr)))
+        allowed_res = min(150.0, 1.0 / pred_speed)
+        predicted_hours_to_failure = max(0.0, allowed_res - current_runtime)
+        model_ready = True
+    except:
+        model_ready = False
+# --- ЧАСТЬ 4.4: АНАЛИТИКА И СКВОЗНОЙ ШЛЮЗ ДАННЫХ ---
+if not model_ready:
+    # --- [Краткое описание расчёта деградации] ---
+    # Вычисляется общая деградация на основе влияния песка и температуры.
+    total_degradation = (1.0 + (max(0.0, sand_input_val - 0.5) * 3.5)) * \
+                        (1.5 ** ((current_temp_est - 70.0) / 10.0) if current_temp_est > 70.0 else 1.0) * \
+                        (current_kin * 1.3 * current_mud_aggressiveness)
+    
+    allowed_analytical = min(150.0, 180.0 / max(0.001, total_degradation))
+    predicted_hours_to_failure = max(0.0, allowed_analytical - current_runtime)
+
+# --- [Шлюз данных для прогноза траектории] ---
+# Данные передаются в сессию
 st.session_state["shared_buoyancy_factor"] = 1.0 - (f_dens / 7.85)
 st.session_state["shared_yield_stress"] = f_yp_corrected
 st.session_state["shared_flow_index"] = n_hb
-st.session_state["shared_sand_pct"] = sand_input_val 
+st.session_state["shared_sand_pct"] = sand_input_val
 
 # 1. Вывод KPI-метрик
 st.markdown("#### Результаты предиктивного анализа силовой секции:")
