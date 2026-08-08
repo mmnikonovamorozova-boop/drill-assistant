@@ -74,31 +74,19 @@ tab_tongs, tab_pipe, tab_tribology = st.tabs(["🔧 Ключ УМК", "🛢 Па
 with tab_tongs:
     selected_key = st.selectbox("Выберите модель ключа УМК:", list(active_keys_db.keys()))
     passport_length = active_keys_db[selected_key]
+    control_type = st.radio("Тип контроля:", ["🪢 Электронный", "💧 Гидравлический"])
     
-    control_type = st.radio(
-        "Тип контроля момента на буровой:",
-        ["🪢 Электронный (ИВЭ-50)", "💧 Гидравлический (манометр)"]
-    )
-    
-        col_t1, col_t2 = st.columns(2)
+    col_t1, col_t2 = st.columns(2)
     with col_t1:
-        fact_l = st.number_input(
-            "Фактическая длина плеча рычага (Lфакт), м:",
-            min_value=0.1, max_value=3.0, value=float(passport_length), step=0.005,
-            help="Замеряется рулеткой от центра замка трубы до пальца каната."
-        )
+        fact_l = st.number_input("Длина плеча (Lфакт), м:", value=float(passport_length))
     with col_t2:
         if "Электронный" in control_type:
-            tros_d = st.number_input(
-                "Толщина натяжного троса, мм:",
-                min_value=0.0, max_value=50.0, value=16.0, step=1.0,
-                help="Необходимо для аудита прочности каната на разрыв."
-            )
+            tros_d = st.number_input("Толщина троса, мм:", value=16.0)
         else:
-            k_hydr = st.number_input(
-                "Коэффициент пересчета ключа (кН·м на 1 МПа):",
-                min_value=0.1, max_value=20.0, value=5.25, step=0.05,
-                help="Паспортная пропорция Давление-Момент для гидроключа."
+            k_hydr = st.number_input("Коэффициент пересчета:", value=5.25)
+            "Коэффициент пересчета ключа (кН·м на 1 МПа):",
+            min_value=0.1, max_value=20.0, value=5.25, step=0.05,
+            help="Паспортная пропорция Давление-Момент для гидроключа."
             )
 
    # === Вкладка 2: Характеристики бурильных труб (Исправлены пробелы в сталях) ===
