@@ -238,33 +238,24 @@ st.markdown(
 # =========================================================================
 # БЛОК 5: ОФИЦИАЛЬНЫЙ СВОДНЫЙ АКТ (АДАПТИВНЫЙ И ЗАЩИЩЕННЫЙ)
 # =========================================================================
+# === БЛОК 5: ОФИЦИАЛЬНЫЙ СВОДНЫЙ АКТ ===
 st.markdown("---")
 st.subheader("📥 Официальный бланк замера")
 
-# ЗАЩИТНАЯ ИНИЦИАЛИЗАЦИЯ ПЕРЕМЕННЫХ (Исключает NameError в HTML) [image_UG1C6A.png]
-report_axial_max = effective_max_axial if 'effective_max_axial' in locals() else limit_wear
-report_radial_max = effective_max_radial if 'effective_max_radial' in locals() else 1.00
-report_res_text = res_text if 'res_text' in locals() else "Технологический статус в норме."
-
-# Определение цветов для финального заключения в Акте
-html_box_bg = "#FEE2E2" if (is_axial_failed or is_radial_failed) else "#D1FAE5"
-html_box_text = "#991B1B" if (is_axial_failed or is_radial_failed) else "#065F46"
-
-# Построение печатной HTML-карточки (адаптировано под ночную тему)
+# Формирование HTML-шаблона с использованием обновленных переменных (eff_max)
 html_vzd = f"""
-<div style='border: 2px solid var(--text-color, #333); padding: 20px; font-family: Arial, sans-serif; border-radius: 4px;'>
-<h3 style='text-align: center; color: var(--text-color, #111);'>АКТ ТЕХНИЧЕСКОГО КОНТРОЛЯ ШПИНДЕЛЯ ВЗД</h3>
-<p><b>Дата проведения контроля:</b> {datetime.now().strftime("%d.%m.%Y %H:%M")}</p>
-<p><b>Заказчик (Недропользователь):</b> {selected_client}</p>
-<p><b>Оборудование КНБК:</b> {selected_brand} ({selected_diameter})</p>
-<p><b>Фактический осевой люфт:</b> {calculated_axial_delta:.2f} мм (Предельный допуск: {report_axial_max:.2f} мм)</p>
-<p><b>Фактический радиальный зазор:</b> {radial_ich:.2f} мм (Предельный допуск: {report_radial_max:.2f} мм)</p>
-<hr style='border: 0; border-top: 1px solid var(--text-color, #ccc);'>
-<div style='color: {html_box_text}; background-color: {html_box_bg}; padding: 10px; border-radius: 4px; font-weight: bold; text-align: center; line-height: 1.4;'>
-ЗАКЛЮЧЕНИЕ: {report_res_text}
+<div style='border: 2px solid #333; padding: 20px; font-family: Arial, sans-serif; border-radius: 4px;'>
+<h3 style='text-align: center;'>АКТ ТЕХНИЧЕСКОГО КОНТРОЛЯ ШПИНДЕЛЯ ВЗД</h3>
+<p><b>Дата контроля:</b> {datetime.now().strftime("%d.%m.%Y %H:%M")}</p>
+<p><b>Осевой люфт:</b> {calculated_axial_delta:.2f} мм (Лимит: {eff_max:.2f} мм)</p>
+<p><b>Радиальный зазор:</b> {radial_ich:.2f} мм (Лимит: 1.00 мм)</p>
+<hr>
+<div style='padding: 10px; border-radius: 4px; font-weight: bold; text-align: center;'>
+ЗАКЛЮЧЕНИЕ: {res}
 </div>
 </div>
 """
+st.markdown(html_vzd, unsafe_allow_html=True)
 
 # Безопасный рендеринг готового бланка на страницу
 st.markdown(html_vzd, unsafe_allow_html=True)
