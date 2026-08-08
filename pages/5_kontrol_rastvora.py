@@ -493,9 +493,6 @@ with st.expander("🛠 Модуль онлайн-валидации и стре�
 # =========================================================================
 # БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА СИНХРОНИЗАЦИИ И РАСЧЕТА РЕСУРСА СТАТОРА ВЗД
 # =========================================================================
-# =========================================================================
-# БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА СИНХРОНИЗАЦИИ И РАСЧЕТА РЕСУРСА СТАТОРА ВЗД
-# =========================================================================
 
 # --- ЧАСТЬ 4.1: ИНЖЕНЕРНАЯ ОЦЕНКА ХИМИИ РАСТВОРА И БЕЗОПАСНАЯ ИНИЦИАЛИЗАЦИЯ ---
 st.markdown("### ⏳ Блок 4: Экспертная система расчета остаточного ресурса")
@@ -614,59 +611,76 @@ if len(df_train) >= 3:
         model_ready = True
     except:
         model_ready = False
-# --- ЧАСТЬ 4.4: АНАЛИТИКА И СКВОЗНОЙ ШЛЮЗ ДАННЫХ ---
+# =========================================================================
+# --- ЧАСТЬ 4.4: АНАЛИТИКА, РАСЧЕТ ДЕГРАДАЦИИ И РЕГЛАМЕНТНЫЕ ОТСЕЧКИ ---
+# =========================================================================
+
+# 1. Принудительный спуск инпутов в интерфейс для контроля инженером ННБ
+st.markdown("##### ⚙️ Фактические параметры эксплуатации эластомера:")
+col_in1, col_in2, col_in3 = st.columns(3)
+with col_in1:
+    current_runtime = st.number_input(
+        "Текущая наработка ВЗД за рейс (ч):", 
+        min_value=0.0, max_value=300.0, value=48.0, step=1.0, key="b4_current_runtime"
+    )
+with col_in2:
+    current_temp_est = st.number_input(
+        "Расчетная забойная температура (°C):", 
+        min_value=20.0, max_value=200.0, value=75.0, step=1.0, key="b4_current_temp_est"
+    )
+with col_in3:
+    # Отображаем текущий коэффициент агрессивности среды для понимания физики процесса
+    st.metric("Коэффициент агрессивности среды (СТО ИНТИ)", f"{current_mud_aggressiveness:.2f}")
+
+# 2. Математический расчет износа по методике СТО ИНТИ S.100.3
 if not model_ready:
-    # Базовый расчет деградации (песок + температура)
-    total_degradation = 1.0 # (Упрощено для примера)
+    # Базовая деградация от абразива (песка) и температурного расширения
+    base_degradation = (1.0 + (max(0.0, sand_input_val - 0.5) * 3.5)) * \
+                       (1.5 ** ((current_temp_est - 70.0) / 10.0) if current_temp_est > 70.0 else 1.0)
     
-    # Применение жестких регламентных ограничений
+    # Итоговый коэффициент износа с учетом геометрии и химии пачки
+    total_degradation = base_degradation * (current_kin * 1.3 * current_mud_aggressiveness)
+    
+    # Вычисление аналитического ресурса по СТО ИНТИ
+    allowed_analytical = min(150.0, 180.0 / max(0.001, total_degradation))
+    
+    # Применение жестких регламентных технологических лимитов и отсечек компании
     if "Кислотная пачка" in mud_choice:
-        allowed_analytical = 0.0  # Обнуление согласно СТО ИНТИ/Паспорту
+        allowed_analytical = 0.0  # Срочное СПО, 99% разрушения силовой пары ВЗД
     elif "Вязко-упругий состав (ВУС)" in mud_choice:
-        allowed_analytical = 40.0 # Защитное ограничение 40 часов
-    else:
-        allowed_analytical = 150.0
+        allowed_analytical = min(60.0, allowed_analytical)  # Защитное ограничение по давлению
         
     predicted_hours_to_failure = max(0.0, allowed_analytical - current_runtime)
-# --- [Шлюз данных для прогноза траектории] ---
-# Данные передаются в сессию
+
+# 3. Синхронизация со сквозным шлюзом данных сессии Streamlit
+st.session_state["predicted_hours_to_failure"] = predicted_hours_to_failure
 st.session_state["shared_buoyancy_factor"] = 1.0 - (f_dens / 7.85)
 st.session_state["shared_yield_stress"] = f_yp_corrected
 st.session_state["shared_flow_index"] = n_hb
 st.session_state["shared_sand_pct"] = sand_input_val
 
-# 1. Вывод KPI-метрик
-if "Кислотная" in mud_choice:
-    st.markdown("<h2 style='color:#EF4444; font-weight:bold;'>0.0 ч (АВРИЯ)</h2>", unsafe_allow_html=True)
-else:
-    st.metric("Остаток времени", f"{predicted_hours_to_failure:.1f} ч")
+# 4. Вывод KPI-метрик (Возвращаем наработку, точность и погрешность MAE)
+st.markdown("#### 📊 Результаты предиктивного анализа силовой секции:")
 
-# 2. Вывод регламентных предписаний
+# Если прокачана кислота — выводим критический аварийный баннер вместо стандартного счетчика
 if "Кислотная пачка" in mud_choice:
-    st.error("🚨 КРИТИЧЕСКОЕ НАРУШЕНИЕ: Бурение запрещено! СПО для замены ВЗД (СТО ИНТИ S.100.3).")
-elif "Вязко-упругий состав (ВУС)" in mud_choice:
-    st.warning("⚠️ ВУС: Ресурс ограничен до 40 часов!")
-
-# 2. Поиск ТОП-3 схожих инцидентов с защитой от отсутствия колонок в Excel
-if df_failures is not None and not df_geo.empty:
-    st.markdown("---")
-    st.markdown(f"#### 🔍 Топ-3 схожих исторических отказа в регионе ({region_choice}):")
-    df_similarity = df_geo.copy()
-
-    # Безопасное извлечение и конвертация колонок (если их нет, заполняем нулями)
-    p_sand = pd.to_numeric(df_similarity["Песок (%)"], errors="coerce").fillna(0) if "Песок (%)" in df_similarity.columns else 0
-    p_temp = pd.to_numeric(df_similarity["Забойная Темп. (°C)"], errors="coerce").fillna(0) if "Забойная Темп. (°C)" in df_similarity.columns else 0
-    
-    # Ищем колонку кинематики по частичному совпадению слова, если точного нет
-    kin_col = [c for c in df_similarity.columns if "Кинемат" in c or "Заходн" in c]
-    p_kin = pd.to_numeric(df_similarity[kin_col[0]], errors="coerce").fillna(0) if kin_col else 0
-
-    # Математический расчет расстояния сходства с защитой от KeyError
-    df_similarity["Дистанция_сходства"] = np.sqrt(
-        (10.0 * (p_sand - sand_input_val)) ** 2 +
-        (0.1 * (p_temp - current_temp_est)) ** 2 +
-        (5.0 * (p_kin - current_kin)) ** 2
-    )
+    st.error("🚨 КРИТИЧЕСКИЙ СТАТУС: ПРОКАЧКА КИСЛОТЫ! ОСТАТОК РЕСУРСА ВЗД ОБНУЛЕН. ТРЕБУЕТСЯ СРОЧНЫЙ ПОДЪЕМ КНБК НА СПО И ЗАМЕНА ДВИГАТЕЛЯ!")
+    col_m1, col_m2, col_m3 = st.columns(3)
+    with col_m1: st.metric("Остаток времени бурения", "0.0 ч", delta="-100%", delta_color="inverse")
+    with col_m2: st.metric("Точность ядра (учет ТК)", f"{accuracy_pct:.1f} %")
+    with col_m3: st.metric("Погрешность расчета (MAE)", f"± {mae_hours:.1f} ч")
+else:
+    col_m1, col_m2, col_m3 = st.columns(3)
+    with col_m1: 
+        # Если ресурс исчерпан по времени наработки
+        if predicted_hours_to_failure == 0:
+            st.metric("Остаток времени бурения", "0.0 ч", "Ресурс исчерпан!", delta_color="inverse")
+        else:
+            st.metric("Остаток времени бурения", f"{predicted_hours_to_failure:.1f} ч")
+    with col_m2: 
+        st.metric("Точность ядра (учет ТК)", f"{accuracy_pct:.1f} %")
+    with col_m3: 
+        st.metric("Погрешность расчета (MAE)", f"± {mae_hours:.1f} ч", help="Средняя абсолютная ошибка модели на основе исторических отказов")
 
     # Вывод карточек (топ-3)
     top_3 = df_similarity.sort_values(by="Дистанция_сходства").head(3)
