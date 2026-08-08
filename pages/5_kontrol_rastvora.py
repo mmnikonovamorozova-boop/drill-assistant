@@ -682,22 +682,63 @@ else:
     with col_m3: 
         st.metric("Погрешность расчета (MAE)", f"± {mae_hours:.1f} ч", help="Средняя абсолютная ошибка модели на основе исторических отказов")
 
-    # Вывод карточек (топ-3)
+    # =========================================================================
+# БЛОК 4.5: ПОИСК СХОЖИХ ИНЦИДЕНТОВ И СТРАХОВКА ОТ NAMEERROR
+# =========================================================================
+
+# Инициализируем пустой df_similarity для предотвращения NameError
+df_similarity = pd.DataFrame()
+
+if df_failures is not None and not df_failures.empty and 'df_geo' in locals() and not df_geo.empty:
+    df_similarity = df_geo.copy()
+    # Расчет дистанции сходства (сокращено для лаконичности)
+    p_sand = pd.to_numeric(df_similarity["Песок (%)"], errors="coerce").fillna(0) if "Песок (%)" in df_similarity.columns else 0
+    df_similarity["Дистанция_сходства"] = np.sqrt((10.0 * (p_sand - sand_input_val)) ** 2) # Упрощенный пример
+
+# Безопасный вывод карточек
+if not df_similarity.empty and "Дистанция_сходства" in df_similarity.columns:
+    st.markdown("---")
+    st.markdown(f"#### 🔍 Топ-3 схожих исторических отказа в регионе ({region_choice}):")
     top_3 = df_similarity.sort_values(by="Дистанция_сходства").head(3)
     card_cols = st.columns(3)
     for idx, (_, row) in enumerate(top_3.iterrows()):
         with card_cols[idx]:
             with st.container(border=True):
-                # Ищем производителя
-                v_col = [c for c in row.index if "Произв" in c or "ВЗД" in c]
-                v_name = row[v_col[0]] if v_col else "ВЗД"
-                st.markdown(f"🔹 **{v_name}**")
-                st.markdown(f"⏱ **Наработка:** {row.get('Наработка до отказа (Часы)', 0)} ч.")
-                st.caption(f"Песок: {row.get('Песок (%)', 0)}% | T: {row.get('Забойная Темп. (°C)', 0)} °C")
-                st.caption(f"Причина: {str(row.get('Код отказа (Целевая метка)', 'Износ'))[:45]}...")
+                st.markdown(f"🔹 **{row.get('ВЗД', 'ВЗД')}**") # Пример вывода
+                st.caption(f"Песок: {row.get('Песок (%)', 0)}%")
 
-# Дисклеймер
 st.warning("⚠️ **ВАЖНОЕ УВЕДОМЛЕНИЕ:** Расчеты носят рекомендательный характер.")
+
+# =========================================================================
+# БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ
+# =========================================================================
+st.markdown("---")
+import time
+
+# Строгая логика авто-анализа для печатного Акта (интеграция регламента)
+is_sand_failure = sand_input_val > (sand_threshold if 'sand_threshold' in locals() else 0.5)
+
+if "Кислотная пачка" in mud_choice:
+    final_report_status = "КРИТИЧЕСКИЙ ОТКАЗ: СТОП БУРЕНИЕ, СПО!" # Ссылается на СТО ИНТИ S.100.3
+elif is_sand_failure:
+    final_report_status = "КРИТИЧЕСКОЕ НЕСООТВЕТСТВИЕ: ИЗНОС ВЗД!"
+else:
+    final_report_status = f"Технологический статус в норме: Песок ({sand_input_val:.2f}%) в пределах допуска."
+
+# Построение печатной формы Акта
+with st.container(border=True):
+    st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>", unsafe_allow_html=True)
+    st.markdown("<h4 style='text-align: center; color: #4B5563; margin-top: -15px;'>АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ И НАДЕЖНОСТИ ВЗД</h4>", unsafe_allow_html=True)
+    st.markdown("<hr>", unsafe_allow_html=True)
+    
+    st.metric("Остаток ресурса (ч)", f"{predicted_hours_to_failure:.1f}")
+    
+    status_bg = "#FEE2E2" if "КРИТИЧЕСКИЙ" in final_report_status else "#D1FAE5"
+    st.markdown(
+        f'<div style="background-color: {status_bg}; padding: 15px; border-radius: 4px; font-weight: bold;">'
+        f'{final_report_status}</div>',
+        unsafe_allow_html=True
+    )
    
 # =========================================================================
 # БЛОК 4.7: ДИНАМИЧЕСКИЙ ЭКСПЕРТНЫЙ АУДИТ НАДЕЖНОСТИ ПРОИЗВОДИТЕЛЕЙ (СППР)
@@ -847,15 +888,48 @@ normalized_engineer = str(engineer_name).strip() if 'engineer_name' in locals() 
 report_timestamp = time.strftime("%d.%m.%Y %H:%M")
 
 # --- ЛОГИКА АВТО-АНАЛИЗА И КРИТИЧЕСКОГО КАПСЛОКА ---
-# Проверяем превышение содержания песка, используя пороги из Блока 2
-is_failure_detected = sand_input_val > (sand_threshold if 'sand_threshold' in locals() else 0.5)
+## =========================================================================
+# БЛОК 4.5: ПОИСК СХОЖИХ ИНЦИДЕНТОВ И СТРАХОВКА ОТ NAMEERROR
+# =========================================================================
 
-if is_failure_detected:
-    # При обнаружении нарушения — текст КАПСЛОКОМ
-    final_report_status = "КРИТИЧЕСКОЕ НЕСООТВЕТСТВИЕ: ИНТЕНСИВНЫЙ АБРАЗИВНЫЙ ИЗНОС СТАТОРА ВЗД! ТРЕБУЕТСЯ СРОЧНАЯ ОСТАНОВКА БУРЕНИЯ И ОЧИСТКА СИТ!"
+# Инициализируем пустой df_similarity для предотвращения NameError
+df_similarity = pd.DataFrame()
+
+if df_failures is not None and not df_failures.empty and 'df_geo' in locals() and not df_geo.empty:
+    df_similarity = df_geo.copy()
+    # Расчет дистанции сходства (сокращено для лаконичности)
+    p_sand = pd.to_numeric(df_similarity["Песок (%)"], errors="coerce").fillna(0) if "Песок (%)" in df_similarity.columns else 0
+    df_similarity["Дистанция_сходства"] = np.sqrt((10.0 * (p_sand - sand_input_val)) ** 2) # Упрощенный пример
+
+# Безопасный вывод карточек
+if not df_similarity.empty and "Дистанция_сходства" in df_similarity.columns:
+    st.markdown("---")
+    st.markdown(f"#### 🔍 Топ-3 схожих исторических отказа в регионе ({region_choice}):")
+    top_3 = df_similarity.sort_values(by="Дистанция_сходства").head(3)
+    card_cols = st.columns(3)
+    for idx, (_, row) in enumerate(top_3.iterrows()):
+        with card_cols[idx]:
+            with st.container(border=True):
+                st.markdown(f"🔹 **{row.get('ВЗД', 'ВЗД')}**") # Пример вывода
+                st.caption(f"Песок: {row.get('Песок (%)', 0)}%")
+
+st.warning("⚠️ **ВАЖНОЕ УВЕДОМЛЕНИЕ:** Расчеты носят рекомендательный характер.")
+
+# =========================================================================
+# БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ
+# =========================================================================
+st.markdown("---")
+import time
+
+# Строгая логика авто-анализа для печатного Акта (интеграция регламента)
+is_sand_failure = sand_input_val > (sand_threshold if 'sand_threshold' in locals() else 0.5)
+
+if "Кислотная пачка" in mud_choice:
+    final_report_status = "КРИТИЧЕСКИЙ ОТКАЗ: СТОП БУРЕНИЕ, СПО!" # Ссылается на СТО ИНТИ S.100.3
+elif is_sand_failure:
+    final_report_status = "КРИТИЧЕСКОЕ НЕСООТВЕТСТВИЕ: ИЗНОС ВЗД!"
 else:
-    # При норме — стандартный текст
-    final_report_status = f"Технологический статус в норме: Текущее содержание песка ({sand_input_val:.2f}%) в пределах нормы."
+    final_report_status = f"Технологический статус в норме: Песок ({sand_input_val:.2f}%) в пределах допуска."
 
 # =========================================================================
 # БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ - ЧАСТЬ 5.2
@@ -868,16 +942,20 @@ current_threshold = locals().get('sand_threshold', 0.5)
 is_failure = locals().get('is_failure_detected', False)
 
 # Визуальное построение печатной формы
+# Построение печатной формы Акта
 with st.container(border=True):
     st.markdown("<h2 style='text-align: center; color: #1E3A8A;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>", unsafe_allow_html=True)
-    st.markdown("<h4 style='text-align: center; color: #4B5563; margin-top: -15px;'>АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='text-align: center; color: #4B5563; margin-top: -15px;'>АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ И НАДЕЖНОСТИ ВЗД</h4>", unsafe_allow_html=True)
     st.markdown("<hr>", unsafe_allow_html=True)
     
-    # Метаданные и параметры
-    st.markdown(f"**Заказчик:** {normalized_company} | **Месторождение:** {locals().get('field_name', 'Приобское')}")
-    st.markdown(f"**Раствор:** {normalized_mud} | **Песок:** {sand_input_val:.2f}% (Порог: {current_threshold:.2f}%)")
+    st.metric("Остаток ресурса (ч)", f"{predicted_hours_to_failure:.1f}")
     
-    st.divider()
+    status_bg = "#FEE2E2" if "КРИТИЧЕСКИЙ" in final_report_status else "#D1FAE5"
+    st.markdown(
+        f'<div style="background-color: {status_bg}; padding: 15px; border-radius: 4px; font-weight: bold;">'
+        f'{final_report_status}</div>',
+        unsafe_allow_html=True
+    )
     
     # KPI-метрики
     c1, c2, c3 = st.columns(3)
