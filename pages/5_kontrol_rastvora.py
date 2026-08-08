@@ -537,6 +537,9 @@ else: current_kin = 0.50
 # Фильтрация базы данных по географическому признаку
 region_filter = ["ХМАО", "ЯНАО", "Западная Сибирь"] if "Самара" not in region_choice else "Волго-Урал"
 
+# Загружаем историческую базу инцидентов перед фильтрацией
+df_failures = load_advanced_failures_database("failures_db.xlsx")
+
 if df_failures is not None and not df_failures.empty:
     if isinstance(region_filter, list):
         df_geo = df_failures[df_failures["Регион работ"].isin(region_filter)].copy()
