@@ -121,10 +121,6 @@ client_limits_db = {
     "ПАО Лукойл": {"малый": 4.0, "средний": 5.0, "большой": 5.5}
 }
 
-# 3. Селекторы оборудования и расчет лимитов
-selected_brand = st.selectbox("2. Выберите производителя:", list(base_vzd.keys()), key="b4_brand_select")
-selected_diameter = st.selectbox("3. Выберите габарит:", list(base_vzd[selected_brand].keys()), key="b4_unified_selector")
-
 limit_wear = base_vzd[selected_brand][selected_diameter]
 size_group = "малый" if any(m in selected_diameter for m in ["43", "54", "73", "127"]) else "большой" if any(m in selected_diameter for m in ["195", "240", "8''"]) else "средний"
 
