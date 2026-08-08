@@ -180,30 +180,34 @@ else:
 calculated_wob_safe = WOB_max_passport * wob_reduction_factor
 calculated_dls_safe = DLS_max_passport * dls_reduction_factor
 
-# 4. ВИЗУАЛИЗАЦИЯ
+# # 4. ВИЗУАЛИЗАЦИЯ ТЕХНОЛОГИЧЕСКИХ ОГРАНИЧЕНИЙ
 col_nnb1, col_nnb2 = st.columns(2)
 
 with col_nnb1:
-    st. metric(
-        label="Рекомендуемая макс. нагрузка на долото (WOB)", 
-        value=f"{calculated_wob_safe:.1f} тонн", 
+    st.metric(
+        label="Рекомендуемая макс. нагрузка на долото (WOB)",
+        value=f"{calculated_wob_safe:.1f} тонн",
         delta=f"{(calculated_wob_safe - WOB_max_passport):.1f} тонн от базовой"
     )
-    if wob_reduction_factor < 0.7:
-        st. error("⚠ Внимание! Осевая опора изношена. Ограничьте WOB во избежание разрушения подшипникового пакета.")
+    if wob_reduction_factor == 0.0:
+        st.error("❌ АВАРИЙНЫЙ ОСТАНОВ: Спуск ВЗД запрещен! Нагрузка заблокирована.")
+    elif wob_reduction_factor < 0.7:
+        st.warning("⚠ Опора изношена! Ограничьте WOB для защиты подшипников.")
     else:
-        st. success("🟢 Осевая жесткость шпинделя позволяет работать на стандартных режимах.")
+        st.success("🟢 Осевая жесткость шпинделя в норме.")
 
 with col_nnb2:
-    st. metric(
-        label="Допустимая простр. интенсивность (DLS) при вращении", 
-        value=f"{calculated_dls_safe:.2f}° / 10м", 
-        delta=f"{(calculated_dls_safe - DLS_max_passport):.2f}°/10м от проекта"
+    st.metric(
+        label="Допустимая простр. интенсивность (DLS)",
+        value=f"{calculated_dls_safe:.2f} °/10м",
+        delta=f"{(calculated_dls_safe - DLS_max_passport):.2f} °/10м от проекта"
     )
-    if dls_reduction_factor < 0.8:
-        st. warning("🚨 Высокий радиальный люфт! Ограничьте роторное бурение в интервалах интенсивного набора кривизны.")
+    if dls_reduction_factor == 0.0:
+        st.error("❌ КРИТИЧЕСКИЙ РАДИАЛЬНЫЙ ЛЮФТ: Вращение колонны запрещено!")
+    elif dls_reduction_factor < 0.8:
+        st.warning("🚨 Ограничьте роторное бурение в интервалах набора кривизны.")
     else:
-        st. success("🟢 Радиальный зазор в норме. Риск усталостного слома вала при изгибе минимален.")
+        st.success("🟢 Радиальный зазор в пределах нормы.")
 
 # =========================================================================
 # БЛОК 4: ФИНАЛЬНАЯ КЛАССИФИКАЦИЯ РЕЗУЛЬТАТОВ РАСЧЕТА И ОТБРАКОВКА ОПОР
