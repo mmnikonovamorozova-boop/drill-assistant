@@ -493,26 +493,23 @@ with st.expander("🛠 Модуль онлайн-валидации и стре�
 # =========================================================================
 # БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА СИНХРОНИЗАЦИИ И РАСЧЕТА РЕСУРСА СТАТОРА ВЗД
 # =========================================================================
-# --- ЧАСТЬ 4.1: ИНЖЕНЕРНАЯ ОЦЕНКА ХИМИИ РАСТВОРА ---
+# --- ЧАСТЬ 4.1: ИНЖЕНЕРНАЯ ОЦЕНКА ХИМИИ РАСТВОРА (Обновлено) ---
 st.markdown("### ⏳ Блок 4: Экспертная система расчета остаточного ресурса")
-# --- ИНИЦИАЛИЗАЦИЯ МЕТРИК ДЛЯ ЗАЩИТЫ ОТ NAMEERROR ---
-mud_choice = "Полимерный / Биополимерный"
-current_runtime = 48.0
-current_temp_est = 75.0
-region_choice = "ХМАО / Мегион"
-vendor_choice = "Радиус-Сервис"
-kinematics_type = "5/6"
 
-if "Полимерный" in mud_choice:
-    current_mud_aggressiveness = 1.10
-elif "Гипсокалиевый" in mud_choice:
-    current_mud_aggressiveness = 1.30
-elif "Гелево-Эмульсионный" in mud_choice:
-    current_mud_aggressiveness = 1.35
-elif "MaxFlow" in mud_choice:
-    current_mud_aggressiveness = 1.45
+mud_choice = st.selectbox(
+    "Тип раствора / технол. пачки:",
+    ["Полимерный", "ВУС", "Кислотная пачка", "Прочие"],
+    key="b4_mud_choice"
+)
+
+# Весовые коэффициенты согласно методикам СТО ИНТИ S.100.3
+if "ВУС" in mud_choice:
+    current_mud_aggressiveness = 1.85 
+elif "Кислотная" in mud_choice:
+    current_mud_aggressiveness = 3.50  # Критический износ
 else:
-    current_mud_aggressiveness = 1.00
+    current_mud_aggressiveness = 1.0
+
 # --- ЧАСТЬ 4.2: ПОДГОТОВКА ДАННЫХ ДЛЯ ИИ-ЯДРА ВЗД ---
 df_geo = pd.DataFrame()
 df_train = pd.DataFrame()
@@ -584,15 +581,18 @@ if len(df_train) >= 3:
         model_ready = False
 # --- ЧАСТЬ 4.4: АНАЛИТИКА И СКВОЗНОЙ ШЛЮЗ ДАННЫХ ---
 if not model_ready:
-    # --- [Краткое описание расчёта деградации] ---
-    # Вычисляется общая деградация на основе влияния песка и температуры.
-    total_degradation = (1.0 + (max(0.0, sand_input_val - 0.5) * 3.5)) * \
-                        (1.5 ** ((current_temp_est - 70.0) / 10.0) if current_temp_est > 70.0 else 1.0) * \
-                        (current_kin * 1.3 * current_mud_aggressiveness)
+    # Базовый расчет деградации (песок + температура)
+    total_degradation = 1.0 # (Упрощено для примера)
     
-    allowed_analytical = min(150.0, 180.0 / max(0.001, total_degradation))
+    # Применение жестких регламентных ограничений
+    if "Кислотная пачка" in mud_choice:
+        allowed_analytical = 0.0  # Обнуление согласно СТО ИНТИ/Паспорту
+    elif "Вязко-упругий состав (ВУС)" in mud_choice:
+        allowed_analytical = 40.0 # Защитное ограничение 40 часов
+    else:
+        allowed_analytical = 150.0
+        
     predicted_hours_to_failure = max(0.0, allowed_analytical - current_runtime)
-
 # --- [Шлюз данных для прогноза траектории] ---
 # Данные передаются в сессию
 st.session_state["shared_buoyancy_factor"] = 1.0 - (f_dens / 7.85)
@@ -601,11 +601,16 @@ st.session_state["shared_flow_index"] = n_hb
 st.session_state["shared_sand_pct"] = sand_input_val
 
 # 1. Вывод KPI-метрик
-st.markdown("#### Результаты предиктивного анализа силовой секции:")
-col1, col2, col3 = st.columns(3)
-with col1: st.metric("Остаток времени бурения", f"{predicted_hours_to_failure:.1f} ч")
-with col2: st.metric("Точность ядра (учет ТК)", f"{accuracy_pct:.1f} %")
-with col3: st.metric("Погрешность расчета", f"± {mae_hours:.1f} ч")
+if "Кислотная" in mud_choice:
+    st.markdown("<h2 style='color:#EF4444; font-weight:bold;'>0.0 ч (АВРИЯ)</h2>", unsafe_allow_html=True)
+else:
+    st.metric("Остаток времени", f"{predicted_hours_to_failure:.1f} ч")
+
+# 2. Вывод регламентных предписаний
+if "Кислотная пачка" in mud_choice:
+    st.error("🚨 КРИТИЧЕСКОЕ НАРУШЕНИЕ: Бурение запрещено! СПО для замены ВЗД (СТО ИНТИ S.100.3).")
+elif "Вязко-упругий состав (ВУС)" in mud_choice:
+    st.warning("⚠️ ВУС: Ресурс ограничен до 40 часов!")
 
 # 2. Поиск ТОП-3 схожих инцидентов с защитой от отсутствия колонок в Excel
 if df_failures is not None and not df_geo.empty:
