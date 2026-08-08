@@ -124,35 +124,41 @@ with tab_tribology:
     
     angle_alpha = st.number_input("Измеренный угол натяжения троса лебедки (α), град:", min_value=10.0, max_value=90.0, value=90.0, step=1.0)
 # =========================================================================
-# БЛОК 3 — ФИЗИКО-МАТЕМАТИЧЕСКОЕ ЯДРО РАСЧЕТА УСИЛИЯ НАТЯЖЕНИЯ (МЕТОДИКА API)
+# БЛОК 3 — ОБНОВЛЕННОЕ ФИЗИКО-МАТЕМАТИЧЕСКОЕ ЯДРО
 # =========================================================================
-
 st.markdown("---")
 st.markdown("### 📊 Блок 3: Предиктивный расчет параметров свинчивания")
 
-# 3.1. Эффективное плечо и тригонометрия
-L_effective = fact_l  # Физически точное плечо ключа
-alpha_rad = np.radians(angle_alpha)
-sin_alpha = np.sin(alpha_rad)
-
-# 3.2. Защита от деления на ноль (минимум 10 градусов)
-if sin_alpha < 0.1736:
-    sin_alpha = 0.1736
-    st.error("🚨 КРИТИЧЕСКИЙ УГОЛ: Угол менее 10°! Риск обрыва каната.")
-
-# 3.3. Расчет момента (с учетом смазки) и усилия (API)
+L_effective = fact_l  
 M_required = p_moment * k_grease
 g_const = 9.80665
-f_pull_tons = ((M_required * 1000.0) / (L_effective * sin_alpha)) / g_const
 
-# 3.4. Визуализация
+# Разделение логики расчета под старый и новый типы ключей
+if "Электронный" in control_type:
+    alpha_rad = np.radians(angle_alpha)
+    sin_alpha = np.sin(alpha_rad)
+    if sin_alpha < 0.1736:
+        sin_alpha = 0.1736
+        st.error("🚨 КРИТИЧЕСКИЙ УГОЛ: Угол менее 10°! Риск обрыва каната.")
+    
+    f_pull_newtons = (M_required * 1000.0) / (L_effective * sin_alpha)
+    f_pull_tons = f_pull_newtons / g_const
+    target_unit = f"{f_pull_tons:.2f} т"
+    label_text = "🎯 Целевое усилие натяжения на ИВЭ-50:"
+else:
+    # Расчет давления для гидравлического манометра
+    p_target_mpa = M_required / k_hydr
+    # Переводим в атмосферы/атм (кгс/см²) для старых советских манометров
+    p_target_atm = p_target_mpa * 10.1972
+    target_unit = f"{p_target_mpa:.1f} МПа ({p_target_atm:.1f} кгс/см²)"
+    label_text = "🎯 Целевое давление по манометру гидросистемы:"
+
+# Визуализация результатов
 col_res1, col_res2 = st.columns(2)
 with col_res1:
-    st.metric(label="🎯 Усилие на ИВЭ-50, т:", value=f"{f_pull_tons:.2f} т")
+    st.metric(label=label_text, value=target_unit)
 with col_res2:
-    st.metric(label="⚙️ Момент (с учетом смазки), кН·м:", value=f"{M_required:.2f} кН·м")
-
-st.info(f"ℹ️ Плечо: {L_effective:.3f} м | Эффективность угла: {sin_alpha*100:.1f}% | K смазки: {k_grease:.2f}")
+    st.metric(label="⚙️ Скорректированный крутящий момент:", value=f"{M_required:.2f} кН·м")
 
 # =========================================================================
 # БЛОК 4 — МОДУЛЬ КОМПЛЕКСНОЙ ОНЛАЙН-ВАЛИДАЦИИ И СТРЕСС-ТЕСТИРОВАНИЯ РИСКОВ
