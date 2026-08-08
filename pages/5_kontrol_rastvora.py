@@ -72,17 +72,27 @@ with col_dens3:
 
 st.markdown("---")
 
-# --- ПОЛНЫЙ МЕТАПАСПОРТ РАПОРТА В БОКОВОЙ ПАНЕЛИ (SIDEBAR) ---
+# =========================================================================
+# БЛОК 1: СИНХРОНИЗАЦИЯ С ГЛОБАЛЬНЫМ ПАСПОРТОМ РЕЙСА И РЕГЛАМЕНТЫ ТК
+# =========================================================================
+
+# Извлекаем глобальные данные из app.py (с подстраховкой на дефолт)
+well_number = st.session_state.get("well_number", "Скв. № 101, Куст 5")
+field_name = st.session_state.get("field_name", "Приобское")
+bha_number = st.session_state.get("bha_number", "1")
+
+# Вывод аккуратной информационной плашки паспорта в сайдбар
 with st.sidebar:
-    st.markdown("### 📋 Метаданные рапорта")
-    well_name = st.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
-    engineer_name = st.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
-    field_name = st.text_input("Месторождение:", value="Приобское")
-    serial_number = st.text_input("Серийный номер ВЗД по паспорту:", value="№ 6677")
+    st.markdown(f"### 🌐 Текущий контекст КНБК №{bha_number}")
+    st.info(f"📍 **Месторождение:** {field_name}\n🎯 **Объект:** {well_number}")
     
+    # Оставляем только уникальные поля для контроля раствора
+    engineer_name = st.text_input("ФИО Инженера по растворам / ННБ:", value="Иванов И.И.", key="sol_eng_name")
+    serial_number = st.text_input("Серийный номер ВЗД:", value="№ 6677", key="sol_vzd_sn")
     st.markdown("---")
-    if st.button("🚪 Выйти", use_container_width=True):
-        st.session_state.clear()
+    
+    if st.button("🚪 Выйти из системы", use_container_width=True):
+        st.session_state.authenticated = False
         st.rerun()
 
 # =========================================================================
