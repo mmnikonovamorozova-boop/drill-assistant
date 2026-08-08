@@ -195,89 +195,70 @@ with col_res2:
 # =========================================================================
 # БЛОК 4 — МОДУЛЬ КОМПЛЕКСНОЙ ОНЛАЙН-ВАЛИДАЦИИ И СТРЕСС-ТЕСТИРОВАНИЯ РИСКОВ
 # =========================================================================
-
-st.markdown("---")
-with st.expander("🛠️ Модуль онлайн-валидации рисков свинчивания (СТО ИНТИ S.QS.7)", expanded=True):
-    st.markdown("##### Сводный лог инженерного аудита безопасности:")
-    umk_logs = []
+# --- БЛОК 4: ПОЛНОЕ ИНЖЕНЕРНОЕ СТРЕСС-ТЕСТИРОВАНИЕ РИСКОВ ---
+with st.expander("🛠️ Модуль комплексной валидации рисков (СТО ИНТИ)", expanded=True):
     has_umk_error = False
-
-    # 1. Валидация прочности натяжного каната
-    safe_cable_load = (0.06 * (tros_d ** 2)) / 3.0
-    if f_pull_tons > safe_cable_load:
-        umk_logs.append(f"❌ КРИТИЧЕСКИЙ РИСК: Натяжение ({f_pull_tons:.2f} т) превышает лимит ({safe_cable_load:.2f} т) для троса Ø {tros_d} мм!")
-        has_umk_error = True
+    
+    # 1. Защита приводного элемента (Трос / Гидравлика)
+    if "Электронный" in control_type:
+        safe_cable_load = (0.06 * (tros_d ** 2)) / 3.0
+        if f_pull_tons > safe_cable_load:
+            st.error(f"❌ РИСК ОБРЫВА: Натяжение {f_pull_tons:.2f}т > лимита {safe_cable_load:.2f}т!")
+            has_umk_error = True
+        else:
+            st.success(f"✅ КАНАТ: Нагрузка в допуске ({f_pull_tons:.2f} т).")
     else:
-        umk_logs.append(f"✅ КАНАТ: Безопасная нагрузка OK ({f_pull_tons:.2f} т / лимит {safe_cable_load:.2f} т).")
+        if p_target_mpa > 20.0:
+            st.error(f"❌ РИСК РАЗРЫВА РВД: Давление {p_target_mpa:.1f} МПа > предела 20.0 МПа!")
+            has_umk_error = True
+        elif p_target_mpa > 17.0:
+            st.warning(f"🚨 ПРЕДУПРЕЖДЕНИЕ: Давление {p_target_mpa:.1f} МПа близко к критическому!")
+        else:
+            st.success(f"✅ ГИДРАВЛИКА: Давление {p_target_mpa:.1f} МПа безопасно.")
 
-    # 2. Аудит геометрии рычага
+    # 2. Контроль износа геометрии рычага УМК
     if fact_l < (passport_length * 0.95):
-        umk_logs.append(f"🚨 АНОМАЛИЯ: Износ плеча (>5%)! Риск деформации УМК.")
+        st.warning(f"🚨 ГЕОМЕТРИЯ: Плечо ключа изношено более чем на 5% ({fact_l} м)!")
         has_umk_error = True
     else:
-        umk_logs.append("✅ ГЕОМЕТРИЯ: Длина рычага в норме.")
+        st.success("✅ ГЕОМЕТРИЯ: Длина плеча соответствует допускам.")
 
-    # 3. Контроль перекрута резьбы (справочник сталей)
-    steel_max_moments = {"Д ": 35.0, "К ": 45.0, "Е ": 55.0, "Л ": 70.0, "М ": 90.0}
-    max_allowed_moment = 999.0
-    for group, limit in steel_max_moments.items():
-        if group in pipe_steel_group:
-            max_allowed_moment = limit
-            break
-            
-    if p_moment > max_allowed_moment:
-        umk_logs.append(f"❌ ПРЕДЕЛ ТЕКУЧЕСТИ: Момент ({p_moment} кН·м) превышает лимит группы {pipe_steel_group[:2]} ({max_allowed_moment} кН·м)!")
+    # 3. Контроль предела текучести стали (Защита резьбы от смятия)
+    steel_limits = {"Д ": 35.0, "К ": 45.0, "Е ": 55.0, "Л ": 70.0, "М ": 90.0}
+    allowed_m = next((lim for gr, lim in steel_limits.items() if gr in pipe_steel_group), 999.0)
+    
+    if p_moment > allowed_m:
+        st.error(f"❌ СМЯТИЕ РЕЗЬБЫ: Момент {p_moment} кН·м выше предела текучести стали {pipe_steel_group[:2]} ({allowed_m} кН·м)!")
         has_umk_error = True
-    elif M_required > (max_allowed_moment * 1.15):
-        umk_logs.append(f"🚨 ПРЕДУПРЕЖДЕНИЕ: Момент ({M_required:.1f} кН·м) близок к пределу из-за трения.")
     else:
-        umk_logs.append(f"✅ МАТЕРИАЛ: Группа {pipe_steel_group[:2]} OK.")
-
-    # Вывод логов
-    for log in umk_logs:
-        if "❌" in log: st.error(log)
-        elif "🚨" in log: st.warning(log)
-        else: st.write(log)
-
-    # Итоговый вердикт
-    if not has_umk_error:
-        st.success("🟢 Расчет безопасен.")
-    else:
-        st.error("🚨 Свинчивание ЗАПРЕЩЕНО!")
+        st.success(f"✅ МАТЕРИАЛ: Группа прочности {pipe_steel_group[:2]} выдержит нагрузку.")
 
 # =========================================================================
-# БЛОК 5 — ЧАСТЬ 1: ТЕКСТОВЫЙ ШАБЛОН РАСПОРЯЖЕНИЯ
+# БЛОК 5 — АДАПТИВНЫЙ НАРЯД-ДОПУСК ---
 # =========================================================================
+АДАПТИВНЫЙ НАРЯД-ДОПУСК ---
 st.markdown("---")
-st.subheader("📋 Блок 5: Официальное распоряжение на свинчивание")
+st.subheader("📋 Блок 5: Распоряжение")
 
-# Формирование текстового шаблона наряда-допуска
-work_order_text = f"""# РАСПОРЯЖЕНИЕ-НАРЯД НА СВИНЧИВАНИЕ
-**Дата:** {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}
-**Объект:** {field_name} / Скв. {well_number}
+# Динамическая строка параметров
+if "Электронный" in control_type:
+    control_line = f"**ЦЕЛЕВОЕ УСИЛИЕ:** {f_pull_tons:.2f} т\n**Угол:** {angle_alpha}°"
+else:
+    control_line = f"**ДАВЛЕНИЕ:** {p_target_mpa:.1f} МПа"
+
+work_order_text = f"""# РАСПОРЯЖЕНИЕ НА СВИНЧИВАНИЕ
+**Скважина:** {well_number} | **Скорректированный момент:** {M_required:.2f} кН·м
+{control_line}
 ---
-**Требуемый момент:** {p_moment:.1f} кН·м
-**Инструмент:** {selected_key} (L={fact_l:.3f} м)
-**УСИЛИЕ (ИВЭ-50):** {f_pull_tons:.2f} т
----
+**Статус СТО ИНТИ:** {"ОШИБКА" if has_umk_error else "БЕЗОПАСНО"}
 """
-# =========================================================================
-# БЛОК 5 — ЧАСТЬ 2: ОКНО ПРЕДПРОСМОТРА
-# =========================================================================
-# Выводим рамку с текстом наряда
-with st.container(border=True):
-    st.caption("👀 Предпросмотр наряда-распоряжения:")
-    st.markdown(work_order_text)
-# =========================================================================
-# БЛОК 5 — ЧАСТЬ 3: КНОПКА СКАЧИВАНИЯ ФАЙЛА
-# =========================================================================
 
-# Добавляем функционал экспорта файла в формате .md
+with st.container(border=True):
+    st.markdown(work_order_text)
+
 st.download_button(
-    label="📥 Скачать распоряжение-наряд на буровую (.md)",
-    data=work_order_text,
-    file_name=f"Work_Order_UMK_Well_{well_number.replace(' ', '_')}.md",
-    mime="text/markdown",
-    use_container_width=True,
-    disabled=has_umk_error  # Блокировка скачивания при аварийных рисках
+    "📥 Скачать .md",
+    work_order_text,
+    file_name=f"Order_{well_number}.md",
+    disabled=has_umk_error
 )
