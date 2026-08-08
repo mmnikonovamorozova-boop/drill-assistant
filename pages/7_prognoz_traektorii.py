@@ -435,174 +435,147 @@ with st.container(border=True):
         st.success("✔️ Профиль КНБК полностью соответствует критериям договора. Риски коммерческих штрафов отсутствуют.")
 
 # =========================================================================
-# БЛОК 7.1 — ФУНКЦИЯ ВЗАИМОДЕЙСТВИЯ С GITHUB REST API (УСТРАНЕНИЕ ОШИБКИ 404)
-# Функционал: Формирование Payload, расчет SHA-хэша существующего файла
-# и перезапись базы калибровок calibrations_db.json по протоколу REST.
+# БЛОК 7 — ИИ-ЯДРО САМООБУЧЕНИЯ И СИНХРОНИЗАЦИИ С GITHUB API
+# Требования легитимности: СТО ИНТИ S.100.3 (Адаптивное машинное обучение)
 # =========================================================================
-def push_calibration_to_github_api(new_data):
-    """Отправляет новые коэффициенты калибровки в репозиторий через ://github.com"""
-    url = "https://api.github.com/repos/mmnikonovamorozova-boop/drill-assistant/contents/calibrations_db.json"
-    
+
+def push_calibration_to_github_api(target_well_name, updated_k_slide, updated_k_rotary):
+    """
+    Развернутая функция безопасной фиксации пересчитанных весов КНБК в удаленную
+    базу данных через защищенный шлюз GitHub API.
+    """
     token = st.secrets.get("GITHUB_TOKEN", None)
-    if not token:
-        st.error("🚨 ОШИБКА АВТОРИЗАЦИИ: В Settings -> Secrets отсутствует GITHUB_TOKEN!")
-        return False
-        
-    headers = {
-        "Authorization": f"token {token}",
-        "Accept": "application/vnd.github.v3+json"
-    }
+    repo = "mmnikonovamorozova-boop/drill-assistant"
+    path = "calibrations_db.json"
+    url = f"https://github.com{repo}/contents/{path}"
     
+    if not token:
+        st.error("🚨 ОШИБКА АВТОРИЗАЦИИ: В системе Streamlit Secrets отсутствует токен GITHUB_TOKEN. Запись невозможна.")
+        return False
+
     try:
-        res = requests.get(url, headers=headers, timeout=10)
-        sha = None
-        current_list = []
-        if res.status_code == 200:
-            file_info = res.json()
-            sha = file_info.get("sha")
-            raw_content = file_info.get("content")
-            if raw_content:
-                try:
-                    content = base64.b64decode(raw_content).decode("utf-8")
-                    current_list = json.loads(content)
-                except Exception:
-                    current_list = []
-  
-        # 2. Добавляем новые данные
-        current_list.append(new_data)
-        encoded_content = base64.b64encode(json.dumps(current_list, indent=4).encode("utf-8")).decode("utf-8")
-        
-        # 3. Подготавливаем запрос (создание или обновление)
-        commit_payload = {
-            "message": "Обновление калибровок",
-            "content": encoded_content,
-            "branch": "main"
+        import requests
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github.v3+json"
         }
         
-        # Добавляем SHA, только если файл уже существовал
+        # Шаг 1: Извлекаем текущую версию файла для получения SHA-хэша коммита
+        response = requests.get(url, headers=headers, timeout=5)
+        if response.status_code == 200:
+            file_data = response.json()
+            sha = file_data.get("sha", "")
+            content_b64 = file_data.get("content", "")
+            json_str = base64.b64decode(content_b64).decode("utf-8")
+            db_dict = json.loads(json_str)
+        else:
+            db_dict = {}
+            sha = None
+            
+        # Шаг 2: Модифицируем структуру данных ИИ-паспорта скважины
+        clean_key = str(target_well_name).strip().upper()
+        db_dict[clean_key] = {
+            "well_name": target_well_name,
+            "k_slide_base": round(float(updated_k_slide), 4),
+            "k_rotary_base": round(float(updated_k_rotary), 4),
+            "last_update": time.strftime("%d.%m.%Y %H:%M:%S")
+        }
+        
+        # Шаг 3: Кодируем обновленный файл обратно в Base64 формат
+        updated_json_bytes = json.dumps(db_dict, ensure_ascii=False, indent=4).encode("utf-8")
+        updated_b64_str = base64.b64encode(updated_json_bytes).decode("utf-8")
+        
+        # Шаг 4: Отправляем коммит изменений в удаленный репозиторий компании
+        commit_payload = {
+            "message": f"🤖 ИИ-Адаптация КНБК: Обновлены калибровки для скважины {target_well_name}",
+            "content": updated_b64_str
+        }
         if sha:
             commit_payload["sha"] = sha
             
-        put_res = requests.put(url, headers=headers, json=commit_payload, timeout=10)
+        put_response = requests.put(url, headers=headers, json=commit_payload, timeout=5)
+        return put_response.status_code in [200, 201]
         
-        if put_res.status_code in [200, 201]:
-            st.success("✅ Данные записаны на GitHub!")
-            return True
-        else:
-            st.error(f"❌ Ошибка GitHub: {put_res.status_code}")
-            return False
-            
-    except Exception as err:
-        st.error(f"🚨 Ошибка: {err}")
+    except Exception as ex:
+        st.error(f"🚨 ОШИБКА СИНХРОНИЗАЦИИ С СЕРВЕРОМ GITHUB: {str(ex)}")
         return False
 
-# =========================================================================
-# БЛОК 7.2 — ИНТЕРФЕЙС ОБРАТНОЙ СВЯЗИ И АВТОМАТИЧЕСКИЙ РАСЧЕТ НЕВЯЗКИ (ИИ)
-# Функционал: Расчет ошибки прогноза, фильтрация весов по методу наименьших 
-# квадратов (шаг адаптации) и вызов удаленной записи через API GitHub.
-# =========================================================================
+# --- ИНТЕРФЕЙСНЫЙ БЛОК ОБУЧЕНИЯ (БЛОК 7.2) ---
 st.markdown("---")
-st.markdown("### 🧠 Блок динамического самообучения системы (Адаптация траектории)")
+st.markdown("### 🤖 Блок 7: Полевое самообучение предиктивного ядра")
+st.caption("Адаптивная корректировка паспортных коэффициентов КНБК по фактическим замерам инклинометрии")
 
-col_learn1, col_learn2 = st.columns(2)
-with col_learn1:
-    actual_angle_gain = st.number_input("Фактическое изменение зенитного угла (факт), °:", value=1.15)
-with col_learn2:
-    current_well = st.text_input("Имя текущей скважины:", value=well_name)
+# Ввод фактических параметров проходки от инженера ННБ
+st.markdown("##### 📐 Фактические параметры отработавшего интервала:")
+col_l1, col_l2, col_l3 = st.columns(3)
+with col_l1:
+    actual_interval_len = st.number_input("Длина отработавшего интервала (м):", value=30.0, step=5.0, key="b7_len")
+with col_l2:
+    actual_delta_inc = st.number_input("Фактический набранный зенитный угол (°):", value=1.10, step=0.05, key="b7_inc")
+with col_l3:
+    actual_slide_pct = st.slider("Фактическая доля слайда в интервале (%):", min_value=0.0, max_value=100.0, value=40.0, step=5.0)
 
-if st.button("🔄 Запустить самообучение системы", type="primary"):
-    with st.spinner("Вычисляется невязка и шаг фильтрации весов КНБК..."):
-        # 1. Математический расчет невязки (ошибки прогноза)
-        prediction_error = actual_angle_gain - total_predicted_angle_gain
-        
-        # 2. Адаптация коэффициентов (Градиентный шаг / Learning Rate = 0.15)
-        # Если КНБК перебирает угол, повышаем агрессивность слайда, если валит — снижаем
-        learning_rate = 0.15
-        new_slide_factor = float(k_slide_current + (prediction_error * learning_rate))
-        new_intensity_correction = float(k_int_current * (1.0 + prediction_error * 0.05))
-        
-        # Ограничиваем поправки физическими пределами, чтобы модель не ушла в разнос
-        new_slide_factor = max(0.5, min(2.0, new_slide_factor))
-        new_intensity_correction = max(0.6, min(1.5, new_intensity_correction))
-        
-        # 3. Формируем структурированный JSON-пакет для базы знаний GitHub
-        new_point_to_save = {
-            "well": current_well,
-            "error_val": round(prediction_error, 4),
-            "slide_factor": round(new_slide_factor, 3),
-            "intensity_correction": round(new_intensity_correction, 3),
-            "rotary_drift_val": round(drift_current, 3),
-            "info": f"Обучено на скважине {current_well}. Ошибка: {prediction_error:.2f}°"
-        }
-        
-        # 4. Вызываем физическую отправку через эндпоинт GitHub REST API
-        success = push_calibration_to_github_api(new_point_to_save)
-        
+# Расчет фактического изменения траектории
+fact_slide_fraction = actual_slide_pct / 100.0
+
+if st.button("🚀 Запустить адаптивное ИИ-самообучение модели", use_container_width=True):
+    # Рассчитываем теоретический прогноз, который давала старая модель
+    theoretical_delta_inc = ((0.45 * k_slide_current * fact_slide_fraction) + (build_rate_rotary * (1.0 - fact_slide_fraction))) * (actual_interval_len / 10.0)
+    
+    # Вычисляем ошибку прогнозирования
+    prediction_error = actual_delta_inc - theoretical_delta_inc
+    
+    # Оптимизированный градиентный шаг обучения (СТО ИНТИ S.100.3)
+    learning_rate = 0.08
+    new_k_slide = max(0.10, min(1.20, k_slide_current + (prediction_error * learning_rate * fact_slide_fraction)))
+    new_k_rotary = max(0.001, min(0.15, k_rotary_current + (prediction_error * learning_rate * (1.0 - fact_slide_fraction) * 0.05)))
+    
+    st.markdown("##### Результаты пересчета внутренних весов КНБК:")
+    st.write(f"📉 Старый Slide Factor: `{k_slide_current:.3f}` ➡️ Новый адаптированный Slide Factor: `{new_k_slide:.3f}`")
+    st.write(f"📉 Старый Rotary Factor: `{k_rotary_current:.3f}` ➡️ Новый адаптированный Rotary Factor: `{new_k_rotary:.3f}`")
+    st.write(f"🎯 Абсолютная ошибка прогноза по углу на интервале составила: `{abs(prediction_error):.2f}°`")
+    
+    # Фиксация изменений в облаке
+    with st.spinner("💾 Запись обновленных калибровок КНБК в удаленную базу данных GitHub..."):
+        success = push_calibration_to_github_api(well_name, new_k_slide, new_k_rotary)
         if success:
-            st.toast("🎯 Предиктивная модель успешно адаптирована под текущую свиту!", icon="🚀")
+            st.success(f"✔️ ИИ-паспорт скважины {well_name} успешно обновлен! Калибровки будут применены автоматически при следующем цикле.")
+            st.cache_data.clear() # Сброс кэша Streamlit для мгновенного обновления интерфейса
+        else:
+            st.warning("⚠️ Локальный расчет завершен, но не удалось отправить файл на GitHub. Проверьте GITHUB_TOKEN или настройки сети.")
 
 # =========================================================================
-# БЛОК 8 — МОДУЛЬ ОНЛАЙН-ВАЛИДАЦИИ И СТРЕСС-ТЕСТИРОВАНИЯ ЯДРА ТРАЕКТОРИИ
-# Функционал: Защита от математических аномалий, автоматический аудит 
-# критических изгибов и симуляция аварийных режимов КНБК/ННБ.
+# БЛОК 8 — ТЕХНОЛОГИЧЕСКИЙ ЖУРНАЛ КОРРЕКЦИИ ТРАЕКТОРИИ
 # =========================================================================
 st.markdown("---")
-with st.expander("🛠 Модуль онлайн-валидации и стресс-тестирования систем ННБ", expanded=True):
-    st.markdown("##### Симуляция дефектов траектории и режимов бурения")
+st.markdown("### 📋 Блок 8: Журнал технологических рекомендаций")
+
+if "trajectory_history" not in st.session_state:
+    st.session_state.trajectory_history = []
+
+if st.button("💾 Зафиксировать текущую рекомендацию в журнал рейса", use_container_width=True):
+    time_stamp = time.strftime("%H:%M:%S")
+    st.session_state.trajectory_history.append({
+        "Время": time_stamp,
+        "Скважина": well_name,
+        "Прогноз MD (м)": round(forecast_md, 1),
+        "Реком. Слайд (м)": round(required_slide_meters, 1),
+        "Реком. Ротор (м)": round(required_rotary_meters, 1),
+        "Прогноз DLS (°/10м)": round(forecast_dls_val, 2),
+        "Коммерческий риск": "🚨 ШТРАФ" if consecutive_violations >= 3 else "⚠️ РИСК" if consecutive_violations > 0 else "🟢 НОРМА"
+    })
+    st.success(f"Рекомендация для скважины {well_name} успешно зафиксирована в журнал рейса!")
+
+if st.session_state.trajectory_history:
+    df_history = pd.DataFrame(st.session_state.trajectory_history)
+    st.dataframe(df_history, use_container_width=True, hide_index=True)
     
-    # --- ФУНКЦИИ-КОЛБЭКИ ДЛЯ СИНХРОНИЗАЦИЯ С СЕССИЕЙ ---
-    def set_trajectory_test(slide, rotary, dls_proj):
-        # Запись пресетов в сессию для мгновенной перерисовки интерфейса
-        st.session_state["planned_slide_input"] = slide
-        st.session_state["planned_rotary_input"] = rotary
-        st.session_state["target_intensity_input"] = dls_proj
-
-    # Удобная сетка кнопок стресс-тестов 2х2
-    c1, c2 = st.columns(2)
-    c1.button("🔥 Критическое искривление (DLS > 8°)", on_click=set_trajectory_test, args=(25.0, 5.0, 8.5), use_container_width=True)
-    c2.button("🚫 Полный роторный режим (0м Слайда)", on_click=set_trajectory_test, args=(0.0, 30.0, 1.2), use_container_width=True)
-    c1.button("⚠️ Нулевой шаг проектирования", on_click=set_trajectory_test, args=(0.0, 0.0, 0.0), use_container_width=True)
-    c2.button("🟢 Стандартный интервал рейса", on_click=set_trajectory_test, args=(9.0, 21.0, 1.5), use_container_width=True)
-
-    st.markdown("##### Сводный лог автоматического аудита траектории:")
-
-    # --- МАТЕМАТИЧЕСКАЯ ВАЛИДАЦИЯ ГРАНИЧНЫХ УСЛОВИЙ ---
-    traj_logs = []
-    has_traj_err = False
-    
-    # 1. Проверка суммарной проходки
-    total_interval_meters = planned_slide + planned_rotary
-    if total_interval_meters <= 0:
-        traj_logs.append("❌ КРИТИЧЕСКИЙ СБОЙ: Планируемый метраж интервала равен 0. Расчет невозможен!")
-        has_traj_err = True
-    else:
-        traj_logs.append(f"✅ МЕТРАЖ: Суммарный планируемый интервал проходки КНБК ({total_interval_meters:.1f} м) ОК.")
-        
-    # 2. Аудит пространственной интенсивности (DLS) с учетом износа шпинделя
-    if target_intensity > max_allowed_dls:
-        traj_logs.append(f"🚨 ПРЕВЫШЕНИЕ ДОГОВОРА: Проектная интенсивность ({target_intensity:.2f}°/10м) превышает лимит по ТК ({max_allowed_dls:.2f}°/10м) для {selected_dor}!")
-        has_traj_err = True
-    elif target_intensity == 0:
-        traj_logs.append("⚠️ Предупреждение: Целевая интенсивность равна 0.00. Профиль скважины условно-вертикальный.")
-    else:
-        traj_logs.append(f"✅ ГЕОМЕТРИЯ: Целевая интенсивность профиля ({target_intensity:.2f}°/10м) находится в безопасных пределах договора.")
-
-    # 3. Валидация влияния износа шпинделя ВЗД из сквозной шины данных
-    if radial_wear_vzd > 1.0:
-        traj_logs.append(f"❌ АВАРИЙНЫЙ ЛЮФТ: Высокий радиальный износ шпинделя ({radial_wear_vzd} мм) дестабилизирует долото! Риск срыва toolface 85%.")
-        has_traj_err = True
-    else:
-        traj_logs.append(f"✅ СТАБИЛЬНОСТЬ: Радиальный люфт шпинделя ({radial_wear_vzd} мм) не оказывает критического влияния на увод КНБК.")
-
-    # Вывод сформированных логов на экран
-    for log in traj_logs:
-        st.write(log)
-        
-    # Итоговый статус-вердикт
-    if not has_traj_err:
-        st.success("✅ Комплексный аудит пространственных данных пройден успешно. Прогноз траектории стабилен.")
-    else:
-        st.error("🚨 Обнаружены критические технологические аномалии КНБК/ННБ!")
+    # Скачивание лога в формате TXT
+    log_out = "ПРОТОКОЛ ТЕХНОЛОГИЧЕСКОГО ПЛАНИРОВАНИЯ ТРАЕКТОРИИ:\n" + "\n".join([
+        f"[{r['Время']}] Скв: {r['Скважина']} | Слайд: {r['Реком. Слайд (м)']}м | Ротор: {r['Реком. Ротор (м)']}м | Статус: {r['Коммерческий риск']}"
+        for r in st.session_state.trajectory_history
+    ])
+    st.download_button("📥 Экспортировать суточный рапорт траектории (.txt)", data=log_out, file_name=f"Trajectory_Report_{well_name}.txt", use_container_width=True)
 
 # =========================================================================
 # БЛОК 9 — ОФИЦИАЛЬНЫЙ АКТ-РАПОРТ ННБ И КАРТОЧКА ВАЛИДАЦИИ СТО ИНТИ
