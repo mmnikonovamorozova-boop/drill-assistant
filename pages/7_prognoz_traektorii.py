@@ -650,17 +650,41 @@ if st.button("🚀 Запустить адаптивное ИИ-самообуч
             st.warning("⚠️ Локальный расчет завершен, но не удалось отправить файл на GitHub. Проверьте GITHUB_TOKEN или настройки сети.")
 
 # =========================================================================
-# БЛОК 8 — ТЕХНОЛОГИЧЕСКИЙ ЖУРНАЛ КОРРЕКЦИИ ТРАЕКТОРИИ
+# БЛОК 8 — ТЕХНОЛОГИЧЕСКИЙ ЖУРНАЛ КОРРЕКЦИИ ТРАЕКТОРИИ (С ЗАЩИТОЙ ПО LOCALSTORAGE)
 # =========================================================================
 st.markdown("---")
 st.markdown("### 📋 Блок 8: Журнал технологических рекомендаций")
+st.caption("Данные защищены локально на жестком диске ноутбука. Обрывы интернета и перезагрузки страницы не сотрут историю рейса.")
 
+# 1. Безопасный динамический импорт компонента локального хранилища браузера
+try:
+    from streamlit_local_storage import LocalStorage
+    local_storage = LocalStorage()
+except ImportError:
+    # Защитный авто-откат, если библиотека еще не прописана в packages.txt
+    local_storage = None
+
+# Ключ, под которым журнал рейса будет зашит в память Chrome/Яндекс.Браузера
+STORAGE_KEY = f"drill_trajectory_history_{well_name.replace(' ', '_')}"
+
+# 2. Инициализация и синхронизация: достаем данные из диска ноутбука при старте страницы
 if "trajectory_history" not in st.session_state:
     st.session_state.trajectory_history = []
+    if local_storage is not None:
+        try:
+            # Пытаемся считать сохраненный кэш из LocalStorage браузера
+            saved_cache = local_storage.getItem(STORAGE_KEY)
+            if saved_cache:
+                st.session_state.trajectory_history = json.loads(saved_cache)
+        except Exception:
+            pass
 
+# 3. Кнопка фиксации точки замера КНБК
 if st.button("💾 Зафиксировать текущую рекомендацию в журнал рейса", use_container_width=True):
     time_stamp = time.strftime("%H:%M:%S")
-    st.session_state.trajectory_history.append({
+    
+    # Формируем новую строку лога
+    new_record = {
         "Время": time_stamp,
         "Скважина": well_name,
         "Прогноз MD (м)": round(forecast_md, 1),
@@ -668,16 +692,44 @@ if st.button("💾 Зафиксировать текущую рекоменда�
         "Реком. Ротор (м)": round(required_rotary_meters, 1),
         "Прогноз DLS (°/10м)": round(forecast_dls_val, 2),
         "Коммерческий риск": "🚨 ШТРАФ" if consecutive_violations >= 3 else "⚠️ РИСК" if consecutive_violations > 0 else "🟢 НОРМА"
-    })
-    st.success(f"Рекомендация для скважины {well_name} успешно зафиксирована в журнал рейса!")
+    }
+    
+    # Добавляем в оперативную память сессии
+    st.session_state.trajectory_history.append(new_record)
+    
+    # ДУБЛИРОВАНИЕ НА ДИСК: Перезаписываем кэш в LocalStorage браузера инженера
+    if local_storage is not None:
+        try:
+            local_storage.setItem(STORAGE_KEY, json.dumps(st.session_state.trajectory_history, ensure_ascii=False))
+        except Exception:
+            pass
+            
+    st.success(f"✔️ Рекомендация успешно сохранена на жесткий диск ноутбука в {time_stamp}!")
 
+# 4. Отрисовка таблицы и выгрузка рапорта
 if st.session_state.trajectory_history:
     df_history = pd.DataFrame(st.session_state.trajectory_history)
     st.dataframe(df_history, use_container_width=True, hide_index=True)
     
-    # Скачивание лога в формате TXT
-    log_out = "ПРОТОКОЛ ТЕХНОЛОГИЧЕСКОГО ПЛАНИРОВАНИЯ ТРАЕКТОРИИ:\n" + "\n".join([
-        f"[{r['Время']}] Скв: {r['Скважина']} | Слайд: {r['Реком. Слайд (м)']}м | Ротор: {r['Реком. Ротор (м)']}м | Статус: {r['Коммерческий риск']}"
-        for r in st.session_state.trajectory_history
-    ])
-    st.download_button("📥 Экспортировать суточный рапорт траектории (.txt)", data=log_out, file_name=f"Trajectory_Report_{well_name}.txt", use_container_width=True)
+    # Кнопки управления архивом
+    col_j1, col_j2 = st.columns(2)
+    
+    with col_j1:
+        # Скачивание суточного TXT рапорта
+        log_out = "ПРОТОКОЛ ТЕХНОЛОГИЧЕСКОГО ПЛАНИРОВАНИЯ ТРАЕКТОРИИ:\n" + "\n".join([
+            f"[{r['Время']}] Скв: {r['Скважина']} | Слайд: {r['Реком. Слайд (м)']} м | Ротор: {r['Реком. Ротор (м)']} м | Статус: {r['Коммерческий риск']}"
+            for r in st.session_state.trajectory_history
+        ])
+        st.download_button("📥 Экспортировать суточный рапорт траектории (.txt)", data=log_out, file_name=f"Trajectory_Report_{well_name}.txt", use_container_width=True)
+        
+    with col_j2:
+        # Полная очистка журнала (и в памяти, и на физическом диске)
+        if st.button("🗑 Очистить журнал и локальный кэш браузера", use_container_width=True):
+            st.session_state.trajectory_history = []
+            if local_storage is not None:
+                try:
+                    local_storage.removeItem(STORAGE_KEY)
+                except Exception:
+                    pass
+            st.rerun()
+
