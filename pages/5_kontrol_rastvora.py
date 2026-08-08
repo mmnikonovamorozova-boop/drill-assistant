@@ -103,12 +103,12 @@ with col_sand1:
     )
 
 with col_sand2:
-    # Упаковываем чекбокс в контейнер для выравнивания по высоте
-    with st.container(border=True):
-        max_flow_active = st.checkbox(
-            "🚀 Форсированный режим (Макс. расход)",
-            key="main_max_flow_checkbox"
-        )
+    # 💡 Трюк для идеального выравнивания: пустой заголовок-прокладка
+    st.markdown("<p style='margin-bottom: 33px;'></p>", unsafe_allow_html=True)
+    max_flow_active = st.checkbox(
+        "🚀 Форсированный режим бурения (Макс. расход)",
+        key="main_max_flow_checkbox"
+    )
 
 # --- МАТЕМАТИЧЕСКИЙ РАСЧЕТ ДИНАМИЧЕСКОГО ПОРОГА БЕЗОПАСНОСТИ ---
 # Базовый лимит наследуется из Блока 1 (переменная max_sand_limit)
