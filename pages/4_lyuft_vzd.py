@@ -108,28 +108,32 @@ st.markdown(
 )
 
 # =========================================================================
-# БЛОК 2: НОРМАТИВНЫЕ БАЗЫ ДАННЫХ И ДИНАМИЧЕСКИЙ РАСЧЕТ ДОПУСКОВ
+# БЛОК 2: ТОЧНЫЙ АНАЛИЗ ГАБАРИТОВ ПО РЕГЛАМЕНТАМ НЕФТЯНЫХ КОМПАНИЙ
 # =========================================================================
 
-# 1. ВОССТАНОВЛЕНИЕ СЛОВАРЯ ЗАКАЗЧИКОВ (Устраняет NameError) [image_5gJf_S.png]
+# Автоматическая классификация габарита двигателя
+if "172" in selected_diameter or "Д-172" in selected_diameter:
+    size_group = "средний"
+elif "240" in selected_diameter or "8''" in selected_diameter or "ДГР-240" in selected_diameter:
+    size_group = "большой"
+else:
+    size_group = "малый"
+# Словарь лимитов Заказчиков (Роснефть, Газпром, Лукойл)
 client_limits_db = {
-    "ПАО Роснефть": {"малый": 3.5, "средний": 4.0, "большой": 5.0},
-    "ПАО Газпром": {"малый": 4.0, "средний": 4.5, "большой": 5.0},
-    "ПАО Лукойл": {"малый": 4.0, "средний": 5.0, "большой": 5.5}
+    "ПАО Роснефть": {"малый": 3.0, "средний": 4.5, "большой": 6.0},
+    "ПАО Газпром": {"малый": 3.5, "средний": 4.5, "большой": 5.5},
+    "ПАО Лукойл": {"малый": 3.5, "средний": 5.0, "большой": 6.0}
 }
 
-limit_wear = base_vzd[selected_brand][selected_diameter]
-size_group = "малый" if any(m in selected_diameter for m in ["43", "54", "73", "127"]) else "большой" if any(m in selected_diameter for m in ["195", "240", "8''"]) else "средний"
-
-# 4. Сверка ограничений
+# Расчет эффективного лимита отбраковки
 if selected_client != "🔄 Без учета ограничений Заказчика":
     client_rule = client_limits_db[selected_client][size_group]
-    eff_max = min(limit_wear, client_rule)
-    st.info(f"🔷 Лимит: Паспорт={limit_wear:.2f} | {selected_client}={client_rule:.2f} мм")
-    st.warning(f"🎯 **Критерий:** Осевой люфт до **{eff_max:.2f} мм**")
+    eff_max = min(base_vzd[selected_brand][selected_diameter], client_rule)
+    st.info(f"🔷 Лимиты: Паспорт={base_vzd[selected_brand][selected_diameter]:.2f} мм | {selected_client}={client_rule:.2f} мм")
 else:
-    eff_max = limit_wear
-    st.info(f"🎯 **Критерий:** Осевой люфт до **{eff_max:.2f} мм**")
+    eff_max = base_vzd[selected_brand][selected_diameter]
+
+st.warning(f"🎯 **Итоговый критерий:** Осевой люфт до **{eff_max:.2f} мм**")
 
 # =========================================================================
 # БЛОК 3: ИНТЕЛЛЕКТУАЛЬНЫЙ ИИ-АУДИТ И ЭКСПЕРТНЫЙ АНАЛИЗ РИСКОВ (СППР)
