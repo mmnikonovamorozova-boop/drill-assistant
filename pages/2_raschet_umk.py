@@ -77,14 +77,24 @@ tab_tongs, tab_pipe, tab_tribology = st.tabs(["🔧 Ключ УМК", "🛢 Па
 # Вкладка 1: Конфигурация рычажной системы ключа УМК
 with tab_tongs:
     menu_options = list(st.session_state.keys_db.keys())
-    selected_key = st.selectbox("Выберите модель гидравлического ключа УМК:", menu_options)
+    selected_key = st.selectbox("Выберите модель ключа УМК:", menu_options)
     passport_length = st.session_state.keys_db[selected_key]
+    
+    # Новый переключатель типа измерения
+    control_type = st.radio(
+        "Тип контроля момента на буровой:",
+        ["🪢 Электронный (натяжение троса ИВЭ-50)", "💧 Гидравлический (встроенный манометр ключа)"]
+    )
     
     col_t1, col_t2 = st.columns(2)
     with col_t1:
-        fact_l = st.number_input("Фактическая длина плеча рычага после ремонта (Lфакт), м:", min_value=0.1, max_value=3.0, value=passport_length, step=0.005)
+        fact_l = st.number_input("Фактическая длина плеча рычага (Lфакт), м:", min_value=0.1, max_value=3.0, value=passport_length, step=0.005)
     with col_t2:
-        tros_d = st.number_input("Толщина применяемого натяжного троса, мм:", min_value=0.0, max_value=50.0, value=16.0, step=1.0)
+        if "Электронный" in control_type:
+            tros_d = st.number_input("Толщина натяжного троса, мм:", min_value=0.0, max_value=50.0, value=16.0, step=1.0)
+        else:
+            # Для гидравлики нужен паспортный коэффициент пересчета (кН·м / МПа)
+            k_hydr = st.number_input("Коэффициент пересчета ключа (кН·м на 1 МПа) по паспорту:", min_value=0.1, max_value=20.0, value=5.25, step=0.05, help="Показывает, сколько кН·м момента выдает ключ при давлении 1 МПа.")
 
 # Вкладка 2: Прочностные характеристики резьбового соединения труб
 with tab_pipe:
