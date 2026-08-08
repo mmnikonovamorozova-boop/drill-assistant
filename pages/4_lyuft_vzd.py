@@ -108,35 +108,27 @@ st.markdown(
 )
 
 # =========================================================================
-# БЛОК 2: ТОЧНЫЙ АНАЛИЗ ГАБАРИТОВ ПО РЕГЛАМЕНТАМ НЕФТЯНЫХ КОМПАНИЙ
+# БЛОК 2: АНАЛИЗ ГАБАРИТОВ И ВЫБОР НАИБОЛЕЕ ЖЕСТКОГО ПОРОГА ОТБРАКОВКИ
 # =========================================================================
-
-# Извлечение базового лимита из справочника для выбранного габарита
 limit_wear = base_vzd[selected_brand][selected_diameter]
 
-# Автоматическая классификация габарита двигателя
-if "172" in selected_diameter or "Д-172" in selected_diameter:
+# Определение группы габаритов (малый/средний/большой)
+if "172" in selected_diameter:
     size_group = "средний"
-elif "240" in selected_diameter or "8''" in selected_diameter or "ДГР-240" in selected_diameter:
+elif "240" in selected_diameter or "8''" in selected_diameter:
     size_group = "большой"
 else:
-    size_group = "малый"
-# Словарь лимитов Заказчиков (Роснефть, Газпром, Лукойл)
-client_limits_db = {
-    "ПАО Роснефть": {"малый": 3.0, "средний": 4.5, "большой": 6.0},
-    "ПАО Газпром": {"малый": 3.5, "средний": 4.5, "большой": 5.5},
-    "ПАО Лукойл": {"малый": 3.5, "средний": 5.0, "большой": 6.0}
-}
+    size_group = "малый" # Включает габарит 13 мм
 
-# Расчет эффективного лимита отбраковки
+# Применение ограничений Заказчика
 if selected_client != "🔄 Без учета ограничений Заказчика":
     client_rule = client_limits_db[selected_client][size_group]
-    eff_max = min(base_vzd[selected_brand][selected_diameter], client_rule)
-    st.info(f"🔷 Лимиты: Паспорт={base_vzd[selected_brand][selected_diameter]:.2f} мм | {selected_client}={client_rule:.2f} мм")
+    eff_max = min(limit_wear, client_rule) # Более жесткий
+    st.info(f"🔷 Критерии: Паспорт={limit_wear:.2f} мм | {selected_client}={client_rule:.2f} мм")
 else:
-    eff_max = base_vzd[selected_brand][selected_diameter]
+    eff_max = limit_wear
 
-st.warning(f"🎯 **Итоговый критерий:** Осевой люфт до **{eff_max:.2f} мм**")
+st.warning(f"🎯 **Минимально допустимый порог зазора:** {eff_max:.2f} мм")
 
 # =========================================================================
 # БЛОК 3: ИНТЕЛЛЕКТУАЛЬНЫЙ ИИ-АУДИТ И ЭКСПЕРТНЫЙ АНАЛИЗ РИСКОВ (СППР)
@@ -198,13 +190,13 @@ safe_axial_delta = max(0.01, calculated_axial_delta)
 safe_radial_ich = max(0.01, radial_ich)
 safe_limit_wear = max(1.0, limit_wear)
 
-# 2. МАТЕМАТИЧЕСКОЕ ЯДРО С ПОЛНОЙ БЛОКИРОВКОЙ ПРИ АВАРИИ
-if calculated_axial_delta >= eff_max or radial_ich > 1.0:
+# 2. МАТЕМАТИЧЕСКОЕ ЯДРО С ПОЛНОЙ БЛОКИРОВКОЙ ПРИ СМЯТИИ/ИЗНОСЕ ОПОР
+if calculated_axial_delta < eff_max or radial_ich > 1.0 or calculated_axial_delta <= 0:
     wob_reduction_factor = 0.0
     dls_reduction_factor = 0.0
 else:
-    wob_base_value = max(0.0, 1.0 - (safe_axial_delta / safe_limit_wear))
-    wob_reduction_factor = max(0.1, min(1.0, wob_base_value ** 0.6))
+    # Чем больше зазор calculated_axial_delta относительно порога eff_max, тем стабильнее работа
+    wob_reduction_factor = max(0.1, min(1.0, (eff_max / max(0.01, calculated_axial_delta)) ** 0.5))
     dls_reduction_factor = max(0.05, min(1.0, 1.0 - (safe_radial_ich / D_clearance)))
 
 calculated_wob_safe = WOB_max_passport * wob_reduction_factor
@@ -239,29 +231,24 @@ with col_nnb2:
     else:
         st.success("🟢 Радиальный зазор в пределах нормы.")
 
-# =========================================================================
-# БЛОК 4: ФИНАЛЬНАЯ КЛАССИФИКАЦИЯ РЕЗУЛЬТАТОВ РАСЧЕТА И ОТБРАКОВКА ОПОР
-# =========================================================================
+# === БЛОК 4: ФИНАЛЬНАЯ КЛАССИФИКАЦИЯ И ОТБРАКОВКА ОПОР ===
 st.markdown("---")
 st.markdown("#### Результаты комплексной проверки шпиндельного узла:")
 
-# ГАРАНТИЯ ИНИЦИАЛИЗАЦИИ ПЕРЕМЕННЫХ ДЛЯ ЗАЩИТЫ ОТ NAMEERROR
-final_max_axial = effective_max_axial if 'effective_max_axial' in locals() else limit_wear
-final_max_radial = effective_max_radial if 'effective_max_radial' in locals() else 1.00
-
-# === БЛОК 4: КЛАССИФИКАЦИЯ ===
-is_axial_failed = calculated_axial_delta > eff_max
-is_radial_failed = radial_ich > 1.0
 is_measurement_error = calculated_axial_delta <= 0
+is_failed = calculated_axial_delta < eff_max or radial_ich > 1.0
+is_warning = abs(calculated_axial_delta - eff_max) < 0.01
 
 if is_measurement_error:
-    res, style = "ОШИБКА ИЗМЕРЕНИЙ", "color: #795203; background-color: #FEF3C7;"
-elif is_axial_failed or is_radial_failed:
-    res, style = "🚨 КРИТИЧЕСКИЙ ИЗНОС ОПОР!", "color: #991B1B; background-color: #FEE2E2;"
+    res, style = "ОШИБКА ИЗМЕРЕНИЙ (Зазор меньше или равен нулю)", "color: #795203; background-color: #FEF3C7;"
+elif is_warning:
+    res, style = "⚠ ВНИМАНИЕ: Значение равно минимально допустимому порогу!", "color: #92400E; background-color: #FEF3C7;"
+elif is_failed:
+    res, style = "❌ ЗАБРАКОВАНО: Осевой зазор ниже порога или превышен радиальный люфт!", "color: #991B1B; background-color: #FEE2E2;"
 else:
-    res, style = "Норма", "color: #065F46; background-color: #D1FAE5;"
+    res, style = "🟢 ДОПУЩЕНО: Параметры зазоров шпинделя соответствуют нормативам (Выше порога)", "color: #065F46; background-color: #D1FAE5;"
 
-st.markdown(f'<div style="{style} padding: 10px; border-left: 5px solid;">{res}</div>', unsafe_allow_html=True)
+st.markdown(f'<div style="{style} padding: 12px; border-radius: 4px; font-weight: bold; border-left: 5px solid;">{res}</div>', unsafe_allow_html=True)
 
 # =========================================================================
 # БЛОК 5: ОФИЦИАЛЬНЫЙ СВОДНЫЙ АКТ (АДАПТИВНЫЙ И ЗАЩИЩЕННЫЙ)
@@ -283,9 +270,6 @@ html_vzd = f"""
 </div>
 </div>
 """
-st.markdown(html_vzd, unsafe_allow_html=True)
-
-# Безопасный рендеринг готового бланка на страницу
 st.markdown(html_vzd, unsafe_allow_html=True)
 
 # =========================================================================
