@@ -34,6 +34,21 @@ st.markdown(
 if "val_size_a" not in st.session_state: st.session_state["val_size_a"] = 10.0
 if "val_size_b" not in st.session_state: st.session_state["val_size_b"] = 5.5
 if "val_radial_ich" not in st.session_state: st.session_state["val_radial_ich"] = 0.20
+# Инициализация базового справочника ВЗД (перенесено вверх для защиты от NameError)
+base_vzd = {
+    "Радиус-Сервис": {"172 мм": 10.0, "240 мм": 10.0},
+    "ВНИИБТ": {"Д-172": 4.5, "ДГР-240М": 6.0}
+}
+
+try:
+    df_excel_vzd = pd.read_excel("vzd_limits_db.xlsx")
+    df_excel_vzd.columns = df_excel_vzd.columns.astype(str).str.strip()
+    uploaded_base = {}
+    for _, row in df_excel_vzd.iterrows():
+        brand, model, axial_lim = str(row["Производитель"]).strip(), str(row["Габарит"]).strip(), float(row["Лимит_Осевой"])
+        uploaded_base.setdefault(brand, {})[model] = axial_lim
+    if uploaded_base: base_vzd = uploaded_base
+except Exception: pass
 
 # === ВЫБОР ЗАКАЗЧИКА И ОБОРУДОВАНИЯ С ПОДСКАЗКАМИ ===
 
