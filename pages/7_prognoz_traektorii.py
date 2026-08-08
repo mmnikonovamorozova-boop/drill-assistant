@@ -546,38 +546,24 @@ with st.container(border=True):
 
 def push_calibration_to_github_api(target_well_name, updated_k_slide, updated_k_rotary):
     """
-    Развернутая функция безопасной фиксации пересчитанных весов КНБК в удаленную
-    базу данных через защищенный шлюз GitHub API.
+    Безопасная запись калибровок КНБК в JSON на GitHub API
     """
     token = st.secrets.get("GITHUB_TOKEN", None)
-    repo = "mmnikonovamorozova-boop/drill-assistant"
-    path = "calibrations_db.json"
-    url = "https://api.github.com/repos/mmnikonovamorozova-boop/drill-assistant/contents/calibrations_db.json"
-    
+    url = "https://github.com"
     if not token:
-        st.error("🚨 ОШИБКА АВТОРИЗАЦИИ: В системе Streamlit Secrets отсутствует токен GITHUB_TOKEN. Запись невозможна.")
         return False
-
     try:
         import requests
-        headers = {
-            "Authorization": f"token {token}",
-            "Accept": "application/vnd.github.v3+json"
-        }
-        
-        # Шаг 1: Извлекаем текущую версию файла для получения SHA-хэша коммита
-        response = requests.get(url, headers=headers, timeout=5)
-        if response.status_code == 200:
-            file_data = response.json()
-            sha = file_data.get("sha", "")
-            content_b64 = file_data.get("content", "")
-            json_str = base64.b64decode(content_b64).decode("utf-8")
-            db_dict = json.loads(json_str)
-        else:
-            db_dict = {}
-            sha = None
-            
-        # Шаг 2: Модифицируем структуру данных ИИ-паспорта скважины
+        headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+        res = requests.get(url, headers=headers, timeout=5)
+        db_dict, sha = {}, None
+        if res.status_code == 200:
+            file_data = res.json()
+            if isinstance(file_data, dict):
+                sha = file_data.get("sha")
+                content_b64 = file_data.get("content", "")
+                json_str = base64.b64decode(content_b64).decode("utf-8")
+                db_dict = json.loads(json_str)
         clean_key = str(target_well_name).strip().upper()
         db_dict[clean_key] = {
             "well_name": target_well_name,
@@ -585,24 +571,14 @@ def push_calibration_to_github_api(target_well_name, updated_k_slide, updated_k_
             "k_rotary_base": round(float(updated_k_rotary), 4),
             "last_update": time.strftime("%d.%m.%Y %H:%M:%S")
         }
-        
-        # Шаг 3: Кодируем обновленный файл обратно в Base64 формат
-        updated_json_bytes = json.dumps(db_dict, ensure_ascii=False, indent=4).encode("utf-8")
-        updated_b64_str = base64.b64encode(updated_json_bytes).decode("utf-8")
-        
-        # Шаг 4: Отправляем коммит изменений в удаленный репозиторий компании
-        commit_payload = {
-            "message": f"🤖 ИИ-Адаптация КНБК: Обновлены калибровки для скважины {target_well_name}",
-            "content": updated_b64_str
-        }
+        updated_bytes = json.dumps(db_dict, ensure_ascii=False, indent=4).encode("utf-8")
+        updated_b64 = base64.b64encode(updated_bytes).decode("utf-8")
+        payload = {"message": f"🤖 ИИ-Адаптация: {target_well_name}", "content": updated_b64}
         if sha:
-            commit_payload["sha"] = sha
-            
-        put_response = requests.put(url, headers=headers, json=commit_payload, timeout=5)
-        return put_response.status_code in [200, 201]
-        
-    except Exception as ex:
-        st.error(f"🚨 ОШИБКА СИНХРОНИЗАЦИИ С СЕРВЕРОМ GITHUB: {str(ex)}")
+            payload["sha"] = sha
+        put_res = requests.put(url, headers=headers, json=payload, timeout=5)
+        return put_res.status_code in [200, 201]
+    except Exception:
         return False
 
 # --- ИНТЕРФЕЙСНЫЙ БЛОК ОБУЧЕНИЯ (БЛОК 7.2) ---
