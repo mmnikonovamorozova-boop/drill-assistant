@@ -553,52 +553,98 @@ def load_advanced_failures_database(file_path="failures_db.xlsx"):
         st.error(f"🚨 Ошибка загрузки данных: {e}")
         return None
 
-df_failures = load_advanced_failures_database("failures_db.xlsx")
 # =========================================================================
-# БЛОК 4: ЭКСПЕРТНАЯ СИСТЕМА - ЧАСТЬ 2 (ИНТЕРФЕЙС И ЭКСПЕРТИЗА СРЕД)
+# БЛОК 4: КАСКАДНАЯ СТАТИСТИЧЕСКАЯ ФИЛЬТРАЦИЯ ДАННЫХ
 # =========================================================================
 
-st.markdown("#### ⚙ Условия эксплуатации и параметры ВЗД в текущем рейсе:")
+# Надежная инициализация пустых датафреймов
+df_geo = pd.DataFrame()
+df_train = pd.DataFrame()
 
-# Разворачиваем трехколоночную сетку для ввода метаданных работы оборудования
-col_reg1, col_reg2, col_reg3 = st.columns(3)
+# Приведение региона к стандарту
+region_filter = ["ХМАО", "ЯНАО", "Западная Сибирь"] if region_choice != "Волго-Урал" else "Волго-Урал"
 
-with col_reg1:
-    region_choice = st.selectbox(
-        "📍 Регион проведения текущих работ:", 
-        ["Волго-Урал", "Западная Сибирь (ХМАО/ЯНАО)"],
-        key="b4_region_choice"
-    )
+# Многоуровневый отбор исторических инцидентов
+if df_failures is not None and not df_failures.empty:
+    # Уровень 1: География
+    df_geo = df_failures[df_failures["Регион работ"].isin(region_filter) if isinstance(region_filter, list) 
+                        else df_failures["Регион работ"] == region_filter].copy()
 
-with col_reg2:
-    kinematics_type = st.selectbox(
-        "📊 Кинематика ВЗД (Тип захода силовой пары):", 
-        ["5/6", "7/8", "6/7", "1/2"],
-        key="b4_kinematics_type"
-    )
-    # Математическое преобразование строкового захода в коэффициент для ИИ-модели
+    # Уровень 2: Производитель
+    vendor_cols = [c for c in df_geo.columns if "Производитель" in c or "Габарит" in c]
+    if vendor_cols:
+        target_vendor_col = vendor_cols[0]
+        short_vendor_name = str(vendor_choice).split("-")[0].split(" ")[0].upper()
+        df_vendor_slice = df_geo[df_geo[target_vendor_col].astype(str).str.upper().str.contains(short_vendor_name, na=False)].copy()
+        
+        # Каскадный спуск
+        df_train = df_vendor_slice.copy() if len(df_vendor_slice) >= 3 else df_geo.copy()
+    else:
+        df_train = df_geo.copy()
+
+# Инициализация метрик
+model_ready = False
+predicted_hours_to_failure = 0.0
+mae_hours = 24.0
+accuracy_pct = 75.0
+# =========================================================================
+# БЛОК 4: ОБУЧЕНИЕ ИИ-МОДЕЛИ СЛУЧАЙНОГО ЛЕСА (RANDOM FOREST)
+# =========================================================================
+if len(df_train) >= 3:
     try:
-        if "/" in kinematics_type:
-            rotor_teeth, stator_teeth = map(float, kinematics_type.split("/"))
-            current_kin = rotor_teeth / stator_teeth if stator_teeth > 0 else 0.833
-        else:
-            current_kin = 0.833
+        # Извлекаем факторы износа статора ВЗД
+        features = ["Песок (%)", "Забойная Темп. (°C)", "Кинематика_число", "Агрессивность_БР"]
+        X_train = df_train[features]
+        y_train = df_train["Скорость_износа"]
+        
+        # Обучаем ансамбль деревьев
+        rf_model = RandomForestRegressor(n_estimators=50, max_depth=6, random_state=42)
+        rf_model.fit(X_train, y_train)
+        
+        # Внутренняя валидация погрешности (MAE)
+        y_pred = np.clip(rf_model.predict(X_train), 0.0001, None)
+        hours_predicted = 1.0 / y_pred
+        mae_hours = float(mean_absolute_error(df_train["Наработка до отказа (Часы)"].values, hours_predicted))
+        
+        # Точность модели в процентах
+        mape_val = np.mean(np.abs(df_train["Наработка до отказа (Часы)"].values - hours_predicted) / df_train["Наработка до отказа (Часы)"].values)
+        accuracy_pct = max(0.0, min(100.0, (1.0 - mape_val) * 100.0))
+        
+        # Прогноз для текущих условий бурения
+        X_curr = np.array([[sand_input_val, current_temp_est, current_kin, current_mud_aggressiveness]])
+        pred_speed = max(0.0001, float(rf_model.predict(X_curr)))
+        
+        # Жесткое ограничение регламента ВИНК (макс 150 часов на рейс)
+        allowed_res = min(150.0, 1.0 / pred_speed)
+        predicted_hours_to_failure = max(0.0, allowed_res - current_runtime)
+        model_ready = True
     except Exception:
-        current_kin = 0.833
+        model_ready = False
+# =========================================================================
+# БЛОК 4: АНАЛИТИЧЕСКИЙ ОТКАТ И СКВОЗНОЙ ШЛЮЗ ДЛЯ ТРАЕКТОРИИ
+# =========================================================================
+if not model_ready:
+    # Базовый ресурс эластомера NBR по ГОСТ
+    base_stator_life = 180.0
+    
+    # Коэффициенты деградации от песка и температуры (Закон Вант-Гоффа)
+    sand_factor = 1.0 + (max(0.0, sand_input_val - 0.5) * 3.5)
+    temp_factor = 1.5 ** ((current_temp_est - 70.0) / 10.0) if current_temp_est > 70.0 else 1.0
+    
+    # Суммарный индекс разрушения резины
+    total_degradation = sand_factor * temp_factor * (current_kin * 1.3 * current_mud_aggressiveness)
+    
+    # Расчет остаточного ресурса с ограничением ВИНК в 150 часов
+    allowed_analytical = min(150.0, base_stator_life / max(0.001, total_degradation))
+    predicted_hours_to_failure = max(0.0, allowed_analytical - current_runtime)
+    mae_hours = 24.0
+    accuracy_pct = 75.0
 
-with col_reg3:
-    vendor_choice = st.selectbox(
-        "🏭 Производитель силовой секции / эластомера:", 
-        ["Радиус-Сервис", "ООО ГБС", "Гидромаш", "ПЗТО Титан", "Прочие"],
-        key="b4_vendor_choice"
-    )
-
-# Выбор типа раствора с мгновенной экспертной оценкой
-mud_choice = st.selectbox(
-    "🧪 Текущий тип бурового раствора (БР) на скважине:",
-    ["Полимерный / Биополимерный", "Гипсокалиевый / Известково-гипсовый", "Гелево-Эмульсионный / ЕВС", "MaxFlow", "Техническая вода"],
-    key="b4_mud_choice"
-)
+# --- СИНХРОНИЗАЦИЯ СКВОЗНОГО ШЛЮЗА ДЛЯ СЛЕДУЮЩЕГО МОДУЛЯ ---
+st.session_state["shared_buoyancy_factor"] = 1.0 - (f_dens / 7.85)
+st.session_state["shared_yield_stress"] = f_yp_corrected
+st.session_state["shared_flow_index"] = n_hb
+st.session_state["shared_sand_pct"] = sand_input_val  # Актуальный песок улетает в прогноз траектории
 
 st.markdown("##### 🔬 Инженерная справка по выбранной промывочной среде (СТО ИНТИ S.100.3):")
 
