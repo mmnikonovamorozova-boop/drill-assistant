@@ -8,6 +8,29 @@ if "authenticated" not in st.session_state or not st.session_state["authenticate
 st.set_page_config(page_title="Технологические карты КНБК", page_icon="🔧", layout="wide")
 st.title("🔩 Интерактивные технологические карты сборки КНБК")
 st.caption("Полевой контроль технологической дисциплины и верификация СМК")
+# Принудительные CSS-стили для корректного вывода бланка на печать в PDF
+st.markdown("""
+<style>
+    @media print {
+        /* Скрываем все боковые панели, кнопки и элементы интерфейса Streamlit */
+        [data-testid="stSidebar"], 
+        button, 
+        header, 
+        footer, 
+        [data-testid="stHeader"] {
+            display: none !important;
+        }
+        /* Делаем блок print-preview видимым и растягиваем на весь лист А4 */
+        .print-preview {
+            display: block !important;
+            visibility: visible !important;
+            width: 100% !important;
+            color: #000000 !important;
+            background-color: #ffffff !important;
+        }
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # ==============================================================================
 # БЛОК ВЕРИФИКАЦИИ ИНТИ (НАВЕРХУ СТРАНИЦЫ)
