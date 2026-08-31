@@ -179,7 +179,7 @@ with st.container(border=True):
             has_umk_error = True
             error_reasons.append(f"Превышение безопасной нагрузки на канат ключа УМК (Фактическое: {f_pull_tons:.2f} т, Допустимое по ГОСТ: {safe_cable_load:.2f} т)")
         else:
-            st.success(f"💪 КАНАТ: Нагрузка в норме ({f_pull_tons:.2f} т).")
+            st.success(f"⚙️ КАНАТ: Нагрузка в норме ({f_pull_tons:.2f} т).")
     else:
         MAX_P = 20.0
         if p_target_mpa > MAX_P:
@@ -209,7 +209,7 @@ with st.container(border=True):
     elif M_required > (max_allowed_moment * 0.90):
         st.warning(f"⚠️ ПРЕДУПРЕЖДЕНИЕ: Момент свинчивания ({M_required:.2f} кН·м) близко к лимиту стали {pipe_steel_group} ({max_allowed_moment} кН·м)!")
     else:
-        st.success(f"💪 МАТЕРИАЛ: Соответствие прочности стали {pipe_steel_group} подтверждено.")
+        st.success(f"🔩 МАТЕРИАЛ: Соответствие прочности стали {pipe_steel_group} подтверждено.")
     
     # # 4. Итоговый экспертный вердикт системы менеджмента качества (СМК)
     if not has_umk_error:
