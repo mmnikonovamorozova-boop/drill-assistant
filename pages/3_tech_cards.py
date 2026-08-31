@@ -146,6 +146,7 @@ if problem_type in tech_knowledge_base:
 <div>{s_data['clients'].get(selected_client, s_data['clients']['default'])}</div>
 """
 
+
 # Кнопка для скачивания готового документа
 st.download_button(
     label="💾 Скачать готовый рапорт для печати",
