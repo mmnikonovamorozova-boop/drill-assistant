@@ -97,7 +97,7 @@ st.markdown("---")
 if problem_type in tech_knowledge_base:
     scenario_data = tech_knowledge_base[problem_type]
     
-    # Открываем рамку для печати строго внутри найденного сценария
+      # Открываем рамку для печати
     st.markdown('<div class="print-preview">', unsafe_allow_html=True)
     
     col_b1, col_b2 = st.columns(2)
@@ -114,6 +114,9 @@ if problem_type in tech_knowledge_base:
     for step in scenario_data["mandatory_steps"]:
         st.write(step)
     st.markdown("---")
+    st.markdown("---")
+    # Закрываем первую печатную часть перед интерактивными кнопками
+    st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown("#### 2. Маршрут верификации параметров:")
     nodes = scenario_data.get("interactive_nodes", {})
@@ -159,6 +162,9 @@ if problem_type in tech_knowledge_base:
                 st.success(f"✅ Финальную затяжку КНБК проводить стандартным номинальным моментом: **`{nominal_torque} кН·м`**")
                 
             st.markdown("---")
+       # Открываем вторую печатную часть для физики и ЛНД после кнопок
+    st.markdown('<div class="print-preview">', unsafe_allow_html=True)
+    
     st.markdown("#### 3. Физика процесса и сопутствующие риски:")
     st.write(f"**Физический эффект:** *{scenario_data['physics']['effect']}*")
     st.write(scenario_data["physics"]["description"])
@@ -176,7 +182,7 @@ if problem_type in tech_knowledge_base:
         st.info(client_rules.get("default", "Действуют стандартные правила ИНТИ."))
         
     st.markdown("---")
-    st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший инженер по качеству Никонова-Морозова М.М. • Верифицировано по стандартам СТО ИНТИ © 2026</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'>...</div>", unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 else:
