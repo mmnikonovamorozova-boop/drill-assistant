@@ -165,6 +165,13 @@ if problem_type in tech_knowledge_base:
             st.error(client_text)
         else:
             st.warning(client_text)
+            
+    # === ГЕНЕРАЦИЯ ОТЧЕТА И КНОПКА СКАЧИВАНИЯ ===
+    st.markdown("---")
+    current_lub = st.session_state.get("l_opt", "Стандарт")
+    rep_torque = f"{round(15.0 * 0.875, 2)} кН·м (Снижен на 12.5%)" if "Специальная" in current_lub else "15.0 кН·м (Номинал)"
+    # Код сборки HTML-отчета и скачивания через st.sidebar.download_button
+
     else:
         st.info(client_rules.get("default", "Действуют стандартные правила ИНТИ."))
         
