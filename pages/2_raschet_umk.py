@@ -180,14 +180,15 @@ with st.expander("🛡 Модуль комплексной валидации р
         else:
             st.success(f"💧 ГИДРАВЛИКА: Давление ({p_target_mpa:.1f} МПа) в норме.")
 
-    # 2 Метрологический аудит износа геометрии рычажной системы ключа УМК
-    passport_length = key_data.get("L_m", fact_l) if 'key_data' in locals() else fact_l
+    # #2 Метрологический аудит износа геометрии рычажной системы ключа УМК
+    # Исправлено: подтягиваем реальную длину выбранного ключа из базы данных active_keys_db
+    passport_length = active_keys_db.get(selected_key, fact_l)
     has_umk_error = False
 
-    
-    if fact_l < (passport_length * 0.95):
-        st.warning(f"⚠️ АНОМАЛИЯ ГЕОМЕТРИИ: Фактическое плечо ({fact_l:.3f} м) критически меньше паспортного ({passport_length:.3f} м) — укорочение рычага!")
+    if fact_l < (passport_length * 0.95) or fact_l > (passport_length * 1.05):
+        st.error(f"❌ КРИТИЧЕСКИЙ РИСК: Фактическое плечо ({fact_l:.3f} м) отклоняется от паспортного ({passport_length:.3f} м) более чем на 5%!")
         has_umk_error = True
+
     else:
         st.write(f"📐 ГЕОМЕТРИЯ: Плечо рычага в допуске ({fact_l:.3f} м).")
        # # 3. Контроль предела текучести стали (Защита резьбового соединения от смятия)
