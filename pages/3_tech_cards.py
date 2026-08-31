@@ -142,7 +142,7 @@ if problem_type in tech_knowledge_base:
             else:
                 st.success(f"✅ Финальную затяжку КНБК проводить стандартным номинальным моментом: **`{nominal_torque} кН·м`**")
                 
-    st.markdown("---")
+        st.markdown("---")
 
     # === ЗОНА ПЕЧАТИ 2: Физика процесса и ЛНД Заказчика ===
     st.markdown('<div class="print-preview">', unsafe_allow_html=True)
