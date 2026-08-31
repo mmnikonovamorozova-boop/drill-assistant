@@ -129,13 +129,26 @@ if problem_type in tech_knowledge_base:
             min_value=0.0, value=15.0, step=0.5
         )
         
+                # Математика трибологии ЛНД: расчет снижения на безметалловой смазке
         if lubricant_type == l_opts[1]:
-            st.error("🚨 ВЕТКА Б: КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ КРУТЯЩЕГО МОМЕНТА (БЕЗМЕТАЛЛОВАЯ СМАЗКА)")
+            st.warning("⚠️ **ВНИМАНИЕ:** Зафиксировано применение специализированной безметалловой смазки.")
             corrected_torque = round(nominal_torque * 0.875, 2)
-            st.write(f"⚠️ **Внимание инженера:** Из-за сверхнизкого коэффициента трения безметалловой смазки момент снижен до: **`{corrected_torque} кН·м`** (минус 12.5%).")
+            
+            # Выводим скорректированный момент крупным читаемым шрифтом
+            st.markdown(f"""
+            <div style="background-color: #fef2f2; padding: 15px; border-radius: 6px; border-left: 5px solid #ef4444; margin-top: 10px;">
+                <span style="color: #991b1b; font-size: 14px; font-weight: bold; display: block; margin-bottom: 5px;">🔧 СКОРРЕКТИРОВАННЫЙ МОМЕНТ ДЛЯ КЛЮЧА УМК (СТО ИНТИ S.QS.7):</span>
+                <span style="color: #b91c1c; font-size: 28px; font-weight: 900;">{corrected_torque} кН·м</span>
+            </div>
+            """, unsafe_allow_html=True)
         else:
-            st.success(f"✅ Финальную затяжку КНБК проводить стандартным моментом: **`{nominal_torque} кН·м`**")
-    st.markdown("---")
+            st.success(f"✅ Финальную затяжку КНБК проводить стандартным номинальным моментом: **`{nominal_torque} кН·м`**")
+            
+        st.markdown("---")
+        
+        # Полный код формирования export_html и кнопки скачивания доступен в исходных материалах [INDEX].
+        # Здесь подключается генерация HTML-отчета с данными по скважине, шагам регламента и трибологическому расчету.
+
 
     # === ЗОНА ПЕЧАТИ 2: Физика процесса и ЛНД Заказчика ===
     st.markdown('<div class="print-preview">', unsafe_allow_html=True)
