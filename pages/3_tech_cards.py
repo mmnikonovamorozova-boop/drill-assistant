@@ -97,7 +97,7 @@ st.markdown("---")
 if problem_type in tech_knowledge_base:
     scenario_data = tech_knowledge_base[problem_type]
     
-      # Открываем рамку для печати
+    # === ЗОНА ПЕЧАТИ 1: Шапка и первоочередной регламент ===
     st.markdown('<div class="print-preview">', unsafe_allow_html=True)
     
     col_b1, col_b2 = st.columns(2)
@@ -109,21 +109,27 @@ if problem_type in tech_knowledge_base:
         st.write(f"**Инженер по ННБ:** {engineer_name}")
     st.markdown("---")
     
+    # Выводим заголовок акта и стандарт из JSON
+    st.markdown(f"### {scenario_data['title']}")
+    st.markdown(f"**Применимый стандарт:** `{scenario_data['regulations']['standard']}`")
+    st.info(scenario_data['regulations']['rule'])
+    st.markdown("---")
+    
     # Выводим пошаговые действия
     st.markdown("#### 1. Регламент первоочередных действий на роторе:")
     for step in scenario_data["mandatory_steps"]:
         st.write(step)
     st.markdown("---")
-    st.markdown("---")
-    # Закрываем первую печатную часть перед интерактивными кнопками
     st.markdown('</div>', unsafe_allow_html=True)
+    # === КОНЕЦ ЗОНЫ ПЕЧАТИ 1 ===
 
+    # ТЕХНОЛОГИЧЕСКИЙ МАРШРУТ (Остается на экране, не идет на печать)
     st.markdown("#### 2. Маршрут верификации параметров:")
     nodes = scenario_data.get("interactive_nodes", {})
     
     if "Опрессовка" in problem_type:
         p_opts = [nodes.get("pumps_normal", "Штатно"), nodes.get("pumps_fail", "Сбой")]
-        pumps_state = st.radio("⚙️ Режим работы насосов:", p_opts, key="p_opt")
+        pumps_state = st.radio("⚙ Режим работы насосов:", p_opts, key="p_opt")
         if pumps_state == p_opts[1]:
             st.error("🚨 ЗАФИКСИРОВАНА ОСТАНОВКА ТЕСТА")
             
@@ -131,40 +137,33 @@ if problem_type in tech_knowledge_base:
         damage_state = st.radio("📐 Результат дефектоскопии:", d_opts, key="d_opt")
         if damage_state == d_opts[1]:
             st.error("🚨 МАРШРУТ ОТБРАКОВКИ ИНСТРУМЕНТА")
-        elif "смазки" in problem_type.lower():
-            l_opts = [nodes.get("lub_standard", "Стандарт"), nodes.get("lub_special", "Специальная")]
-            lubricant_type = st.radio("🔩 Тип резьбовой смазки (СТО ИНТИ S.QS.7):", l_opts, key="l_opt")
             
-            st.markdown("##### 🧮 Расчет крутящего момента затяжки для ключа УМК:")
-                    # Изолированная логика: импортируем расчет из файла, начинающегося с цифры
-            try:
-                import importlib.util
-                import sys
-                
-                # Указываем точный путь к файлу модуля расчета УМК
-                spec = importlib.util.spec_from_file_location("raschet_umk", "pages/2_raschet_umk.py")
-                raschet_module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(raschet_module)
-                
-                # Вызываем функцию расчета
-                nominal_torque = raschet_module.calculate_base_torque()
-                st.caption("✅ Базовый номинальный момент успешно импортирован из модуля 'Расчет УМК'.")
-            except Exception:
-                # Если файл переименован или недоступен — даем ручной ввод без падения кода
-                nominal_torque = st.number_input("Внесите номинальный момент затяжки по паспорту КНБК (кН·м):", min_value=0.0, value=15.0, step=0.5)
+    elif "смазки" in problem_type.lower():
+        l_opts = [nodes.get("lub_standard", "Стандарт"), nodes.get("lub_special", "Специальная")]
+        lubricant_type = st.radio("🔩 Тип резьбовой смазки (СТО ИНТИ S.QS.7):", l_opts, key="l_opt")
+        
+        st.markdown("##### 🧮 Расчет крутящего момента затяжки для ключа УМК:")
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("raschet_umk", "pages/2_raschet_umk.py")
+            raschet_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(raschet_module)
+            nominal_torque = raschet_module.calculate_base_torque()
+            st.caption("✅ Базовый номинальный момент успешно импортирован из модуля 'Расчет УМК'.")
+        except Exception:
+            nominal_torque = st.number_input("Внесите номинальный момент затяжки по паспорту КНБК (кН·м):", min_value=0.0, value=15.0, step=0.5)
             
-            # Математика трибологии: ЛНД требует снизить момент на безметалловой смазке на 12.5%
-            if lubricant_type == l_opts[1]:
-                st.error("🚨 ВЕТКА Б: КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ КРУТЯЩЕГО МОМЕНТА")
-                corrected_torque = round(nominal_torque * 0.875, 2)
-                st.write(f"⚠️ **Внимание инженера:** Из-за сниженного коэффициента трения безметалловой смазки крутящий момент затяжки на гидроключе снижен до: **`{corrected_torque} кН·м`** (минус 12.5% от номинала).")
-            else:
-                st.success(f"✅ Финальную затяжку КНБК проводить стандартным номинальным моментом: **`{nominal_torque} кН·м`**")
-                
-            st.markdown("---")
-       # Открываем вторую печатную часть для физики и ЛНД после кнопок
+        if lubricant_type == l_opts[1]:
+            st.error("🚨 ВЕТКА Б: КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ КРУТЯЩЕГО МОМЕНТА")
+            corrected_torque = round(nominal_torque * 0.875, 2)
+            st.write(f"⚠️ **Внимание инженера:** Из-за сниженного коэффициента трения безметалловой смазки крутящий момент затяжки на гидроключе снижен до: **`{corrected_torque} кН·м`** (минус 12.5% от номинала).")
+        else:
+            st.success(f"✅ Финальную затяжку КНБК проводить стандартным номинальным моментом: **`{nominal_torque} кН·м`**")
+            
+    st.markdown("---")
+
+    # === ЗОНА ПЕЧАТИ 2: Физика процесса и ЛНД Заказчика ===
     st.markdown('<div class="print-preview">', unsafe_allow_html=True)
-    
     st.markdown("#### 3. Физика процесса и сопутствующие риски:")
     st.write(f"**Физический эффект:** *{scenario_data['physics']['effect']}*")
     st.write(scenario_data["physics"]["description"])
@@ -182,8 +181,10 @@ if problem_type in tech_knowledge_base:
         st.info(client_rules.get("default", "Действуют стандартные правила ИНТИ."))
         
     st.markdown("---")
-    st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'>...</div>", unsafe_allow_html=True)
+    st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший инженер по качеству Никонова-Морозова М.М. • Верифицировано по стандартам СТО ИНТИ © 2026</div>", unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
+    # === КОНЕЦ ЗОНЫ ПЕЧАТИ 2 ===
 
 else:
     st.error("🚨 КРИТИЧЕСКАЯ ОШИБКА: Сценарий не найден в конфигурационном файле JSON.")
+
