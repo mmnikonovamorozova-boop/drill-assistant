@@ -70,91 +70,7 @@ tech_knowledge_base = load_tech_requirements()
 
 st.markdown("---")
 
-# Формируем контент для экспорта без элементов управления Streamlit
-export_html = f"""
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>{scenario_data['title'] if 'scenario_data' in locals() else 'Технологическая карта'}</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; padding: 30px; line-height: 1.6; color: #333; }}
-        .header {{ margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }}
-        .meta-table {{ width: 100%; margin-bottom: 20px; }}
-        .meta-table td {{ width: 50%; padding: 5px; }}
-        .section {{ margin-top: 20px; margin-bottom: 10px; font-weight: bold; font-size: 16px; border-bottom: 1px solid #ddd; }}
-        .info-box {{ background-color: #f9f9f9; padding: 15px; border-left: 4px solid #0284c7; margin: 10px 0; }}
-        .step {{ margin-bottom: 8px; }}
-        .footer {{ text-align: center; color: #999; font-size: 11px; margin-top: 50px; border-top: 1px solid #ddd; padding-top: 10px; }}
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h2>📄 ТЕХНОЛОГИЧЕСКАЯ КАРТА ЛИКВИДАЦИИ ИНЦИДЕНТА</h2>
-    </div>
-    <table class="meta-table">
-        <tr>
-            <td><b>Месторождение:</b> {field_name}</td>
-            <td><b>Проект (Заказчик):</b> {selected_client}</td>
-        </tr>
-        <tr>
-            <td><b>Скважина / Куст:</b> {well_number}</td>
-            <td><b>Инженер по ННБ:</b> {engineer_name}</td>
-        </tr>
-    </table>
-"""
 
-# Если сценарий выбран, дописываем в файл только полезные текстовые данные
-if problem_type in tech_knowledge_base:
-    s_data = tech_knowledge_base[problem_type]
-    export_html += f"""
-    <div class="section">📋 {s_data['title']}</div>
-    <div><b>Применимый стандарт:</b> {s_data['regulations']['standard']}</div>
-    <div class="info-box"><b>Базовый регламент:</b> {s_data['regulations']['rule']}</div>
-    
-    <div class="section">1. Регламент первоочередных действий на роторе:</div>
-    """
-        # Выводим пошаговые действия
-    for step in s_data["mandatory_steps"]:
-        export_html += f'<div class="step">{step}</div>'
-        
-    # Динамический трибологический блок для печатного документа
-    if "смазки" in problem_type.lower():
-        # Считываем текущий выбор инженера из интерфейса
-        current_lub = st.session_state.get("l_opt", "Стандарт")
-        if "Специальная" in current_lub or "lub_special" in current_lub:
-            corrected = round(15.0 * 0.875, 2)  # Расчет корректировки момента
-            export_html += f"""
-            <div class="section">🧮 ТРИБОЛОГИЧЕСКИЙ КОРРЕКТИРОВОЧНЫЙ РАСЧЕТ МОМЕНТА (СТО ИНТИ S.QS.7):</div>
-            <div class="info-box" style="border-left: 4px solid #ef4444; background-color: #fef2f2;">
-                <b>Применяемая смазка:</b> Специализированная безметалловая (полимерная/керамическая)<br>
-                <b>⚠️ КОРРЕКТИРОВОЧНЫЙ МОМЕНТ ДЛЯ КЛЮЧА УМК: {corrected} кН·м</b> (крутящий момент снижен на 12.5% для исключения скрытого перекрута и пластических деформаций резьбы КНБК).
-            </div>
-            """
-        else:
-            export_html += f"""
-            <div class="section">🧮 ТРИБОЛОГИЧЕСКИЙ РАСЧЕТ МОМЕНТА (СТО ИНТИ S.QS.7):</div>
-            <div class="info-box" style="border-left: 4px solid #22c55e; background-color: #f0fdf4;">
-                <b>Применяемая смазка:</b> Стандартная уплотнительная (свинцово-цинковая, типа Р-402)<br>
-                <b>✅ ФИНАЛЬНЫЙ МОМЕНТ ЗАТЯЖКИ НА КЛЮЧЕ УМК: 15.0 кН·м</b> (затяжку соединений проводить строго по номинальному паспортному значению).
-            </div>
-            """
-
-    export_html += f"""
-<div class="section">2. Физика процесса и сопутствующие риски:</div>
-<div><b>Физический эффект:</b> <i>{s_data['physics']['effect']}</i></div>
-<div class="section">3. Требования Заказчика (ЛНД проекта):</div>
-<div>{s_data['clients'].get(selected_client, s_data['clients']['default'])}</div>
-"""
-
-
-# Кнопка для скачивания готового документа
-st.download_button(
-    label="💾 Скачать готовый рапорт для печати",
-    data=export_html,
-    file_name=f"Tech_Card_{well_number.replace(' ', '_')}.html",
-    mime="text/html",
-    key="download_report_btn"
-)
 
 # ==============================================================================
 # ЛОГИКА ТЕХНОЛОГИЧЕСКИХ СЦЕНАРИЕВ И ВЫВОД ПРЕДПРОСМОТРА
@@ -250,7 +166,91 @@ if problem_type in tech_knowledge_base:
     st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший инженер по качеству Никонова-Морозова М.М. • Верифицировано по стандартам СТО ИНТИ © 2026</div>", unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
     # === КОНЕЦ ЗОНЫ ПЕЧАТИ 2 ===
+# Формируем контент для экспорта без элементов управления Streamlit
+export_html = f"""
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{scenario_data['title'] if 'scenario_data' in locals() else 'Технологическая карта'}</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; padding: 30px; line-height: 1.6; color: #333; }}
+        .header {{ margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }}
+        .meta-table {{ width: 100%; margin-bottom: 20px; }}
+        .meta-table td {{ width: 50%; padding: 5px; }}
+        .section {{ margin-top: 20px; margin-bottom: 10px; font-weight: bold; font-size: 16px; border-bottom: 1px solid #ddd; }}
+        .info-box {{ background-color: #f9f9f9; padding: 15px; border-left: 4px solid #0284c7; margin: 10px 0; }}
+        .step {{ margin-bottom: 8px; }}
+        .footer {{ text-align: center; color: #999; font-size: 11px; margin-top: 50px; border-top: 1px solid #ddd; padding-top: 10px; }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>📄 ТЕХНОЛОГИЧЕСКАЯ КАРТА ЛИКВИДАЦИИ ИНЦИДЕНТА</h2>
+    </div>
+    <table class="meta-table">
+        <tr>
+            <td><b>Месторождение:</b> {field_name}</td>
+            <td><b>Проект (Заказчик):</b> {selected_client}</td>
+        </tr>
+        <tr>
+            <td><b>Скважина / Куст:</b> {well_number}</td>
+            <td><b>Инженер по ННБ:</b> {engineer_name}</td>
+        </tr>
+    </table>
+"""
 
+# Если сценарий выбран, дописываем в файл только полезные текстовые данные
+if problem_type in tech_knowledge_base:
+    s_data = tech_knowledge_base[problem_type]
+    export_html += f"""
+    <div class="section">📋 {s_data['title']}</div>
+    <div><b>Применимый стандарт:</b> {s_data['regulations']['standard']}</div>
+    <div class="info-box"><b>Базовый регламент:</b> {s_data['regulations']['rule']}</div>
+    
+    <div class="section">1. Регламент первоочередных действий на роторе:</div>
+    """
+        # Выводим пошаговые действия
+    for step in s_data["mandatory_steps"]:
+        export_html += f'<div class="step">{step}</div>'
+        
+    # Динамический трибологический блок для печатного документа
+    if "смазки" in problem_type.lower():
+        # Считываем текущий выбор инженера из интерфейса
+        current_lub = st.session_state.get("l_opt", "Стандарт")
+        if "Специальная" in current_lub or "lub_special" in current_lub:
+            corrected = round(15.0 * 0.875, 2)  # Расчет корректировки момента
+            export_html += f"""
+            <div class="section">🧮 ТРИБОЛОГИЧЕСКИЙ КОРРЕКТИРОВОЧНЫЙ РАСЧЕТ МОМЕНТА (СТО ИНТИ S.QS.7):</div>
+            <div class="info-box" style="border-left: 4px solid #ef4444; background-color: #fef2f2;">
+                <b>Применяемая смазка:</b> Специализированная безметалловая (полимерная/керамическая)<br>
+                <b>⚠️ КОРРЕКТИРОВОЧНЫЙ МОМЕНТ ДЛЯ КЛЮЧА УМК: {corrected} кН·м</b> (крутящий момент снижен на 12.5% для исключения скрытого перекрута и пластических деформаций резьбы КНБК).
+            </div>
+            """
+        else:
+            export_html += f"""
+            <div class="section">🧮 ТРИБОЛОГИЧЕСКИЙ РАСЧЕТ МОМЕНТА (СТО ИНТИ S.QS.7):</div>
+            <div class="info-box" style="border-left: 4px solid #22c55e; background-color: #f0fdf4;">
+                <b>Применяемая смазка:</b> Стандартная уплотнительная (свинцово-цинковая, типа Р-402)<br>
+                <b>✅ ФИНАЛЬНЫЙ МОМЕНТ ЗАТЯЖКИ НА КЛЮЧЕ УМК: 15.0 кН·м</b> (затяжку соединений проводить строго по номинальному паспортному значению).
+            </div>
+            """
+
+    export_html += f"""
+<div class="section">2. Физика процесса и сопутствующие риски:</div>
+<div><b>Физический эффект:</b> <i>{s_data['physics']['effect']}</i></div>
+<div class="section">3. Требования Заказчика (ЛНД проекта):</div>
+<div>{s_data['clients'].get(selected_client, s_data['clients']['default'])}</div>
+"""
+
+
+# Кнопка для скачивания готового документа
+st.download_button(
+    label="💾 Скачать готовый рапорт для печати",
+    data=export_html,
+    file_name=f"Tech_Card_{well_number.replace(' ', '_')}.html",
+    mime="text/html",
+    key="download_report_btn"
+)
 else:
     st.error("🚨 КРИТИЧЕСКАЯ ОШИБКА: Сценарий не найден в конфигурационном файле JSON.")
 
