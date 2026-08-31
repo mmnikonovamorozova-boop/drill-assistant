@@ -162,50 +162,56 @@ with col_res2:
 st.info(f"ℹ Сводные данные физики процесса: M_паспорт: {p_moment:.1f} кН·м | K_смазки: {k_grease:.2f} | Плечо рычага: {fact_l:.3f} м | Угол α: {angle_alpha:.1f} °")
 
 # =========================================================================
-# БЛОК 4 — МОДУЛЬ КОМПЛЕКСНОГО АУДИТА И СТРЕСС-ТЕСТИРОВАНИЯ РИСКОВ (СМК)
+# БЛОК 4 — МОДУЛЬ КОМПЛЕКСНОЙ ВАЛИДАЦИИ РИСКОВ (СТО ИНТИ S.QS.7)
 # =========================================================================
 st.markdown("---")
-with st.expander("🛡 Модуль комплексной валидации рисков (СТО ИНТИ S.QS.7)", expanded=True):
+st.markdown("### 🛡 Блок 4: Модуль комплексной валидации рисков")
+
+has_umk_error = False
+error_reasons = []  # Массив для фиксации развернутых причин запрета работ
+
+with st.container(border=True):
     # #1 Логика расчета безопасной нагрузки каната (ГОСТ 3241-91) или давления РВД
     if "Электронный" in control_type:
         safe_cable_load = (0.052 * (tros_d ** 2)) / 3.0
         if f_pull_tons > safe_cable_load:
             st.error(f"❌ КРИТИЧЕСКИЙ РИСК: Натяжение ({f_pull_tons:.2f} т) превышает предел ({safe_cable_load:.2f} т)!")
+            has_umk_error = True
+            error_reasons.append(f"Превышение безопасной нагрузки на канат ключа УМК (Фактическое: {f_pull_tons:.2f} т, Допустимое по ГОСТ: {safe_cable_load:.2f} т)")
         else:
             st.success(f"💪 КАНАТ: Нагрузка в норме ({f_pull_tons:.2f} т).")
     else:
         MAX_P = 20.0
         if p_target_mpa > MAX_P:
             st.error(f"❌ КРИТИЧЕСКИЙ РИСК: Давление ({p_target_mpa:.1f} МПа) > РВД ({MAX_P} МПа)!")
+            has_umk_error = True
+            error_reasons.append(f"Превышение предела рабочего давления гидросистемы (Фактическое: {p_target_mpa:.1f} МПа, Лимит РВД: {MAX_P} МПа)")
         else:
             st.success(f"💧 ГИДРАВЛИКА: Давление ({p_target_mpa:.1f} МПа) в норме.")
 
     # #2 Метрологический аудит износа геометрии рычажной системы ключа УМК
-    # Исправлено: подтягиваем реальную длину выбранного ключа из базы данных active_keys_db
     passport_length = active_keys_db.get(selected_key, fact_l)
-    has_umk_error = False
-
+    
     if fact_l < (passport_length * 0.95) or fact_l > (passport_length * 1.05):
         st.error(f"❌ КРИТИЧЕСКИЙ РИСК: Фактическое плечо ({fact_l:.3f} м) отклоняется от паспортного ({passport_length:.3f} м) более чем на 5%!")
         has_umk_error = True
-
+        error_reasons.append(f"Критическое отклонение фактического плеча рычага ({fact_l:.3f} м) от паспортного значения ({passport_length:.3f} м) — нарушение геометрии УМК")
     else:
-        st.write(f"📐 ГЕОМЕТРИЯ: Плечо рычага в допуске ({fact_l:.3f} м).")
-       # # 3. Контроль предела текучести стали (Защита резьбового соединения от смятия)
+        st.success(f"📐 ГЕОМЕТРИЯ: Плечо рычага в допуске ({fact_l:.3f} м).")
+    # #3 Контроль предела текучести стали
     steel_max_moments = {"Д": 35.0, "К": 45.0, "Е": 55.0, "Л": 70.0, "М": 90.0}
-    # Исправлено: берем pipe_steel_group, объявленную на вкладке tab_pipe
     max_allowed_moment = steel_max_moments.get(pipe_steel_group, 999.0)
 
     if M_required > max_allowed_moment:
         st.error(f"❌ ПРЕДЕЛ ТЕКУЧЕСТИ: Момент свинчивания ({M_required:.2f} кН·м) превышает предел ({max_allowed_moment} кН·м) для стали {pipe_steel_group}!")
         has_umk_error = True
+        error_reasons.append(f"Превышение предела текучести стали соединения (Расчетный момент: {M_required:.2f} кН·м, Допустимый для группы {pipe_steel_group}: {max_allowed_moment} кН·м)")
     elif M_required > (max_allowed_moment * 0.90):
         st.warning(f"⚠️ ПРЕДУПРЕЖДЕНИЕ: Момент свинчивания ({M_required:.2f} кН·м) близко к лимиту стали {pipe_steel_group} ({max_allowed_moment} кН·м)!")
     else:
         st.success(f"💪 МАТЕРИАЛ: Соответствие прочности стали {pipe_steel_group} подтверждено.")
-
+    
     # # 4. Итоговый экспертный вердикт системы менеджмента качества (СМК)
-    # Исправлено: упрощенная надежная проверка флага ошибки
     if not has_umk_error:
         st.success("💚 ВЕРИФИКАЦИЯ ПРОЙДЕНА: Параметры свинчивания безопасны и соответствуют СТО ИНТИ.")
         is_order_disabled = False
@@ -214,18 +220,31 @@ with st.expander("🛡 Модуль комплексной валидации р
         is_order_disabled = True
 
 # =========================================================================
-# БЛОК 5 — ОФИЦИАЛЬНОЕ НАРЯД-РАСПОРЯЖЕНИЕ НА СВИНЧИВАНИЕ ТРУБ
+# БЛОК 5 — ОФИЦИАЛЬНЫЙ ДОКУМЕНТ СМК (СТО ИНТИ S.QS.7 / S.QS.8)
 # =========================================================================
 st.markdown("---")
-st.subheader("📋 Блок 5: Распоряжение")
+st.markdown("### 📋 Блок 5: Документ СМК")
 
-# Формирование директивной строки параметров для буровой бригады
-if "Электронный" in control_type:
-  control_line = f"**ЦЕЛЕВОЕ УСИЛИЕ НА ИВЭ-50:** {f_pull_tons:.2f} т \n* Угол натяжения каната α: {angle_alpha:.1f} °"
+if is_order_disabled:
+    file_title = f"Акт_запрета_работ_Скв_{well_number.replace(' ', '_')}"
+    reasons_md = "\n".join([f"* 🚨 {r}" for r in error_reasons])
+    work_order_text = f"""# ОФИЦИАЛЬНЫЙ АКТ О ЗАПРЕТЕ ПРОВЕДЕНИЯ ИНЖЕНЕРНЫХ РАБОТ
+* **Месторождение:** {field_name} | **Скважина/Куст:** {well_number}
+* **Объект контроля:** Свинчивание КНБК ключом УМК
+
+## ВЫЯВЛЕННЫЕ КРИТИЧЕСКИЕ НАРУШЕНИЯ:
+{reasons_md}
+
+---
+Документ сформирован автоматически службой контроля качества по СТО ИНТИ S.QS.7. Свинчивание запрещено до полного устранения дефектов.
+"""
 else:
-    control_line = f"**ЦЕЛЕВОЕ ДАВЛЕНИЕ МАНОМЕТРА:** {p_target_mpa:.2f} МПа ({p_target_mpa * 10.1972:.1f} кгс/см²)"
-
-work_order_text = f"""# РАСПОРЯЖЕНИЕ НА КРЕПЛЕНИЕ СОЕДИНЕНИЙ КНБК
+    file_title = f"Order_UMK_Well_{well_number.replace(' ', '_')}"
+    if "Электронный" in control_type:
+        control_line = f"**ЦЕЛЕВОЕ УСИЛИЕ НА ИВЭ-50:** {f_pull_tons:.2f} т \n* Угол натяжения каната α: {angle_alpha:.1f} °"
+    else:
+        control_line = f"**ЦЕЛЕВОЕ ДАВЛЕНИЕ МАНОМЕТРА:** {p_target_mpa:.2f} МПа ({p_target_mpa * 10.1972:.1f} кгс/см²)"
+    work_order_text = f"""# РАСПОРЯЖЕНИЕ НА КРЕПЛЕНИЕ СОЕДИНЕНИЙ КНБК
 * **Месторождение:** {field_name} | **Скважина/Куст:** {well_number}
 * **Элемент КНБК:** Бурильная труба (Сталь группы {pipe_steel_group})
 
@@ -237,15 +256,14 @@ work_order_text = f"""# РАСПОРЯЖЕНИЕ НА КРЕПЛЕНИЕ СОЕ�
 ---
 Протокол сформирован в соответствии с регламентами СТО ИНТИ S.QS.7 и S.QS.8.
 """
-
-# Отрисовка бланка распоряжения в интерфейсе Streamlit
+# Отрисовка бланка (Распоряжения или Акта запрета) в интерфейсе Streamlit
 with st.container(border=True):
     st.markdown(work_order_text)
     
     st.download_button(
-        label="📄 Скачать официальное Распоряжение (.md)",
+        label="📄 Скачать официальный документ СМК (.md)",
         data=work_order_text,
-        file_name=f"Order_UMK_Well_{well_number.replace(' ', '_')}.md",
-        disabled=is_order_disabled,
+        file_name=f"{file_title}.md",
+        disabled=False,  # Кнопка теперь ВСЕГДА активна для выгрузки Акта или Распоряжения
         use_container_width=True
     )
