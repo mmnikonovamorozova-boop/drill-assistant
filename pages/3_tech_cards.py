@@ -49,16 +49,20 @@ st.markdown("---")
 # ==============================================================================
 st.subheader("📄 ГОТОВЫЙ БЛАНК ДЛЯ ПЕЧАТИ (ТЕХНОЛОГИЧЕСКАЯ КАРТА ИНЦИДЕНТА)")
 
-with st.container(border=True):
-    # Вывод метаданных в бланк (подтягиваются напрямую из боковой панели)
-    col_b1, col_b2 = st.columns(2)
-    with col_b1:
-        st.write(f"**Месторождение:** {field_name}")
-        st.write(f"**Скважина / Куст:** {well_number}")
-    with col_b2:
-        st.write(f"**Проект (Заказчик):** {selected_client}")
-        st.write(f"**Инженер по ННБ:** {engineer_name}")
-    st.markdown("---")
+# Формируем визуальную рамку А4 без создания блоков вложенности в коде
+st.markdown('<div class="print-preview">', unsafe_allow_html=True)
+
+col_b1, col_b2 = st.columns(2)
+with col_b1:
+    st.write(f"**Месторождение:** {field_name}")
+    st.write(f"**Скважина / Куст:** {well_number}")
+with col_b2:
+    st.write(f"**Проект (Заказчик):** {selected_client}")
+    st.write(f"**Инженер по ННБ:** {engineer_name}")
+
+st.markdown("---")
+
+if "Опрессовка" in problem_type:
 
     if "Опрессовка" in problem_type:
     st.markdown("### 🛠️ АКТ ЛЛИКВИДАЦИИ НЕГЕРМЕТИЧНОСТИ КНБК")
@@ -163,3 +167,4 @@ st.markdown(" ")
 st.info("💡 **Инструкция по фиксации акта:** Нажмите комбинацию клавиш **`Ctrl + P`** (или три точки браузера ➡ Печать), выберите принтер «Сохранить как PDF» для формирования официального документа.")
 st.markdown("---")
 st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший инженер по качеству Никонова-Морозова М.М. • Верифицировано по стандартам СТО ИНТИ © 2026</div>", unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
