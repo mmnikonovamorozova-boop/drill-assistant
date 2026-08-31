@@ -140,8 +140,11 @@ if problem_type in tech_knowledge_base:
             """
 
     export_html += f"""
-    <div class="section">2. Физика процесса и сопутствующие риски:</div>
-    <div><b>Физический эффект:</b> <i>{s_data['physics']['effect']}</i></div>
+<div class="section">2. Физика процесса и сопутствующие риски:</div>
+<div><b>Физический эффект:</b> <i>{s_data['physics']['effect']}</i></div>
+<div class="section">3. Требования Заказчика (ЛНД проекта):</div>
+<div>{s_data['clients'].get(selected_client, s_data['clients']['default'])}</div>
+"""
 
 # Кнопка для скачивания готового документа
 st.download_button(
