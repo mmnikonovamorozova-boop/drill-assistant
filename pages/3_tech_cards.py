@@ -12,18 +12,25 @@ st.caption("Полевой контроль технологической ди�
 st.markdown("""
 <style>
     @media print {
-        /* Скрываем все боковые панели, кнопки и элементы интерфейса Streamlit */
-        [data-testid="stSidebar"], 
-        button, 
-        header, 
-        footer, 
-        [data-testid="stHeader"] {
+        /* Скрываем заголовки, сайдбар, футер и кнопки самого Streamlit */
+        header, footer, [data-testid="stSidebar"], button, [data-testid="stHeader"] {
             display: none !important;
+            opacity: 0 !important;
         }
-        /* Делаем блок print-preview видимым и растягиваем на весь лист А4 */
+        /* Очищаем фон глобальных контейнеров фреймворка */
+        .main, .block-container, .stApp {
+            background: none !important;
+            background-color: #ffffff !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+        /* Принудительно отображаем только наш технологический бланк */
         .print-preview {
             display: block !important;
             visibility: visible !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
             width: 100% !important;
             color: #000000 !important;
             background-color: #ffffff !important;
