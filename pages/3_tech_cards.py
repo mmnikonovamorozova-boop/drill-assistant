@@ -131,36 +131,36 @@ if problem_type in tech_knowledge_base:
         if damage_state == d_opts[1]:
             st.error("🚨 МАРШРУТ ОТБРАКОВКИ ИНСТРУМЕНТА")
         elif "смазки" in problem_type.lower():
-        l_opts = [nodes.get("lub_standard", "Стандарт"), nodes.get("lub_special", "Специальная")]
-        lubricant_type = st.radio("🔩 Тип резьбовой смазки (СТО ИНТИ S.QS.7):", l_opts, key="l_opt")
-        
-        st.markdown("##### 🧮 Расчет крутящего момента затяжки для ключа УМК:")
-                # Изолированная логика: импортируем расчет из файла, начинающегося с цифры
-        try:
-            import importlib.util
-            import sys
+            l_opts = [nodes.get("lub_standard", "Стандарт"), nodes.get("lub_special", "Специальная")]
+            lubricant_type = st.radio("🔩 Тип резьбовой смазки (СТО ИНТИ S.QS.7):", l_opts, key="l_opt")
             
-            # Указываем точный путь к файлу модуля расчета УМК
-            spec = importlib.util.spec_from_file_location("raschet_umk", "pages/2_raschet_umk.py")
-            raschet_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(raschet_module)
+            st.markdown("##### 🧮 Расчет крутящего момента затяжки для ключа УМК:")
+                    # Изолированная логика: импортируем расчет из файла, начинающегося с цифры
+            try:
+                import importlib.util
+                import sys
+                
+                # Указываем точный путь к файлу модуля расчета УМК
+                spec = importlib.util.spec_from_file_location("raschet_umk", "pages/2_raschet_umk.py")
+                raschet_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(raschet_module)
+                
+                # Вызываем функцию расчета
+                nominal_torque = raschet_module.calculate_base_torque()
+                st.caption("✅ Базовый номинальный момент успешно импортирован из модуля 'Расчет УМК'.")
+            except Exception:
+                # Если файл переименован или недоступен — даем ручной ввод без падения кода
+                nominal_torque = st.number_input("Внесите номинальный момент затяжки по паспорту КНБК (кН·м):", min_value=0.0, value=15.0, step=0.5)
             
-            # Вызываем функцию расчета
-            nominal_torque = raschet_module.calculate_base_torque()
-            st.caption("✅ Базовый номинальный момент успешно импортирован из модуля 'Расчет УМК'.")
-        except Exception:
-            # Если файл переименован или недоступен — даем ручной ввод без падения кода
-            nominal_torque = st.number_input("Внесите номинальный момент затяжки по паспорту КНБК (кН·м):", min_value=0.0, value=15.0, step=0.5)
-        
-        # Математика трибологии: ЛНД требует снизить момент на безметалловой смазке на 12.5%
-        if lubricant_type == l_opts[1]:
-            st.error("🚨 ВЕТКА Б: КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ КРУТЯЩЕГО МОМЕНТА")
-            corrected_torque = round(nominal_torque * 0.875, 2)
-            st.write(f"⚠️ **Внимание инженера:** Из-за сниженного коэффициента трения безметалловой смазки крутящий момент затяжки на гидроключе снижен до: **`{corrected_torque} кН·м`** (минус 12.5% от номинала).")
-        else:
-            st.success(f"✅ Финальную затяжку КНБК проводить стандартным номинальным моментом: **`{nominal_torque} кН·м`**")
-            
-        st.markdown("---")
+            # Математика трибологии: ЛНД требует снизить момент на безметалловой смазке на 12.5%
+            if lubricant_type == l_opts[1]:
+                st.error("🚨 ВЕТКА Б: КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ КРУТЯЩЕГО МОМЕНТА")
+                corrected_torque = round(nominal_torque * 0.875, 2)
+                st.write(f"⚠️ **Внимание инженера:** Из-за сниженного коэффициента трения безметалловой смазки крутящий момент затяжки на гидроключе снижен до: **`{corrected_torque} кН·м`** (минус 12.5% от номинала).")
+            else:
+                st.success(f"✅ Финальную затяжку КНБК проводить стандартным номинальным моментом: **`{nominal_torque} кН·м`**")
+                
+            st.markdown("---")
     st.markdown("#### 3. Физика процесса и сопутствующие риски:")
     st.write(f"**Физический эффект:** *{scenario_data['physics']['effect']}*")
     st.write(scenario_data["physics"]["description"])
