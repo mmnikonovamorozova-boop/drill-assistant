@@ -107,38 +107,44 @@ if problem_type in tech_knowledge_base:
     for step in scenario_data["mandatory_steps"]:
         st.write(step)
     st.markdown("---")
-    st.markdown("#### 2. Технологический маршрут верификации параметров:")
+       st.markdown("#### 2. Технологический маршрут верификации параметров:")
     nodes = scenario_data.get("interactive_nodes", {})
     
     # Развилка для сценария ОПРЕССОВКИ
     if "Опрессовка" in problem_type:
+        pumps_options = [nodes.get("pumps_normal", "Штатно"), nodes.get("pumps_fail", "Сбой")]
         pumps_state = st.radio(
             "⚙ Режим работы буровых насосов (СТО ИНТИ S.QS.8):",
-            [nodes.get("pumps_normal"), nodes.get("pumps_fail")],
+            pumps_options,
             key="pumps_opt"
         )
-        if "СБОЙ" in pumps_state:
+        # Проверяем выбор по индексу (второй элемент — всегда сбой)
+        if pumps_state == pumps_options[1]:
             st.error("🚨 ЗАФИКСИРОВАНА ОСТАНОВКА ТЕСТА: Давление не наведено наземным комплексом буровой.")
             
+        damage_options = [nodes.get("inspection_pass", "Норма"), nodes.get("inspection_fail", "Брак")]
         damage_state = st.radio(
             "📐 Результат дефектоскопии и ВИК резьбового соединения (СТО ИНТИ S.30.13):",
-            [nodes.get("inspection_pass"), nodes.get("inspection_fail")],
+            damage_options,
             key="damage_opt"
         )
-        if "Брак" in damage_state:
+        # Проверяем выбор по индексу (второй элемент — всегда брак)
+        if damage_state == damage_options[1]:
             st.error("🚨 МАРШРУТ ОТБРАКОВКИ И ОСТАНОВКИ ИНСТРУМЕНТА")
 
     # Развилка для сценария СМАЗКИ
     elif "смазки" in problem_type.lower():
+        lub_options = [nodes.get("lub_standard", "Стандартная"), nodes.get("lub_special", "Специальная")]
         lubricant_type = st.radio(
             "🔩 Тип применяемой резьбовой смазки (СТО ИНТИ S.QS.7):",
-            [nodes.get("lub_standard"), nodes.get("lub_special")],
+            lub_options,
             key="lub_opt"
         )
-        if "снижения" in lubricant_type:
+        if lubricant_type == lub_options[1]:
             st.error("🚨 ВЕТКА Б: КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ КРУТЯЩЕГО МОМЕНТА")
             
     st.markdown("---")
+
     # Выводим физические законы и риски инцидента из JSON
     st.markdown("#### 3. Физика процесса и сопутствующие риски:")
     st.write(f"**Физический эффект:** *{scenario_data['physics']['effect']}*")
