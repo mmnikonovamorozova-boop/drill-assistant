@@ -93,20 +93,6 @@ st.markdown("---")
 # ==============================================================================
 # ЛОГИКА ТЕХНОЛОГИЧЕСКИХ СЦЕНАРИЕВ И ВЫВОД ПРЕДПРОСМОТРА
 # ==============================================================================
-st.subheader("📄 ГОТОВЫЙ БЛАНК ДЛЯ ПЕЧАТИ (ТЕХНОЛОГИЧЕСКАЯ КАРТА ИНЦИДЕНТА)")
-
-# Открываем рамку для печати
-st.markdown('<div class="print-preview">', unsafe_allow_html=True)
-
-col_b1, col_b2 = st.columns(2)
-with col_b1:
-    st.write(f"**Месторождение:** {field_name}")
-    st.write(f"**Скважина / Куст:** {well_number}")
-with col_b2:
-    st.write(f"**Проект (Заказчик):** {selected_client}")
-    st.write(f"**Инженер по ННБ:** {engineer_name}")
-st.markdown("---")
-
 # Проверим наличие инцидента в базе знаний
 if problem_type in tech_knowledge_base:
     scenario_data = tech_knowledge_base[problem_type]
@@ -144,14 +130,21 @@ if problem_type in tech_knowledge_base:
         lubricant_type = st.radio("🔩 Тип резьбовой смазки (СТО ИНТИ S.QS.7):", l_opts, key="l_opt")
         
         st.markdown("##### 🧮 Расчет крутящего момента затяжки для ключа УМК:")
-        # Изолированная логика: пробуем взять расчет или запрашиваем номинал вручную
+                # Изолированная логика: импортируем расчет из файла, начинающегося с цифры
         try:
-            from pages.2_raschet_umk import calculate_base_torque
-            # Если в соседнем модуле есть функция расчета, берем номинал оттуда
-            nominal_torque = calculate_base_torque() 
+            import importlib.util
+            import sys
+            
+            # Указываем точный путь к файлу модуля расчета УМК
+            spec = importlib.util.spec_from_file_location("raschet_umk", "pages/2_raschet_umk.py")
+            raschet_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(raschet_module)
+            
+            # Вызываем функцию расчета
+            nominal_torque = raschet_module.calculate_base_torque()
             st.caption("✅ Базовый номинальный момент успешно импортирован из модуля 'Расчет УМК'.")
-        except ImportError:
-            # Если модули изолированы или соседний файл недоступен — даем ручной ввод без падения кода
+        except Exception:
+            # Если файл переименован или недоступен — даем ручной ввод без падения кода
             nominal_torque = st.number_input("Внесите номинальный момент затяжки по паспорту КНБК (кН·м):", min_value=0.0, value=15.0, step=0.5)
         
         # Математика трибологии: ЛНД требует снизить момент на безметалловой смазке на 12.5%
