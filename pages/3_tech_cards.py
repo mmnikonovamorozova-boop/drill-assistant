@@ -11,23 +11,16 @@ st.caption("Полевой контроль технологической ди�
 # Принудительные CSS-стили для корректного вывода бланка на печать в PDF
 st.markdown("""
 <style>
-    @media print {
-        /* ПРИНЦИП МАСКИ: Скрываем абсолютно всё на странице... */
-        body * {
-            visibility: hidden !important;
-        }
-        /* ...КРОМЕ нашего технологического бланка и его содержимого! */
-        .print-preview, .print-preview * {
-            visibility: visible !important;
-        }
-        /* Сдвигаем чистый бланк в самый левый верхний угол листа А4 */
-        .print-preview {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            display: block !important;
-        }
+    /* Делаем так, чтобы при прямой генерации документа не было лишних полей */
+    @page {
+        size: A4;
+        margin: 20mm;
+    }
+    .print-preview {
+        font-family: 'Arial', sans-serif;
+        color: #000000 !important;
+        background-color: #ffffff !important;
+        line-height: 1.6;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -77,11 +70,75 @@ tech_knowledge_base = load_tech_requirements()
 
 st.markdown("---")
 
-# Экспорт в PDF / Печать
-if st.button("🖨 Распечатать сценарий (Ctrl + P)"):
-    st.components.v1.html("<script>window.print();</script>", height=0, width=0)
+# Формируем контент для экспорта без элементов управления Streamlit
+export_html = f"""
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{scenario_data['title'] if 'scenario_data' in locals() else 'Технологическая карта'}</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; padding: 30px; line-height: 1.6; color: #333; }}
+        .header {{ margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }}
+        .meta-table {{ width: 100%; margin-bottom: 20px; }}
+        .meta-table td {{ width: 50%; padding: 5px; }}
+        .section {{ margin-top: 20px; margin-bottom: 10px; font-weight: bold; font-size: 16px; border-bottom: 1px solid #ddd; }}
+        .info-box {{ background-color: #f9f9f9; padding: 15px; border-left: 4px solid #0284c7; margin: 10px 0; }}
+        .step {{ margin-bottom: 8px; }}
+        .footer {{ text-align: center; color: #999; font-size: 11px; margin-top: 50px; border-top: 1px solid #ddd; padding-top: 10px; }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>📄 ТЕХНОЛОГИЧЕСКАЯ КАРТА ЛИКВИДАЦИИ ИНЦИДЕНТА</h2>
+    </div>
+    <table class="meta-table">
+        <tr>
+            <td><b>Месторождение:</b> {field_name}</td>
+            <td><b>Проект (Заказчик):</b> {selected_client}</td>
+        </tr>
+        <tr>
+            <td><b>Скважина / Куст:</b> {well_number}</td>
+            <td><b>Инженер по ННБ:</b> {engineer_name}</td>
+        </tr>
+    </table>
+"""
 
-st.markdown("---")
+# Если сценарий выбран, дописываем в файл только полезные текстовые данные
+if problem_type in tech_knowledge_base:
+    s_data = tech_knowledge_base[problem_type]
+    export_html += f"""
+    <div class="section">📋 {s_data['title']}</div>
+    <div><b>Применимый стандарт:</b> {s_data['regulations']['standard']}</div>
+    <div class="info-box"><b>Базовый регламент:</b> {s_data['regulations']['rule']}</div>
+    
+    <div class="section">1. Регламент первоочередных действий на роторе:</div>
+    """
+    for step in s_data["mandatory_steps"]:
+        export_html += f'<div class="step">{step}</div>'
+        
+    export_html += f"""
+    <div class="section">2. Физика процесса и сопутствующие риски:</div>
+    <div><b>Физический эффект:</b> <i>{s_data['physics']['effect']}</i></div>
+    <div class="section">3. Требования Заказчика (ЛНД проекта):</div>
+    <div>{s_data['clients'].get(selected_client, s_data['clients']['default'])}</div>
+    """
+
+export_html += """
+    <div class="footer">
+        <b>Разработчик модуля:</b> Старший инженер по качеству Никонова-Морозова М.М. • СТО ИНТИ © 2026
+    </div>
+</body>
+</html>
+"""
+
+# Кнопка для скачивания готового документа
+st.download_button(
+    label="💾 Скачать готовый рапорт для печати",
+    data=export_html,
+    file_name=f"Tech_Card_{well_number.replace(' ', '_')}.html",
+    mime="text/html",
+    key="download_report_btn"
+)
 
 # ==============================================================================
 # ЛОГИКА ТЕХНОЛОГИЧЕСКИХ СЦЕНАРИЕВ И ВЫВОД ПРЕДПРОСМОТРА
