@@ -111,8 +111,6 @@ if problem_type in tech_knowledge_base:
     
     # Выводим пошаговые действия
     st.markdown("#### 1. Регламент первоочередных действий на роторе:")
-    # Выводим пошаговые действия
-    st.markdown("#### 1. Регламент первоочередных действий на роторе:")
     for step in scenario_data["mandatory_steps"]:
         st.write(step)
     st.markdown("---")
