@@ -187,5 +187,5 @@ if problem_type in tech_knowledge_base:
         mime="text/plain",
         key="download_report_btn"
 )
-    else:
-            st.error("🚨 КРИТИЧЕСКАЯ ОШИБКА: Сценарий не найден в конфигурационном файле JSON.")
+else:
+        st.error("🚨 КРИТИЧЕСКАЯ ОШИБКА: Сценарий не найден в конфигурационном файле JSON.")
