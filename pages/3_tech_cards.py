@@ -204,7 +204,7 @@ if problem_type in tech_knowledge_base:
         if damage_state == d_opts[1]:
             st.error("🚨 МАРШРУТ ОТБРАКОВКИ ИНСТРУМЕНТА")
             
-        elif "смаз" in problem_type.lower():
+        elif problem_type == "Сборка: Избыточное нанесение резьбовой смазки":
             l_opts = [nodes.get("lub_standard", "Стандарт"), nodes.get("lub_special", "Специальная")]
             lubricant_type = st.radio("🔩 Тип применяемой резьбовой смазки (СТО ИНТИ S.QS.7):", l_opts, key="l_opt")
             
