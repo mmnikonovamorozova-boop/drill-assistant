@@ -113,23 +113,35 @@ if problem_type in tech_knowledge_base:
     
     <div class="section">1. Регламент первоочередных действий на роторе:</div>
     """
+        # Выводим пошаговые действия
     for step in s_data["mandatory_steps"]:
         export_html += f'<div class="step">{step}</div>'
         
+    # Динамический трибологический блок для печатного документа
+    if "смазки" in problem_type.lower():
+        # Считываем текущий выбор инженера из интерфейса
+        current_lub = st.session_state.get("l_opt", "Стандарт")
+        if "Специальная" in current_lub or "lub_special" in current_lub:
+            corrected = round(15.0 * 0.875, 2)  # Расчет корректировки момента
+            export_html += f"""
+            <div class="section">🧮 ТРИБОЛОГИЧЕСКИЙ КОРРЕКТИРОВОЧНЫЙ РАСЧЕТ МОМЕНТА (СТО ИНТИ S.QS.7):</div>
+            <div class="info-box" style="border-left: 4px solid #ef4444; background-color: #fef2f2;">
+                <b>Применяемая смазка:</b> Специализированная безметалловая (полимерная/керамическая)<br>
+                <b>⚠️ КОРРЕКТИРОВОЧНЫЙ МОМЕНТ ДЛЯ КЛЮЧА УМК: {corrected} кН·м</b> (крутящий момент снижен на 12.5% для исключения скрытого перекрута и пластических деформаций резьбы КНБК).
+            </div>
+            """
+        else:
+            export_html += f"""
+            <div class="section">🧮 ТРИБОЛОГИЧЕСКИЙ РАСЧЕТ МОМЕНТА (СТО ИНТИ S.QS.7):</div>
+            <div class="info-box" style="border-left: 4px solid #22c55e; background-color: #f0fdf4;">
+                <b>Применяемая смазка:</b> Стандартная уплотнительная (свинцово-цинковая, типа Р-402)<br>
+                <b>✅ ФИНАЛЬНЫЙ МОМЕНТ ЗАТЯЖКИ НА КЛЮЧЕ УМК: 15.0 кН·м</b> (затяжку соединений проводить строго по номинальному паспортному значению).
+            </div>
+            """
+
     export_html += f"""
     <div class="section">2. Физика процесса и сопутствующие риски:</div>
     <div><b>Физический эффект:</b> <i>{s_data['physics']['effect']}</i></div>
-    <div class="section">3. Требования Заказчика (ЛНД проекта):</div>
-    <div>{s_data['clients'].get(selected_client, s_data['clients']['default'])}</div>
-    """
-
-export_html += """
-    <div class="footer">
-        <b>Разработчик модуля:</b> Старший инженер по качеству Никонова-Морозова М.М. • СТО ИНТИ © 2026
-    </div>
-</body>
-</html>
-"""
 
 # Кнопка для скачивания готового документа
 st.download_button(
