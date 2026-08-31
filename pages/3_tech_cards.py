@@ -63,8 +63,6 @@ with col_b2:
 st.markdown("---")
 
 if "Опрессовка" in problem_type:
-
-    if "Опрессовка" in problem_type:
     st.markdown("### 🛠️ АКТ ЛЛИКВИДАЦИИ НЕГЕРМЕТИЧНОСТИ КНБК")
     st.caption("Полевой аудит устья по стандарту ИНТИ S.100.3")
     st.markdown("---")
