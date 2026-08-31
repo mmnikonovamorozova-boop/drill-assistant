@@ -172,19 +172,20 @@ if problem_type in tech_knowledge_base:
     st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший инженер по качеству Никонова-Морозова М.М. • Верифицировано по стандартам СТО ИНТИ © 2026</div>", unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
         # === СБОРКА ТЕКСТОВОГО РАПОРТА ДЛЯ ПЕЧАТИ ===
-    current_lub = st.session_state.get("l_opt", "Стандарт")
-    rep_torque = f"{round(15.0 * 0.875, 2)} кН·м (Снижен на 12.5%)" if "Специальная" in current_lub else "15.0 кН·м (Номинал)"
-    
-    # Собираем текстовый рапорт
-    report_text = f"ТЕХНОЛОГИЧЕСКАЯ КАРТА ЛИКВИДАЦИИ ИНЦИДЕНТА\nМесторождение: {field_name}\nСкважина: {well_number}\nЗаказчик: {selected_client}\nИнженер по ННБ: {engineer_name}\n\nСценарий: {problem_type}\nКрутящий момент на гидроключе УМК: {rep_torque}"
-    
-    # Выводим кнопку скачивания в боковую панель слева
-    st.sidebar.markdown("---")
-    st.sidebar.download_button(
-        label="💾 Скачать готовый рапорт",
-        data=report_text,
-        file_name=f"Tech_Card_{well_number.replace(' ', '_')}.txt",
-        mime="text/plain",
-        key="download_report_btn"
+        current_lub = st.session_state.get("l_opt", "Стандарт")
+        rep_torque = f"{round(15.0 * 0.875, 2)} кН·м (Снижен на 12.5%)" if "Специальная" in current_lub else "15.0 кН·м (Номинал)"
+        
+        # Собираем текстовый рапорт
+        report_text = f"ТЕХНОЛОГИЧЕСКАЯ КАРТА ЛИКВИДАЦИИ ИНЦИДЕНТА\nМесторождение: {field_name}\nСкважина: {well_number}\nЗаказчик: {selected_client}\nИнженер по ННБ: {engineer_name}\n\nСценарий: {problem_type}\nКрутящий момент на гидроключе УМК: {rep_torque}"
+        
+        # Выводим кнопку скачивания в боковую панель слева
+        st.sidebar.markdown("---")
+        st.sidebar.download_button(
+            label="💾 Скачать готовый рапорт",
+            data=report_text,
+            file_name=f"Tech_Card_{well_number.replace(' ', '_')}.txt",
+            mime="text/plain",
+            key="download_report_btn"
     )
-
+else:
+    st.error("🚨 КРИТИЧЕСКАЯ ОШИБКА: Сценарий не найден в конфигурационном файле JSON.")
