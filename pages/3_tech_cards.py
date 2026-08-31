@@ -105,11 +105,11 @@ if problem_type in tech_knowledge_base:
     st.markdown('</div>', unsafe_allow_html=True)
     # === КОНЕЦ ЗОНЫ ПЕЧАТИ 1 ===
 
-    # ТЕХНОЛОГИЧЕСКИЙ МАРШРУТ (Остается на экране, не идет на печать)
+        # === ТЕХНОЛОГИЧЕСКИЙ МАРШРУТ (БЕЗ ПЕЧАТИ) ===
     st.markdown("#### 2. Маршрут верификации параметров:")
     nodes = scenario_data.get("interactive_nodes", {})
     
-    if "Опрессовка" in problem_type:
+    if problem_type == "Опрессовка: Течь/падение давления в замковом стыке КНБК":
         p_opts = [nodes.get("pumps_normal", "Штатно"), nodes.get("pumps_fail", "Сбой")]
         pumps_state = st.radio("⚙ Режим работы насосов:", p_opts, key="p_opt")
         if pumps_state == p_opts[1]:
@@ -119,30 +119,23 @@ if problem_type in tech_knowledge_base:
         damage_state = st.radio("📐 Результат дефектоскопии:", d_opts, key="d_opt")
         if damage_state == d_opts[1]:
             st.error("🚨 МАРШРУТ ОТБРАКОВКИ ИНСТРУМЕНТА")
-            
-        elif problem_type == "Сборка: Избыточное нанесение резьбовой смазки":
-            l_opts = [nodes.get("lub_standard", "Стандарт"), nodes.get("lub_special", "Специальная")]
-            lubricant_type = st.radio("🔩 Тип применяемой резьбовой смазки (СТО ИНТИ S.QS.7):", l_opts, key="l_opt")
-            
-            st.markdown("##### 🧮 Расчет момента затяжки для гидроключа УМК:")
-            
-            # Простой, понятный и изолированный ввод базового момента
-            nominal_torque = st.number_input(
-                "Введите номинальный момент свинчивания по паспорту резьбы КНБК (кН·м):", 
-                min_value=0.0, 
-                value=15.0, 
-                step=0.5
-            )
-            
-            # Математика трибологии ЛНД: расчет снижения на безметалловой смазке
-            if lubricant_type == l_opts[1]:
-                st.error("🚨 ВЕТКА Б: КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ КРУТЯЩЕГО МОМЕНТА (БЕЗМЕТАЛЛОВАЯ СМАЗКА)")
-                corrected_torque = round(nominal_torque * 0.875, 2)
-                st.write(f"⚠️ **Внимание инженера:** Из-за сверхнизкого коэффициента трения безметалловой смазки крутящий момент затяжки на гидроключе снижен до: **`{corrected_torque} кН·м`** (минус 12.5% от номинала).")
-            else:
-                st.success(f"✅ Финальную затяжку КНБК проводить стандартным номинальным моментом: **`{nominal_torque} кН·м`**")
-                
-            st.markdown("---")
+    elif problem_type == "Сборка: Избыточное нанесение резьбовой смазки":
+        l_opts = [nodes.get("lub_standard", "Стандарт"), nodes.get("lub_special", "Специальная")]
+        lubricant_type = st.radio("🔩 Тип применяемой резьбовой смазки (СТО ИНТИ S.QS.7):", l_opts, key="l_opt")
+        
+        st.markdown("##### 🧮 Расчет момента затяжки для гидроключа УМК:")
+        nominal_torque = st.number_input(
+            "Введите номинальный момент свинчивания по паспорту резьбы КНБК (кН·м):",
+            min_value=0.0, value=15.0, step=0.5
+        )
+        
+        if lubricant_type == l_opts[1]:
+            st.error("🚨 ВЕТКА Б: КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ КРУТЯЩЕГО МОМЕНТА (БЕЗМЕТАЛЛОВАЯ СМАЗКА)")
+            corrected_torque = round(nominal_torque * 0.875, 2)
+            st.write(f"⚠️ **Внимание инженера:** Из-за сверхнизкого коэффициента трения безметалловой смазки момент снижен до: **`{corrected_torque} кН·м`** (минус 12.5%).")
+        else:
+            st.success(f"✅ Финальную затяжку КНБК проводить стандартным моментом: **`{nominal_torque} кН·м`**")
+    st.markdown("---")
 
     # === ЗОНА ПЕЧАТИ 2: Физика процесса и ЛНД Заказчика ===
     st.markdown('<div class="print-preview">', unsafe_allow_html=True)
@@ -166,6 +159,10 @@ if problem_type in tech_knowledge_base:
     st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший инженер по качеству Никонова-Морозова М.М. • Верифицировано по стандартам СТО ИНТИ © 2026</div>", unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
     # === КОНЕЦ ЗОНЫ ПЕЧАТИ 2 ===
+
+else:
+    st.error("🚨 КРИТИЧЕСКАЯ ОШИБКА: Сценарий не найден в конфигурационном файле JSON.")
+
     # Формируем контент для экспорта без элементов управления Streamlit
     export_html = f"""
     <html>
