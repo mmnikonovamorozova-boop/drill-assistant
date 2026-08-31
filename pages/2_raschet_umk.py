@@ -190,19 +190,18 @@ with st.expander("🛡 Модуль комплексной валидации р
         has_umk_error = True
     else:
         st.write(f"📐 ГЕОМЕТРИЯ: Плечо рычага в допуске ({fact_l:.3f} м).")
-    # 3. Контроль предела текучести стали (Защита резьбового соединения от смятия)
+       # # 3. Контроль предела текучести стали (Защита резьбового соединения от смятия)
     steel_max_moments = {"Д": 35.0, "К": 45.0, "Е": 55.0, "Л": 70.0, "М": 90.0}
-    # Исправлено: используем корректное имя переменной pipe_steel из вашей шины параметров
-    max_allowed_moment = steel_max_moments.get(pipe_steel, 999.0)
+    # Исправлено: берем pipe_steel_group, объявленную на вкладке tab_pipe
+    max_allowed_moment = steel_max_moments.get(pipe_steel_group, 999.0)
 
     if M_required > max_allowed_moment:
-        st.error(f"❌ ПРЕДЕЛ ТЕКУЧЕСТИ: Момент свинчивания ({M_required:.2f} кН·м) превышает предел ({max_allowed_moment} кН·м) для стали {pipe_steel}!")
+        st.error(f"❌ ПРЕДЕЛ ТЕКУЧЕСТИ: Момент свинчивания ({M_required:.2f} кН·м) превышает предел ({max_allowed_moment} кН·м) для стали {pipe_steel_group}!")
         has_umk_error = True
     elif M_required > (max_allowed_moment * 0.90):
-        st.warning(f"⚠️ ПРЕДУПРЕЖДЕНИЕ: Момент свинчивания ({M_required:.2f} кН·м) близко к лимиту стали {pipe_steel} ({max_allowed_moment} кН·м)!")
-        # Не взводим флаг блокировки, это лишь предупреждение
+        st.warning(f"⚠️ ПРЕДУПРЕЖДЕНИЕ: Момент свинчивания ({M_required:.2f} кН·м) близко к лимиту стали {pipe_steel_group} ({max_allowed_moment} кН·м)!")
     else:
-        st.success(f"💪 МАТЕРИАЛ: Соответствие прочности стали {pipe_steel} подтверждено.")
+        st.success(f"💪 МАТЕРИАЛ: Соответствие прочности стали {pipe_steel_group} подтверждено.")
 
     # # 4. Итоговый экспертный вердикт системы менеджмента качества (СМК)
     # Исправлено: упрощенная надежная проверка флага ошибки
