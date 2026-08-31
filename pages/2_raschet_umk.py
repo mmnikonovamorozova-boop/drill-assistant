@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import os
+import numpy as np
 
 # --- АВТЕНТИФИКАЦИЯ И НАСТРОЙКА ---
 if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
@@ -117,12 +118,24 @@ with tab_tribology:
 st.markdown("---")
 st.markdown("### 📊 Блок 3: Предиктивный расчет параметров свинчивания")
 
+# Извлекаем коэффициент смазки из строки, выбранной на вкладке tab_tribology
+grease_dict = {
+    "Стандартная (API)": 1.0, 
+    "Графитовая (K=1.15)": 1.15, 
+    "Тефлоновая (K=0.85)": 0.85, 
+    "Прочая специальная (K=1.3)": 1.3
+}
+k_grease = grease_dict.get(grease_type, 1.0)
+
+# Добавляем ввод угла натяжения каната, который раньше отсутствовал в коде
+angle_alpha = st.number_input("Фактический угол натяжения каната (α), град:", min_value=10.0, max_value=180.0, value=90.0, step=1.0)
 # 1. Расчет скорректированного целевого момента с учетом трения смазки
 M_required = p_moment * k_grease
-g_const = 9.80665 # Точная константа ускорения свободного падения по ГОСТ
+g_const = 9.80665  # Точная константа ускорения свободного падения по ГОСТ
 
 # 2. Расчет целевых уставок в зависимости от типа контроля момента
-safe_angle = max(angle_alpha, 10.0) # Защита от деления на ноль
+safe_angle = max(angle_alpha, 10.0)  # Защита от деления на ноль
+
 if angle_alpha < 10.0:
     st.error("🚨 КРИТИЧЕСКИЙ УГОЛ: Угол менее 10°!")
 
@@ -131,64 +144,70 @@ if "Электронный" in control_type:
     f_pull_tons = (M_required / (fact_l * np.sin(np.radians(safe_angle)))) / g_const
     target_unit = f"{f_pull_tons:.2f} т"
     label_text = "🎯 Целевое усилие натяжения на ИВЭ-50:"
-    p_target_mpa = 0.0 
+    p_target_mpa = 0.0
 else:
-    # Исправлено: Давление с учетом утери момента (sin(alpha))
+    # Расчет давления с учетом утери момента (sin(alpha))
     p_target_mpa = M_required / (k_hydr * np.sin(np.radians(safe_angle)))
     p_target_atm = p_target_mpa * 10.1972
     target_unit = f"{p_target_mpa:.2f} МПа ({p_target_atm:.1f} кгс/см²)"
     label_text = "🎯 Целевое давление гидросистемы:"
     f_pull_tons = 0.0
-
 # 3. Визуализация результатов расчета в интерфейсе Streamlit
 col_res1, col_res2 = st.columns(2)
 with col_res1:
     st.metric(label=label_text, value=target_unit)
 with col_res2:
-    st.metric(label="⚙️ Скорректированный момент на резьбе:", value=f"{M_required:.2f} кН·м")
+    st.metric(label="⚙ Скорректированный момент на резьбе:", value=f"{M_required:.2f} кН·м")
 
-st.info(f"ℹ️ Сводные данные физики процесса: M_паспорт: {p_moment:.1f} кН·м | K_смазки: {k_grease:.2f} | Плечо рычага: {fact_l:.3f} м | Угол α: {angle_alpha:.1f}°")
+st.info(f"ℹ Сводные данные физики процесса: M_паспорт: {p_moment:.1f} кН·м | K_смазки: {k_grease:.2f} | Плечо рычага: {fact_l:.3f} м | Угол α: {angle_alpha:.1f} °")
 
 # =========================================================================
 # БЛОК 4 — МОДУЛЬ КОМПЛЕКСНОГО АУДИТА И СТРЕСС-ТЕСТИРОВАНИЯ РИСКОВ (СМК)
 # =========================================================================
 st.markdown("---")
-with st.expander("🛠️ Модуль комплексной валидации рисков (СТО ИНТИ S.QS.7)", expanded=True):
-    # Логика расчета безопасной нагрузки каната (ГОСТ 3241-91) или давления РВД
+with st.expander("🛡 Модуль комплексной валидации рисков (СТО ИНТИ S.QS.7)", expanded=True):
+    # #1 Логика расчета безопасной нагрузки каната (ГОСТ 3241-91) или давления РВД
     if "Электронный" in control_type:
         safe_cable_load = (0.052 * (tros_d ** 2)) / 3.0
         if f_pull_tons > safe_cable_load:
-            st.error(f"❌ КРИТИЧЕСКИЙ РИСК: Натяжение ({f_pull_tons:.2f} т) превышает предел ({safe_cable_load:.2f} т).")
+            st.error(f"❌ КРИТИЧЕСКИЙ РИСК: Натяжение ({f_pull_tons:.2f} т) превышает предел ({safe_cable_load:.2f} т)!")
         else:
-            st.success(f"✅ КАНАТ: Нагрузка в норме ({f_pull_tons:.2f} т).")
+            st.success(f"💪 КАНАТ: Нагрузка в норме ({f_pull_tons:.2f} т).")
     else:
         MAX_P = 20.0
         if p_target_mpa > MAX_P:
             st.error(f"❌ КРИТИЧЕСКИЙ РИСК: Давление ({p_target_mpa:.1f} МПа) > РВД ({MAX_P} МПа)!")
         else:
-            st.success(f"✅ ГИДРАВЛИКА: Давление {p_target_mpa:.1f} МПа в норме.")
-    # 2. Метрологический аудит износа геометрии рычажной системы ключа УМК
+            st.success(f"💧 ГИДРАВЛИКА: Давление ({p_target_mpa:.1f} МПа) в норме.")
+
+    # #2 Метрологический аудит износа геометрии рычажной системы ключа УМК
+    # Извлекаем паспортную длину ключа из выбранной модели в реестре для верификации
+    passport_length = selected_key_data.get("L_m", fact_l)
+    has_umk_error = False
+    
     if fact_l < (passport_length * 0.95):
-        st.warning(f"🚨 АНОМАЛИЯ ГЕОМЕТРИИ: ... (укорочение рычага)")
+        st.warning(f"⚠️ АНОМАЛИЯ ГЕОМЕТРИИ: Фактическое плечо ({fact_l:.3f} м) критически меньше паспортного ({passport_length:.3f} м) — укорочение рычага!")
         has_umk_error = True
     else:
-        st.write(f"✅ ГЕОМЕТРИЯ: ... (допуск)")
-
-    # 3. Контроль предела текучести стали (Защита резьбового соединения от смятия)
+        st.write(f"📐 ГЕОМЕТРИЯ: Плечо рычага в допуске ({fact_l:.3f} м).")
+    # # 3. Контроль предела текучести стали (Защита резьбового соединения от смятия)
     steel_max_moments = {"Д": 35.0, "К": 45.0, "Е": 55.0, "Л": 70.0, "М": 90.0}
-    max_allowed_moment = steel_max_moments.get(pipe_steel_group, 999.0)
+    # Исправлено: используем корректное имя переменной pipe_steel из вашей шины параметров
+    max_allowed_moment = steel_max_moments.get(pipe_steel, 999.0)
 
-    if p_moment > max_allowed_moment:
-        st.error(f"❌ ПРЕДЕЛ ТЕКУЧЕСТИ: ... (превышение предела {pipe_steel_group})")
+    if M_required > max_allowed_moment:
+        st.error(f"❌ ПРЕДЕЛ ТЕКУЧЕСТИ: Момент свинчивания ({M_required:.2f} кН·м) превышает предел ({max_allowed_moment} кН·м) для стали {pipe_steel}!")
         has_umk_error = True
     elif M_required > (max_allowed_moment * 0.90):
-        st.warning(f"🚨 ПРЕДУПРЕЖДЕНИЕ: ... (близко к лимиту)")
-        has_umk_error = False
+        st.warning(f"⚠️ ПРЕДУПРЕЖДЕНИЕ: Момент свинчивания ({M_required:.2f} кН·м) близко к лимиту стали {pipe_steel} ({max_allowed_moment} кН·м)!")
+        # Не взводим флаг блокировки, это лишь предупреждение
     else:
-        st.success(f"✅ МАТЕРИАЛ: ... (соответствие стали)")
-    # 4. Итоговый экспертный вердикт системы менеджмента качества (СМК)
-    if 'has_umk_error' not in locals() or not has_umk_error:
-        st.success("🟢 ВЕРИФИКАЦИЯ ПРОЙДЕНА: Параметры свинчивания безопасны и соответствуют СТО ИНТИ.")
+        st.success(f"💪 МАТЕРИАЛ: Соответствие прочности стали {pipe_steel} подтверждено.")
+
+    # # 4. Итоговый экспертный вердикт системы менеджмента качества (СМК)
+    # Исправлено: упрощенная надежная проверка флага ошибки
+    if not has_umk_error:
+        st.success("💚 ВЕРИФИКАЦИЯ ПРОЙДЕНА: Параметры свинчивания безопасны и соответствуют СТО ИНТИ.")
         is_order_disabled = False
     else:
         st.error("🚨 СВИНЧИВАНИЕ КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО: Устраните нарушения технологического режима!")
@@ -202,14 +221,15 @@ st.subheader("📋 Блок 5: Распоряжение")
 
 # Формирование директивной строки параметров для буровой бригады
 if "Электронный" in control_type:
-    control_line = f"**ЦЕЛЕВОЕ УСИЛИЕ НА ИВЭ-50:** {f_pull_tons:.2f} т\n**Угол натяжения каната α:** {angle_alpha} °"
+    control_line = f"**ЦЕЛЕВОЕ УСИЛИЕ НА ИВЭ-50:** {f_pull_tons:.2f} т \n* Угол натяжения каната α: {angle_alpha:.1} °"
 else:
     control_line = f"**ЦЕЛЕВОЕ ДАВЛЕНИЕ МАНОМЕТРА:** {p_target_mpa:.2f} МПа ({p_target_mpa * 10.1972:.1f} кгс/см²)"
 
 # Текст официального распоряжения СМК
+# Исправлено: pipe_steel_group заменена на корректную переменную pipe_steel
 work_order_text = f"""# РАСПОРЯЖЕНИЕ НА КРЕПЛЕНИЕ СОЕДИНЕНИЙ КНБК
-**Месторождение:** {field_name} | **Скважина/Куст:** {well_number}
-**Элемент КНБК:** Бурильная труба (Сталь группы {pipe_steel_group})
+* **Месторождение:** {field_name} | **Скважина/Куст:** {well_number}
+* **Элемент КНБК:** Бурильная труба (Сталь группы {pipe_steel})
 
 **ТЕХНОЛОГИЧЕСКИЕ УСТАВКИ СВИНЧИВАНИЯ:**
 * Номинальный момент резьбы: {p_moment:.1f} кН·м
@@ -219,15 +239,14 @@ work_order_text = f"""# РАСПОРЯЖЕНИЕ НА КРЕПЛЕНИЕ СОЕ�
 ---
 Протокол сформирован в соответствии с регламентами СТО ИНТИ S.QS.7 и S.QS.8.
 """
-
 # Отрисовка бланка распоряжения в интерфейсе Streamlit
 with st.container(border=True):
     st.markdown(work_order_text)
+    
     st.download_button(
-        label="📥 Скачать официальное Распоряжение (.md)",
+        label="📄 Скачать официальное Распоряжение (.md)",
         data=work_order_text,
         file_name=f"Order_UMK_Well_{well_number.replace(' ', '_')}.md",
         disabled=is_order_disabled,
         use_container_width=True
     )
-
