@@ -188,25 +188,25 @@ if problem_type in tech_knowledge_base:
         if damage_state == d_opts[1]:
             st.error("🚨 МАРШРУТ ОТБРАКОВКИ ИНСТРУМЕНТА")
             
-    elif "смазки" in problem_type.lower():
+        elif "смазки" in problem_type.lower():
         l_opts = [nodes.get("lub_standard", "Стандарт"), nodes.get("lub_special", "Специальная")]
-        lubricant_type = st.radio("🔩 Тип резьбовой смазки (СТО ИНТИ S.QS.7):", l_opts, key="l_opt")
+        lubricant_type = st.radio("🔩 Тип применяемой резьбовой смазки (СТО ИНТИ S.QS.7):", l_opts, key="l_opt")
         
-        st.markdown("##### 🧮 Расчет крутящего момента затяжки для ключа УМК:")
-        try:
-            import importlib.util
-            spec = importlib.util.spec_from_file_location("raschet_umk", "pages/2_raschet_umk.py")
-            raschet_module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(raschet_module)
-            nominal_torque = raschet_module.calculate_base_torque()
-            st.caption("✅ Базовый номинальный момент успешно импортирован из модуля 'Расчет УМК'.")
-        except Exception:
-            nominal_torque = st.number_input("Внесите номинальный момент затяжки по паспорту КНБК (кН·м):", min_value=0.0, value=15.0, step=0.5)
-            
+        st.markdown("##### 🧮 Расчет момента затяжки для гидроключа УМК:")
+        
+        # Простой, понятный и изолированный ввод базового момента
+        nominal_torque = st.number_input(
+            "Введите номинальный момент свинчивания по паспорту резьбы КНБК (кН·м):", 
+            min_value=0.0, 
+            value=15.0, 
+            step=0.5
+        )
+        
+        # Математика трибологии ЛНД: расчет снижения на безметалловой смазке
         if lubricant_type == l_opts[1]:
-            st.error("🚨 ВЕТКА Б: КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ КРУТЯЩЕГО МОМЕНТА")
+            st.error("🚨 ВЕТКА Б: КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ КРУТЯЩЕГО МОМЕНТА (БЕЗМЕТАЛЛОВАЯ СМАЗКА)")
             corrected_torque = round(nominal_torque * 0.875, 2)
-            st.write(f"⚠️ **Внимание инженера:** Из-за сниженного коэффициента трения безметалловой смазки крутящий момент затяжки на гидроключе снижен до: **`{corrected_torque} кН·м`** (минус 12.5% от номинала).")
+            st.write(f"⚠️ **Внимание инженера:** Из-за сверхнизкого коэффициента трения безметалловой смазки крутящий момент затяжки на гидроключе снижен до: **`{corrected_torque} кН·м`** (минус 12.5% от номинала).")
         else:
             st.success(f"✅ Финальную затяжку КНБК проводить стандартным номинальным моментом: **`{nominal_torque} кН·м`**")
             
