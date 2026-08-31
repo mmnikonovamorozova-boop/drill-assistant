@@ -12,28 +12,21 @@ st.caption("Полевой контроль технологической ди�
 st.markdown("""
 <style>
     @media print {
-        /* Скрываем заголовки, сайдбар, футер и кнопки самого Streamlit */
-        header, footer, [data-testid="stSidebar"], button, [data-testid="stHeader"] {
-            display: none !important;
-            opacity: 0 !important;
+        /* ПРИНЦИП МАСКИ: Скрываем абсолютно всё на странице... */
+        body * {
+            visibility: hidden !important;
         }
-        /* Очищаем фон глобальных контейнеров фреймворка */
-        .main, .block-container, .stApp {
-            background: none !important;
-            background-color: #ffffff !important;
-            padding: 0 !important;
-            margin: 0 !important;
-        }
-        /* Принудительно отображаем только наш технологический бланк */
-        .print-preview {
-            display: block !important;
+        /* ...КРОМЕ нашего технологического бланка и его содержимого! */
+        .print-preview, .print-preview * {
             visibility: visible !important;
+        }
+        /* Сдвигаем чистый бланк в самый левый верхний угол листа А4 */
+        .print-preview {
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
             width: 100% !important;
-            color: #000000 !important;
-            background-color: #ffffff !important;
+            display: block !important;
         }
     }
 </style>
