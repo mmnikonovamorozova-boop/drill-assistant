@@ -65,7 +65,7 @@ st.markdown("---")
 # ==============================================================================
 st.subheader("📄 ГОТОВЫЙ БЛАНК ДЛЯ ПЕЧАТИ (ТЕХНОЛОГИЧЕСКАЯ КАРТА ИНЦИДЕНТА)")
 
-# Формируем визуальную рамку А4 без создания блоков вложенности в коде
+# Открываем рамку для печати
 st.markdown('<div class="print-preview">', unsafe_allow_html=True)
 
 col_b1, col_b2 = st.columns(2)
@@ -75,106 +75,61 @@ with col_b1:
 with col_b2:
     st.write(f"**Проект (Заказчик):** {selected_client}")
     st.write(f"**Инженер по ННБ:** {engineer_name}")
-
 st.markdown("---")
 
-# Проверяем, что выбранный инцидент есть в нашей JSON базе знаний
+# Проверяем наличие инцидента в базе знаний
 if problem_type in tech_knowledge_base:
     scenario_data = tech_knowledge_base[problem_type]
     
-    st.subheader("📄 ГОТОВЫЙ БЛАНК ДЛЯ ПЕЧАТИ (ТЕХНОЛОГИЧЕСКАЯ КАРТА ИНЦИДЕНТА)")
-    
-    # Открываем визуальную рамку для печати
-    st.markdown('<div class="print-preview">', unsafe_allow_html=True)
-    
-    # Выводим метаданные рапорта в две колонки
-    col_b1, col_b2 = st.columns(2)
-    with col_b1:
-        st.write(f"**Месторождение:** {field_name}")
-        st.write(f"**Скважина / Куст:** {well_number}")
-    with col_b2:
-        st.write(f"**Проект (Заказчик):** {selected_client}")
-        st.write(f"**Инженер по ННБ:** {engineer_name}")
-    st.markdown("---")
-    # Выводим динамический заголовок акта и стандарт из JSON
+    # Выводим заголовок акта и стандарт из JSON
     st.markdown(f"### {scenario_data['title']}")
     st.markdown(f"**Применимый стандарт:** `{scenario_data['regulations']['standard']}`")
     st.info(scenario_data['regulations']['rule'])
     st.markdown("---")
     
-    # Выводим пошаговый базовый регламент действий на роторе
+    # Выводим пошаговые действия
     st.markdown("#### 1. Регламент первоочередных действий на роторе:")
     for step in scenario_data["mandatory_steps"]:
         st.write(step)
     st.markdown("---")
-       st.markdown("#### 2. Технологический маршрут верификации параметров:")
+    st.markdown("#### 2. Маршрут верификации параметров:")
     nodes = scenario_data.get("interactive_nodes", {})
     
-    # Развилка для сценария ОПРЕССОВКИ
     if "Опрессовка" in problem_type:
-        pumps_options = [nodes.get("pumps_normal", "Штатно"), nodes.get("pumps_fail", "Сбой")]
-        pumps_state = st.radio(
-            "⚙ Режим работы буровых насосов (СТО ИНТИ S.QS.8):",
-            pumps_options,
-            key="pumps_opt"
-        )
-        # Проверяем выбор по индексу (второй элемент — всегда сбой)
-        if pumps_state == pumps_options[1]:
-            st.error("🚨 ЗАФИКСИРОВАНА ОСТАНОВКА ТЕСТА: Давление не наведено наземным комплексом буровой.")
+        p_opts = [nodes.get("pumps_normal", "Штатно"), nodes.get("pumps_fail", "Сбой")]
+        pumps_state = st.radio("⚙️ Режим работы насосов:", p_opts, key="p_opt")
+        if pumps_state == p_opts[1]:
+            st.error("🚨 ЗАФИКСИРОВАНА ОСТАНОВКА ТЕСТА")
             
-        damage_options = [nodes.get("inspection_pass", "Норма"), nodes.get("inspection_fail", "Брак")]
-        damage_state = st.radio(
-            "📐 Результат дефектоскопии и ВИК резьбового соединения (СТО ИНТИ S.30.13):",
-            damage_options,
-            key="damage_opt"
-        )
-        # Проверяем выбор по индексу (второй элемент — всегда брак)
-        if damage_state == damage_options[1]:
-            st.error("🚨 МАРШРУТ ОТБРАКОВКИ И ОСТАНОВКИ ИНСТРУМЕНТА")
-
-    # Развилка для сценария СМАЗКИ
+        d_opts = [nodes.get("inspection_pass", "Норма"), nodes.get("inspection_fail", "Брак")]
+        damage_state = st.radio("📐 Результат дефектоскопии:", d_opts, key="d_opt")
+        if damage_state == d_opts[1]:
+            st.error("🚨 МАРШРУТ ОТБРАКОВКИ ИНСТРУМЕНТА")
     elif "смазки" in problem_type.lower():
-        lub_options = [nodes.get("lub_standard", "Стандартная"), nodes.get("lub_special", "Специальная")]
-        lubricant_type = st.radio(
-            "🔩 Тип применяемой резьбовой смазки (СТО ИНТИ S.QS.7):",
-            lub_options,
-            key="lub_opt"
-        )
-        if lubricant_type == lub_options[1]:
+        l_opts = [nodes.get("lub_standard", "Стандарт"), nodes.get("lub_special", "Специальная")]
+        lubricant_type = st.radio("🔩 Тип резьбовой смазки:", l_opts, key="l_opt")
+        if lubricant_type == l_opts[1]:
             st.error("🚨 ВЕТКА Б: КРИТИЧЕСКОЕ ИЗМЕНЕНИЕ КРУТЯЩЕГО МОМЕНТА")
             
     st.markdown("---")
-
-    # Выводим физические законы и риски инцидента из JSON
     st.markdown("#### 3. Физика процесса и сопутствующие риски:")
     st.write(f"**Физический эффект:** *{scenario_data['physics']['effect']}*")
     st.write(scenario_data["physics"]["description"])
     st.markdown("---")
     
-    # Динамический контроль требований Заказчика
     st.markdown("#### 4. Ограничения Заказчика (ЛНД проекта):")
     client_rules = scenario_data.get("clients", {})
-    
     if selected_client in client_rules:
         client_text = client_rules[selected_client]
-        # Если в тексте есть жесткие стоп-слова, подсвечиваем красным, иначе — желтым
         if "ЗАПРЕТ" in client_text or "КРИТИЧЕСКОЕ" in client_text:
             st.error(client_text)
         else:
             st.warning(client_text)
     else:
-        # Если для этого заказчика нет особых ЛНД, выводим дефолтное правило
-        st.info(client_rules.get("default", "Элемент признан несоответствующим требованиям стандарта ИНТИ."))
+        st.info(client_rules.get("default", "Действуют стандартные правила ИНТИ."))
     st.markdown("---")
-    st.info("💡 **Инструкция по фиксации акта:** Нажмите комбинацию клавиш **`Ctrl + P`**... [полный код элемента управления доступен в исходных материалах]")
-    
-    # Подвал бланка с копирайтом и разработчиком
     st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший инженер по качеству Никонова-Морозова М.М. • Верифицировано по стандартам СТО ИНТИ © 2026</div>", unsafe_allow_html=True)
-    
-    # Закрываем HTML-тег рамки печати
     st.markdown('</div>', unsafe_allow_html=True)
 
 else:
-    # Защитный блок на случай, если сценария нет в базе tech_requirements.json
-    st.error("🚨 КРИТИЧЕСКАЯ ОШИБКА БАЗЫ ЗНАНИЙ: Выбранный технологический сценарий не найден в конфигурационном файле JSON.")
-
+    st.error("🚨 КРИТИЧЕСКАЯ ОШИБКА: Сценарий не найден в конфигурационном файле JSON.")
