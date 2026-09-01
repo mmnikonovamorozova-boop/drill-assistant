@@ -74,17 +74,17 @@ with col_sel2:
 
 st.markdown("---")
 if selected_client and selected_scenario:
+if selected_client and selected_scenario:
     scenario_data = kb_data[selected_client][selected_scenario]
     st.success(f"**Применимый стандарт:** `{scenario_data['regulations']['standard']}`")
     
+    if "КНБК" in selected_scenario or "СПО" in selected_scenario:
         if st.button("🔧 Открыть техкарту КНБК"):
             st.switch_page("pages/3_tech_cards.py")
             
     elif "посадк" in selected_scenario.lower() or "затяжк" in selected_scenario.lower():
         if st.button("🛑 Открыть техкарту действий"):
             st.switch_page("pages/3_tech_cards.py")
-            
-    st.markdown("---")
 
     # Создаем три колонки для разделения ответственности ИТР
     col_dd, col_master, col_supervisor = st.columns(3)
