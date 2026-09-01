@@ -86,7 +86,7 @@ if selected_client and selected_scenario:
             st.switch_page("pages/3_tech_cards.py")
             
     st.markdown("---")
-    # Создаем три колонки для разделения ответственности ИТР
+       # Создаем три колонки для разделения ответственности ИТР
     col_dd, col_master, col_supervisor = st.columns(3)
     roles_data = scenario_data.get("roles", {})
     
@@ -95,21 +95,19 @@ if selected_client and selected_scenario:
     
     # --- КОЛОНКА 1: ИНЖЕНЕР ПО ННБ ---
     with col_dd:
-        st.markdown("<div style='background-color:#e6f3ff; padding:10px; border-radius:5px; font-weight:bold; color:#004080; text-align:center;'>🤠 Инженер по ННБ (DD)</div>", unsafe_with_html=True)
+        st.markdown("<div style='background-color:#e6f3ff; padding:10px; border-radius:5px; font-weight:bold; color:#004080; text-align:center;'>🤠 Инженер по ННБ (DD)</div>", unsafe_allow_html=True)
         st.markdown("<br>", unsafe_with_html=True)
         tasks_dd = roles_data.get("Инженер по ННБ (DD)", [])
         if tasks_dd:
             for idx, task in enumerate(tasks_dd):
-                # Создаем интерактивный чек-бокс
                 state = st.checkbox(task, key=f"dd_{selected_client}_{idx}")
-                # Записываем результат в общий массив рапорта
                 report_items.append({"role": "Инженер по ННБ (DD)", "task": task, "status": "Выполнено" if state else "Не выполнено"})
         else:
             st.caption("Специфических требований для DD не найдено.")
             
     # --- КОЛОНКА 2: БУРОВОЙ МАСТЕР ---
     with col_master:
-        st.markdown("<div style='background-color:#fff2cc; padding:10px; border-radius:5px; font-weight:bold; color:#b78103; text-align:center;'>👷 Буровой мастер</div>", unsafe_with_html=True)
+        st.markdown("<div style='background-color:#fff2cc; padding:10px; border-radius:5px; font-weight:bold; color:#b78103; text-align:center;'>👷 Буровой мастер</div>", unsafe_allow_html=True)
         st.markdown("<br>", unsafe_with_html=True)
         tasks_bm = roles_data.get("Буровой мастер", [])
         if tasks_bm:
@@ -121,7 +119,7 @@ if selected_client and selected_scenario:
             
     # --- КОЛОНКА 3: СУПЕРВАЙЗЕР / ИНЖЕНЕР ПО БУРЕНИЮ ---
     with col_supervisor:
-        st.markdown("<div style='background-color:#e2f0d9; padding:10px; border-radius:5px; font-weight:bold; color:#385723; text-align:center;'>🧐 Супервайзер / ИТР</div>", unsafe_with_html=True)
+        st.markdown("<div style='background-color:#e2f0d9; padding:10px; border-radius:5px; font-weight:bold; color:#385723; text-align:center;'>🧐 Супервайзер / ИТР</div>", unsafe_allow_html=True)
         st.markdown("<br>", unsafe_with_html=True)
         tasks_sv = roles_data.get("Супервайзер / Инженер по бурению", [])
         if tasks_sv:
@@ -132,6 +130,7 @@ if selected_client and selected_scenario:
             st.caption("Специфических требований для Супервайзера не найдено.")
 
     st.markdown("---")
+
     # ==============================================================================
     # БЛОК ЭКСПОРТА И ГЕНЕРАЦИИ PDF-ОТЧЕТА (REPORTLAB)
     # ==============================================================================
@@ -139,17 +138,13 @@ if selected_client and selected_scenario:
     
     def generate_pdf_report(data):
         pdf_filename = "checklist_report.pdf"
-        # Создаем документ А4
         doc = SimpleDocTemplate(pdf_filename, pagesize=letter)
         styles = getSampleStyleSheet()
         
-        # Создаем кастомные стили оформления элементов (используем стандартные шрифты)
         title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=14, spaceAfter=12)
         text_style = ParagraphStyle('TextStyle', parent=styles['Normal'], fontSize=10, spaceAfter=4)
         
         story = []
-        
-        # Шапка официального акта
         story.append(Paragraph(f"<b>АКТ ОПЕРАТИВНОГО КОНТРОЛЯ ТЕХНОЛОГИЧЕСКОЙ ДИСЦИПЛИНЫ</b>", title_style))
         story.append(Paragraph(f"<b>Дата и время формирования:</b> {datetime.now().strftime('%d.%m.%Y %H:%M')}", text_style))
         story.append(Paragraph(f"<b>Объект контроля:</b> {well_number} | <b>Месторождение:</b> {field_name}", text_style))
@@ -158,32 +153,24 @@ if selected_client and selected_scenario:
         story.append(Paragraph(f"<b>Контролируемый сценарий:</b> {selected_scenario}", text_style))
         story.append(Spacer(1, 15))
         
-        # Заголовок и формирование контента таблицы контроля
         table_content = [["Роль ИТР", "Технологическое требование регламента ЛНД", "Статус"]]
-        
         for row in data:
-            # Оборачиваем текст требования в Paragraph, чтобы он автоматически переносился по строкам в таблице
             task_p = Paragraph(row["task"], styles['Normal'])
             table_content.append([row["role"], task_p, row["status"]])
             
-        # Задаем фиксированную ширину колонок таблицы на листе
-        t = Table(table_content, colWidths=[110, 340, 90])
-        
-        # Стилизация таблицы в строгом инженерном стиле
+        t = Table(table_content, colWidths=[120, 360, 80])
         t.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E3A8A')), # Темно-синяя шапка
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E3A8A')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
             ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F9FAFB')),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#D1D5DB')), # Серая сетка
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#D1D5DB')),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ]))
-        
         story.append(t)
         
-        # Подписи сторон на устье
         story.append(Spacer(1, 30))
         story.append(Paragraph("<b>ПОДПИСИ ОТВЕТСТВЕННЫХ ЛИЦ НА БУРОВОЙ ПЛОЩАДКЕ:</b>", text_style))
         story.append(Spacer(1, 10))
@@ -193,15 +180,12 @@ if selected_client and selected_scenario:
         story.append(Spacer(1, 5))
         story.append(Paragraph("Супервайзер Заказчика: _________________________", text_style))
         
-        # Собираем документ
         doc.build(story)
         return pdf_filename
 
-    # Кнопка генерации и скачивания готового рапорта
     if st.button("⚙️ Сформировать печатную версию Акта контроля"):
         with st.spinner("Сборка печатной формы..."):
             generated_file = generate_pdf_report(report_items)
-            
             with open(generated_file, "rb") as f:
                 st.download_button(
                     label="📥 Скачать готовый Акт контроля (PDF)",
