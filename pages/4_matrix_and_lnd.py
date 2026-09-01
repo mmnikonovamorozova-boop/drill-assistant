@@ -77,7 +77,6 @@ if selected_client and selected_scenario:
     scenario_data = kb_data[selected_client][selected_scenario]
     st.success(f"**Применимый стандарт:** `{scenario_data['regulations']['standard']}`")
     
-    if "КНБК" in selected_scenario or "СПО" in selected_scenario:
         if st.button("🔧 Открыть техкарту КНБК"):
             st.switch_page("pages/3_tech_cards.py")
             
@@ -86,7 +85,8 @@ if selected_client and selected_scenario:
             st.switch_page("pages/3_tech_cards.py")
             
     st.markdown("---")
-       # Создаем три колонки для разделения ответственности ИТР
+
+    # Создаем три колонки для разделения ответственности ИТР
     col_dd, col_master, col_supervisor = st.columns(3)
     roles_data = scenario_data.get("roles", {})
     
@@ -96,7 +96,7 @@ if selected_client and selected_scenario:
     # --- КОЛОНКА 1: ИНЖЕНЕР ПО ННБ ---
     with col_dd:
         st.markdown("<div style='background-color:#e6f3ff; padding:10px; border-radius:5px; font-weight:bold; color:#004080; text-align:center;'>🤠 Инженер по ННБ (DD)</div>", unsafe_allow_html=True)
-        st.markdown("<br>", unsafe_with_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
         tasks_dd = roles_data.get("Инженер по ННБ (DD)", [])
         if tasks_dd:
             for idx, task in enumerate(tasks_dd):
@@ -108,7 +108,7 @@ if selected_client and selected_scenario:
     # --- КОЛОНКА 2: БУРОВОЙ МАСТЕР ---
     with col_master:
         st.markdown("<div style='background-color:#fff2cc; padding:10px; border-radius:5px; font-weight:bold; color:#b78103; text-align:center;'>👷 Буровой мастер</div>", unsafe_allow_html=True)
-        st.markdown("<br>", unsafe_with_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
         tasks_bm = roles_data.get("Буровой мастер", [])
         if tasks_bm:
             for idx, task in enumerate(tasks_bm):
@@ -120,7 +120,7 @@ if selected_client and selected_scenario:
     # --- КОЛОНКА 3: СУПЕРВАЙЗЕР / ИНЖЕНЕР ПО БУРЕНИЮ ---
     with col_supervisor:
         st.markdown("<div style='background-color:#e2f0d9; padding:10px; border-radius:5px; font-weight:bold; color:#385723; text-align:center;'>🧐 Супервайзер / ИТР</div>", unsafe_allow_html=True)
-        st.markdown("<br>", unsafe_with_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
         tasks_sv = roles_data.get("Супервайзер / Инженер по бурению", [])
         if tasks_sv:
             for idx, task in enumerate(tasks_sv):
@@ -131,7 +131,7 @@ if selected_client and selected_scenario:
 
     st.markdown("---")
 
-    # ==============================================================================
+# ==============================================================================
     # БЛОК ЭКСПОРТА И ГЕНЕРАЦИИ PDF-ОТЧЕТА (REPORTLAB)
     # ==============================================================================
     st.write("### 🖨️ Экспорт результатов контроля вахты")
