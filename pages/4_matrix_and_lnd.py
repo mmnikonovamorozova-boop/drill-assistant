@@ -32,7 +32,7 @@ def load_kb_database():
         
         # Официальный URL GitHub API для работы с приватными репозиториями
         url = f"https://github.com{user.strip('/')}/drill-kb-parser/contents/output_json/automated_kb.json"
-        
+
         # Заголовок v3.raw заставляет GitHub прислать чистый текст файла, а не закодированный Base64
         headers = {
             "Authorization": f"token {token}",
