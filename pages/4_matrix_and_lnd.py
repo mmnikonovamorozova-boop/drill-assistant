@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 import os
+import requests
 from datetime import datetime
 
 # Импортируем компоненты ReportLab для сборки PDF-актов контроля
@@ -48,7 +49,6 @@ field_name = st.sidebar.text_input("Месторождение:", value="При�
 st.sidebar.markdown("---")
 st.sidebar.info("💡 Выберите Заказчика и операцию по центру экрана.")
 @st.cache_data
-import requests
 
 @st.cache_data(ttl=3600)  # Кешируем базу на 1 час, чтобы не перегружать запросами GitHub
 def load_kb_database():
