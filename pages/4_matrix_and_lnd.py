@@ -136,61 +136,61 @@ if selected_client and selected_scenario:
     # ==============================================================================
     st.write("### 🖨️ Экспорт результатов контроля вахты")
     
-    def generate_pdf_report(data):
-        pdf_filename = "checklist_report.pdf"
-        doc = SimpleDocTemplate(pdf_filename, pagesize=letter)
-        styles = getSampleStyleSheet()
+def generate_pdf_report(data):
+    pdf_filename = "checklist_report.pdf"
+    doc = SimpleDocTemplate(pdf_filename, pagesize=letter)
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=14, spaceAfter=12)
+    text_style = ParagraphStyle('TextStyle', parent=styles['Normal'], fontSize=10, spaceAfter=4)
+    
+    story = []
+    story.append(Paragraph(f"<b>АКТ ОПЕРАТИВНОГО КОНТРОЛЯ ТЕХНОЛОГИЧЕСКОЙ ДИСЦИПЛИНЫ</b>", title_style))
+    story.append(Paragraph(f"<b>Дата и время формирования:</b> {datetime.now().strftime('%d.%m.%Y %H:%M')}", text_style))
+    story.append(Paragraph(f"<b>Объект контроля:</b> {well_number} | <b>Месторождение:</b> {field_name}", text_style))
+    story.append(Paragraph(f"<b>Инженер по ННБ (Проверяющий):</b> {engineer_name}", text_style))
+    story.append(Paragraph(f"<b>Регламент Заказчика:</b> {selected_client}", text_style))
+    story.append(Paragraph(f"<b>Контролируемый сценарий:</b> {selected_scenario}", text_style))
+    story.append(Spacer(1, 15))
+    
+    table_content = [["Роль ИТР", "Технологическое требование регламента ЛНД", "Статус"]]
+    for row in data:
+        task_p = Paragraph(row["task"], styles['Normal'])
+        table_content.append([row["role"], task_p, row["status"]])
         
-        title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=14, spaceAfter=12)
-        text_style = ParagraphStyle('TextStyle', parent=styles['Normal'], fontSize=10, spaceAfter=4)
-        
-        story = []
-        story.append(Paragraph(f"<b>АКТ ОПЕРАТИВНОГО КОНТРОЛЯ ТЕХНОЛОГИЧЕСКОЙ ДИСЦИПЛИНЫ</b>", title_style))
-        story.append(Paragraph(f"<b>Дата и время формирования:</b> {datetime.now().strftime('%d.%m.%Y %H:%M')}", text_style))
-        story.append(Paragraph(f"<b>Объект контроля:</b> {well_number} | <b>Месторождение:</b> {field_name}", text_style))
-        story.append(Paragraph(f"<b>Инженер по ННБ (Проверяющий):</b> {engineer_name}", text_style))
-        story.append(Paragraph(f"<b>Регламент Заказчика:</b> {selected_client}", text_style))
-        story.append(Paragraph(f"<b>Контролируемый сценарий:</b> {selected_scenario}", text_style))
-        story.append(Spacer(1, 15))
-        
-        table_content = [["Роль ИТР", "Технологическое требование регламента ЛНД", "Статус"]]
-        for row in data:
-            task_p = Paragraph(row["task"], styles['Normal'])
-            table_content.append([row["role"], task_p, row["status"]])
-            
-        t = Table(table_content, colWidths=[120, 360, 80])
-        t.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E3A8A')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F9FAFB')),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#D1D5DB')),
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ]))
-        story.append(t)
-        
-        story.append(Spacer(1, 30))
-        story.append(Paragraph("<b>ПОДПИСИ ОТВЕТСТВЕННЫХ ЛИЦ НА БУРОВОЙ ПЛОЩАДКЕ:</b>", text_style))
-        story.append(Spacer(1, 10))
-        story.append(Paragraph("Инженер по ННБ (DD): _________________________", text_style))
-        story.append(Spacer(1, 5))
-        story.append(Paragraph("Буровой мастер: _________________________", text_style))
-        story.append(Spacer(1, 5))
-        story.append(Paragraph("Супервайзер Заказчика: _________________________", text_style))
-        
-        doc.build(story)
-        return pdf_filename
+    t = Table(table_content, colWidths=[120, 360, 80])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E3A8A')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#F9FAFB')),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#D1D5DB')),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ]))
+    story.append(t)
+    
+    story.append(Spacer(1, 30))
+    story.append(Paragraph("<b>ПОДПИСИ ОТВЕТСТВЕННЫХ ЛИЦ НА БУРОВОЙ ПЛОЩАДКЕ:</b>", text_style))
+    story.append(Spacer(1, 10))
+    story.append(Paragraph("Инженер по ННБ (DD): _________________________", text_style))
+    story.append(Spacer(1, 5))
+    story.append(Paragraph("Буровой мастер: _________________________", text_style))
+    story.append(Spacer(1, 5))
+    story.append(Paragraph("Супервайзер Заказчика: _________________________", text_style))
+    
+    doc.build(story)
+    return pdf_filename
 
-    if st.button("⚙️ Сформировать печатную версию Акта контроля"):
-        with st.spinner("Сборка печатной формы..."):
-            generated_file = generate_pdf_report(report_items)
-            with open(generated_file, "rb") as f:
-                st.download_button(
-                    label="📥 Скачать готовый Акт контроля (PDF)",
-                    data=f,
-                    file_name=f"Act_{selected_client.replace(' ', '_')}_{well_number.replace(' ', '_')}.pdf",
-                    mime="application/pdf",
-                    key="download_lnd_report_btn"
-                )
+if st.button("⚙️ Сформировать печатную версию Акта контроля"):
+    with st.spinner("Сборка печатной формы..."):
+        generated_file = generate_pdf_report(report_items)
+        with open(generated_file, "rb") as f:
+            st.download_button(
+                label="📥 Скачать готовый Акт контроля (PDF)",
+                data=f,
+                file_name=f"Act_{selected_client.replace(' ', '_')}_{well_number.replace(' ', '_')}.pdf",
+                mime="application/pdf",
+                key="download_lnd_report_btn"
+            )
