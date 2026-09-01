@@ -23,17 +23,15 @@ field_name = st.sidebar.text_input("Месторождение:", value="При�
 st.sidebar.markdown("---")
 st.sidebar.info("💡 Выберите операцию и условия по центру экрана.")
 
-@st.cache_data(ttl=60) # Снизили время кэша до 1 минуты для быстрого тестирования
+@st.cache_data(ttl=60)  # Кэш сбрасывается каждую минуту автоматически
 def load_kb_database():
-    local_path = os.path.join("config", "automated_kb.json")
     try:
         token = st.secrets["kb_parser_integration"]["token"]
         user = st.secrets["kb_parser_integration"]["user"]
         
-        # Официальный URL GitHub API для работы с приватными репозиториями
+        # Точный и проверенный URL официального GitHub API
         url = f"https://github.com{user.strip('/')}/drill-kb-parser/contents/output_json/automated_kb.json"
-
-        # Заголовок v3.raw заставляет GitHub прислать чистый текст файла, а не закодированный Base64
+        
         headers = {
             "Authorization": f"token {token}",
             "Accept": "application/vnd.github.v3.raw"
@@ -41,18 +39,13 @@ def load_kb_database():
         
         response = requests.get(url, headers=headers, timeout=10)
         if response.status_code == 200:
-            os.makedirs("config", exist_ok=True)
-            with open(local_path, "w", encoding="utf-8") as f:
-                f.write(response.text)
+            # Возвращаем данные напрямую из сети, полностью минуя локальный диск контейнера
             return json.loads(response.text)
         else:
             st.sidebar.error(f"Ошибка API: Статус {response.status_code}")
     except Exception as e:
-        st.sidebar.warning(f"⚠ Сбой API: {str(e)}. Загружена локальная копия.")
+        st.sidebar.warning(f"⚠ Сбой подключения к API: {str(e)}")
     
-    if os.path.exists(local_path):
-        with open(local_path, "r", encoding="utf-8") as f:
-            return json.load(f)
     return None
 
 kb_data = load_kb_database()
