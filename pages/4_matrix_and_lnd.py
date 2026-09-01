@@ -48,12 +48,38 @@ field_name = st.sidebar.text_input("Месторождение:", value="При�
 st.sidebar.markdown("---")
 st.sidebar.info("💡 Выберите Заказчика и операцию по центру экрана.")
 @st.cache_data
+import requests
+
+@st.cache_data(ttl=3600)  # Кешируем базу на 1 час, чтобы не перегружать запросами GitHub
 def load_kb_database():
-    db_path = os.path.join("config", "automated_kb.json")
-    if not os.path.exists(db_path):
-        return None
-    with open(db_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+    local_path = os.path.join("config", "automated_kb.json")
+    
+    # Пытаемся забрать свежий файл из закрытого репозитория парсера по API
+    try:
+        # Читаем данные из новой изолированной секции в Secrets
+        token = st.secrets["kb_parser_integration"]["token"]
+        user = st.secrets["kb_parser_integration"]["user"]
+        
+        # URL запроса к файлу в приватном репозитории drill-kb-parser
+        url = f"https://github.com{user}/drill-kb-parser/contents/output_json/automated_kb.json"
+        headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3.raw"}
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            # Сохраняем свежую копию локально на сервере на всякий случай
+            os.makedirs("config", exist_ok=True)
+            with open(local_path, "w", encoding="utf-8") as f:
+                f.write(response.text)
+            return json.loads(response.text)
+    except Exception as e:
+        st.sidebar.warning("⚠️ Не удалось обновить базу по API, загружена локальная копия.")
+        
+    # Если GitHub недоступен (план Б), берем сохраненный ранее локальный файл
+    if os.path.exists(local_path):
+        with open(local_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return None
 
 kb_data = load_kb_database()
 
