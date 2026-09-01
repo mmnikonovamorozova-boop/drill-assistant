@@ -11,3 +11,4 @@ yadisk
 openpyxl
 scikit-learn
 streamlit-local-storage
+reportlab>=4.0.0
