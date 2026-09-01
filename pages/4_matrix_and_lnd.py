@@ -23,14 +23,14 @@ field_name = st.sidebar.text_input("Месторождение:", value="При�
 st.sidebar.markdown("---")
 st.sidebar.info("💡 Выберите операцию и условия по центру экрана.")
 
-@st.cache_data(ttl=60)  # Кэш сбрасывается каждую минуту автоматически
+@st.cache_data(ttl=60)
 def load_kb_database():
     try:
         token = st.secrets["kb_parser_integration"]["token"]
-        user = st.secrets["kb_parser_integration"]["user"]
+        user = st.secrets["kb_parser_integration"]["user"].strip().replace("/", "")
         
-        # Точный и проверенный URL официального GitHub API
-        url = f"https://github.com{user.strip('/')}/drill-kb-parser/contents/output_json/automated_kb.json"
+        # Перестраховываемся и собираем URL максимально жестко
+        url = f"https://github.com{user}/drill-kb-parser/contents/output_json/automated_kb.json"
         
         headers = {
             "Authorization": f"token {token}",
@@ -38,13 +38,19 @@ def load_kb_database():
         }
         
         response = requests.get(url, headers=headers, timeout=10)
+        
+        # ВЫВОД ОТЛАДКИ ПРЯМО НА ЭКРАН (Удалим, как только увидим код)
+        if response.status_code != 200:
+            st.error(f"🛑 Ошибка GitHub API. Статус-код сервера: {response.status_code}")
+            st.info(f"Проверяемый URL: {url}")
+            if response.status_code == 404:
+                st.warning("Код 404 означает: либо репозиторий не найден, либо GitHub-токен не имеет прав на чтение этого приватного репозитория.")
+        
         if response.status_code == 200:
-            # Возвращаем данные напрямую из сети, полностью минуя локальный диск контейнера
             return json.loads(response.text)
-        else:
-            st.sidebar.error(f"Ошибка API: Статус {response.status_code}")
+            
     except Exception as e:
-        st.sidebar.warning(f"⚠ Сбой подключения к API: {str(e)}")
+        st.error(f"❌ Системный сбой при запросе: {str(e)}")
     
     return None
 
