@@ -52,12 +52,23 @@ if not kb_data:
     st.stop()
 st.subheader("📋 Условия проведения операции на устье")
 
-# Выбор глобальной технологической операции
-global_operations = list(kb_data.keys())
+# Собираем список верхнеуровневых ключей
+global_operations = list(kb_data.keys()) if kb_data else []
 selected_op = st.selectbox("🎯 Выберите технологическую операцию:", global_operations, index=0)
 
-# Собираем список доступных заказчиков для выбранной операции
-available_clients = list(set(item["client"] for item in kb_data[selected_op]))
+# БЕЗОПАСНЫЙ СБОР ЗАКАЗЧИКОВ (Защита от TypeError)
+available_clients = []
+items = []
+
+if selected_op and isinstance(kb_data.get(selected_op), list):
+    # Если структура новая (список объектов)
+    items = kb_data[selected_op]
+    available_clients = list(set(item.get("client", "Неизвестный") for item in items if isinstance(item, dict)))
+else:
+    # Если структура старая (словарь, где ключи - подкатегории)
+    st.info("🔄 Обнаружена старая структура базы данных. Пожалуйста, загрузите любой PDF в репозиторий парсера для обновления.")
+    if selected_op and isinstance(kb_data.get(selected_op), dict):
+        available_clients = [selected_op] # В старой структуре это и был заказчик
 
 col_f1, col_f2 = st.columns(2)
 with col_f1:
@@ -68,46 +79,49 @@ with col_f2:
 st.markdown("---")
 
 report_items = []
-if selected_op:
-    items = kb_data[selected_op]
-    
+# Дальнейший перебор элементов делаем только если у нас новый формат списка
+if items and isinstance(items, list):
     st.markdown(f"### Сводная матрица контроля: *{selected_op}*")
     
     for idx, item in enumerate(items):
-        # Применение фильтров
-        if client_filter and item["client"] not in client_filter:
-            continue
-        if type_filter == "Только КРИТИЧЕСКИЕ ЗАПРЕТЫ" and not item["is_prohibition"]:
+        if not isinstance(item, dict):
             continue
             
-        # Форматирование и подсветка строки
-        if item["is_prohibition"]:
+        # Применение фильтров
+        client_name = item.get("client", "Неизвестный")
+        if client_filter and client_name not in client_filter:
+            continue
+        if type_filter == "Только КРИТИЧЕСКИЕ ЗАПРЕТЫ" and not item.get("is_prohibition", False):
+            continue
+            
+        # Подсветка строки
+        is_prob = item.get("is_prohibition", False)
+        if is_prob:
             prefix = "🛑 [ЗАПРЕЩЕНО] "
             bg_color = "#ffebee"
         else:
             prefix = "🟢 "
             bg_color = "#ffffff"
             
-        # Собираем красивую карточку-строку с чекбоксом верификации
         with st.container():
             st.markdown(f"""
-            <div style="background-color:{bg_color}; padding:12px; border-radius:6px; border-left:5px solid {'#d32f2f' if item['is_prohibition'] else '#2e7d32'}; margin-bottom:10px;">
-                <b>Заказчик:</b> {item['client']} | <b>Раздел:</b> {item['original_section']} | <b>Пункт:</b> {item['step_id'] if item['step_id'] else 'Б/Н'}<br>
-                <span style="font-size:15px;">{prefix}{item['action']}</span><br>
-                <div style="margin-top:6px; color:#555;"><b>Ответственность / Контроль:</b> {item['responsibility_raw']}</div>
+            <div style="background-color:{bg_color}; padding:12px; border-radius:6px; border-left:5px solid {'#d32f2f' if is_prob else '#2e7d32'}; margin-bottom:10px;">
+                <b>Заказчик:</b> {client_name} | <b>Раздел:</b> {item.get('original_section', '')} | <b>Пункт:</b> {item.get('step_id', 'Б/Н')}<br>
+                <span style="font-size:15px;">{prefix}{item.get('action', '')}</span><br>
+                <div style="margin-top:6px; color:#555;"><b>Ответственность / Контроль:</b> {item.get('responsibility_raw', '')}</div>
             </div>
             """, unsafe_allow_html=True)
             
-            # Чекбокс для отчета
             state = st.checkbox("Требование регламента проверено / выполнено вахтой", key=f"check_{selected_op}_{idx}")
             
             report_items.append({
-                "client": item["client"],
-                "step": item["step_id"] if item["step_id"] else "Б/Н",
-                "task": item["action"],
-                "resp": item["responsibility_raw"],
+                "client": client_name,
+                "step": item.get('step_id', 'Б/Н'),
+                "task": item.get('action', ''),
+                "resp": item.get('responsibility_raw', ''),
                 "status": "Выполнено" if state else "Не выполнено"
             })
+
 st.write("### 🖨 Экспорт результатов контроля вахты")
 
 # Формируем текстовую версию акта для печати или сохранения
