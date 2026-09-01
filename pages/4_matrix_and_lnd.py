@@ -30,15 +30,15 @@ def load_kb_database():
         user = st.secrets["kb_parser_integration"]["user"].strip().replace("/", "")
         
         # Перестраховываемся и собираем URL максимально жестко
-        url = f"https://github.com{user}/drill-kb-parser/contents/output_json/automated_kb.json"
-        
+        url = "https://" + "://github.com"
+
         headers = {
             "Authorization": f"token {token}",
             "Accept": "application/vnd.github.v3.raw"
         }
         
         response = requests.get(url, headers=headers, timeout=10)
-        
+
         # ВЫВОД ОТЛАДКИ ПРЯМО НА ЭКРАН (Удалим, как только увидим код)
         if response.status_code != 200:
             st.error(f"🛑 Ошибка GitHub API. Статус-код сервера: {response.status_code}")
