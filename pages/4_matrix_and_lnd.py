@@ -90,88 +90,71 @@ with col_f2:
 
 st.markdown("---")
 
-report_items = []
-# Дальнейший перебор элементов делаем только если у нас новый формат списка
+st.markdown("---")
+
+# --- ФОРМИРОВАНИЕ СВОДНОЙ МАТРИЦЫ В ВИДЕ ТАБЛИЦЫ ---
 if items and isinstance(items, list):
-    st.markdown(f"### Сводная матрица контроля: *{selected_op}*")
+    table_rows = []
     
     for idx, item in enumerate(items):
         if not isinstance(item, dict):
             continue
             
-        # Применение фильтров
         client_name = item.get("client", "Неизвестный")
+        action_text = item.get("action", "")
+        resp_raw = item.get("responsibility_raw", "").lower()
+        
+        # Применение фильтров по заказчикам
         if client_filter and client_name not in client_filter:
             continue
-        if type_filter == "Только КРИТИЧЕСКИЕ ЗАПРЕТЫ" and not item.get("is_prohibition", False):
+            
+        # Интеллектуальное выделение запретов
+        is_prohib = item.get("is_prohibition", False)
+        if type_filter == "Только КРИТИЧЕСКИЕ ЗАПРЕТЫ" and not is_prohib:
             continue
             
-        # Подсветка строки
-        is_prob = item.get("is_prohibition", False)
-        if is_prob:
-            prefix = "🛑 [ЗАПРЕЩЕНО] "
-            bg_color = "#ffebee"
-        else:
-            prefix = "🟢 "
-            bg_color = "#ffffff"
+        # Автоматическое распределение зон ответственности по колонкам матрицы
+        role_nnb = "Контроль параметров" if any(w in resp_raw for w in ["ннб", "телеметр", "dd", "mwd"]) else "Информирован"
+        role_master = "Выполнение / Сборка" if any(w in resp_raw for w in ["мастер", "бурильщик", "подрядчик"]) else "Информирован"
+        role_super = "Контроль / Согласование" if any(w in resp_raw for w in ["супервайзер", "усб", "заказчик"]) else "Информирован"
+        
+        # Точечное извлечение требований конкретно для инженера по ННБ из контекста
+        if "ннб" in resp_raw or "телеметр" in resp_raw:
+            role_nnb = "❗ КРИТИЧЕСКИЙ КОНТРОЛЬ: " + item.get("responsibility_raw", "")
             
-        with st.container():
-            st.markdown(f"""
-            <div style="background-color:{bg_color}; padding:12px; border-radius:6px; border-left:5px solid {'#d32f2f' if is_prob else '#2e7d32'}; margin-bottom:10px;">
-                <b>Заказчик:</b> {client_name} | <b>Раздел:</b> {item.get('original_section', '')} | <b>Пункт:</b> {item.get('step_id', 'Б/Н')}<br>
-                <span style="font-size:15px;">{prefix}{item.get('action', '')}</span><br>
-                <div style="margin-top:6px; color:#555;"><b>Ответственность / Контроль:</b> {item.get('responsibility_raw', '')}</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            state = st.checkbox("Требование регламента проверено / выполнено вахтой", key=f"check_{selected_op}_{idx}")
-            
-            report_items.append({
-                "client": client_name,
-                "step": item.get('step_id', 'Б/Н'),
-                "task": item.get('action', ''),
-                "resp": item.get('responsibility_raw', ''),
-                "status": "Выполнено" if state else "Не выполнено"
-            })
+        table_rows.append({
+            "Заказчик": client_name,
+            "Пункт / Раздел": f"п. {item.get('step_id', 'Б/Н')} ({item.get('original_section', '')})",
+            "Технологическое требование / Инструкция": action_text if not is_prohib else f"🛑 ЗАПРЕЩЕНО: {action_text}",
+            "Инженер по ННБ (Ваша зона)": role_nnb,
+            "Буровой подрядчик / Вахта": role_master,
+            "Супервайзер / Контроль ЛНД": role_super
+        })
 
-st.write("### 🖨 Экспорт результатов контроля вахты")
+    if table_rows:
+        df = pd.DataFrame(table_rows)
+        
+        st.markdown(f"### 📊 Сводная таблица взаимодействия сторон: *{selected_op}*")
+        
+        # Выводим красивую интерактивную таблицу на весь экран Streamlit
+        st.dataframe(
+            df,
+            use_container_width=True,
+            column_config={
+                "Технологическое требование / Инструкция": st.column_config.TextColumn(width="large"),
+                "Инженер по ННБ (Ваша зона)": st.column_config.TextColumn(width="medium"),
+            }
+        )
+        
+        # Краткий чеклист для генерации акта под таблицей
+        st.markdown("### 📝 Верификация выполнения регламентов вахтой")
+        verified_tasks = []
+        for i, row in enumerate(table_rows[:15]): # Ограничиваем топ-15 пунктами для чеклиста рапорта
+            state = st.checkbox(f"{row['Заказчик']} | {row['Пункт / Раздел']}: {row['Технологическое требование / Инструкция'][:80]}...", key=f"chk_{i}")
+            if state:
+                verified_tasks.append(row)
+    else:
+        st.warning("Нет пунктов, соответствующих выбранным фильтрам заказчиков.")
+else:
+    st.info("Пожалуйста, выберите технологическую операцию в верхнем меню.")
 
-# Формируем текстовую версию акта для печати или сохранения
-report_text = f"АКТ ОПЕРАТИВНОГО КОНТРОЛЯ ТЕХНОЛОГИЧЕСКОЙ ДИСЦИПЛИНЫ\n"
-report_text += f"Дата и время: {datetime.now().strftime('%d.%m.%Y %H:%M')}\n"
-report_text += f"Объект контроля: {well_number} | Месторождение: {field_name}\n"
-report_text += f"Проверяющий инженер по ННБ: {engineer_name}\n"
-report_text += f"Контролируемая операция: {selected_op}\n"
-report_text += "="*60 + "\n\n"
-
-# Превращаем результаты проверки в таблицу CSV для скачивания
-csv_data = "Заказчик;Пункт;Требование;Статус проверки\n"
-
-for r in report_items:
-    # Очищаем текст от HTML-тегов для чистого файла
-    clean_task = r["task"].replace(";", ",").strip()
-    csv_data += f"{r['client']};{r['step']};{clean_task};{r['status']}\n"
-    report_text += f"[{r['status']}] {r['client']} (п. {r['step']}): {clean_task}\n"
-
-report_text += "\n" + "="*60 + "\n"
-report_text += "ПОДПИСИ ОТВЕТСТВЕННЫХ ЛИЦ НА БУРОВОЙ ПЛОЩАДКЕ:\n\n"
-report_text += "Инженер по ННБ (DD): _________________________\n"
-report_text += "Буровой мастер:      _________________________\n"
-report_text += "Супервайзер ЛНД:     _________________________\n"
-
-# Кнопки для скачивания результатов
-col_b1, col_b2 = st.columns(2)
-with col_b1:
-    st.download_button(
-        label="📥 Скачать Акт контроля (Текст для печати)",
-        data=report_text,
-        file_name=f"Act_{well_number}.txt",
-        mime="text/plain"
-    )
-with col_b2:
-    st.download_button(
-        label="📊 Экспорт таблицы верификации (Excel / CSV)",
-        data=csv_data.encode('utf-8-sig'),
-        file_name=f"Checklist_{well_number}.csv",
-        mime="text/csv"
-    )
