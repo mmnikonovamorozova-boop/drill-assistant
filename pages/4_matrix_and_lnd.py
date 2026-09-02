@@ -2,6 +2,7 @@ import streamlit as st
 import json
 import os
 import requests
+import pandas as pd
 from datetime import datetime
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
