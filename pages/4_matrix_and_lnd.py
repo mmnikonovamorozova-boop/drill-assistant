@@ -30,7 +30,8 @@ def load_kb_database():
         user = st.secrets["kb_parser_integration"]["user"].strip().replace("/", "")
         
         # Перестраховываемся и собираем URL максимально жестко
-        base_api = "https://github.com"
+        domain_parts = ["api", "github", "com"]
+        base_api = f"https://{'.'.join(domain_parts)}/repos"
         repo_path = "mmnikonovamorozova-boop/drill-kb-parser/contents"
         file_path = "output_json/automated_kb.json"
         url = f"{base_api}/{repo_path}/{file_path}"
