@@ -132,62 +132,20 @@ if items and isinstance(items, list):
             "Супервайзер / Контроль ЛНД": role_super
         })
 
-        if table_rows:
+    if table_rows:
         df = pd.DataFrame(table_rows)
-        
         st.markdown(f"### 📊 Сводная таблица взаимодействия сторон: *{selected_op}*")
-        
-        # Строим красивую HTML-матрицу с автоматическим переносом текста без скроллбаров
+
         html_table = """
         <style>
-            .matrix-table {
-                width: 100%;
-                border-collapse: collapse;
-                font-family: 'Segoe UI', sans-serif;
-                margin-bottom: 25px;
-                font-size: 14px;
-            }
-            .matrix-table th {
-                background-color: #2c3e50;
-                color: white;
-                padding: 12px;
-                text-align: left;
-                border: 1px solid #bdc3c7;
-                font-weight: 600;
-            }
-            .matrix-table td {
-                padding: 12px;
-                border: 1px solid #bdc3c7;
-                vertical-align: top;
-                line-height: 1.5;
-                word-wrap: break-word;
-            }
-            .matrix-table tr:nth-child(even) {
-                background-color: #f8f9fa;
-            }
-            .prohib-cell {
-                background-color: #ffebee;
-                border-left: 4px solid #c62828 !important;
-                padding: 6px 10px;
-                border-radius: 4px;
-                color: #c62828;
-                font-weight: 500;
-            }
-            .instruction-cell {
-                color: #2c3e50;
-            }
-            .role-active {
-                background-color: #e8f5e9;
-                color: #2e7d32;
-                font-weight: bold;
-                border-radius: 4px;
-                padding: 4px 8px;
-                font-size: 13px;
-            }
-            .role-info {
-                color: #7f8c8d;
-                font-size: 13px;
-            }
+            .matrix-table { width: 100%; border-collapse: collapse; font-family: 'Segoe UI', sans-serif; margin-bottom: 25px; font-size: 14px; }
+            .matrix-table th { background-color: #2c3e50; color: white; padding: 12px; text-align: left; border: 1px solid #bdc3c7; font-weight: 600; }
+            .matrix-table td { padding: 12px; border: 1px solid #bdc3c7; vertical-align: top; line-height: 1.5; word-wrap: break-word; }
+            .matrix-table tr:nth-child(even) { background-color: #f8f9fa; }
+            .prohib-cell { background-color: #ffebee; border-left: 4px solid #c62828 !important; padding: 6px 10px; border-radius: 4px; color: #c62828; font-weight: 500; }
+            .instruction-cell { color: #2c3e50; }
+            .role-active { background-color: #e8f5e9; color: #2e7d32; font-weight: bold; border-radius: 4px; padding: 4px 8px; font-size: 13px; }
+            .role-info { color: #7f8c8d; font-size: 13px; }
         </style>
         <table class="matrix-table">
             <thead>
@@ -202,20 +160,18 @@ if items and isinstance(items, list):
             </thead>
             <tbody>
         """
-        
+
         for row in table_rows:
-            # Стилизуем текст инструкции или запрета
             if "🛑 ЗАПРЕЩЕНО:" in row["Технологическое требование / Инструкция"]:
                 clean_text = row["Технологическое требование / Инструкция"].replace("🛑 ЗАПРЕЩЕНО:", "").strip()
                 action_html = f'<div class="prohib-cell"><b>🛑 ЗАПРЕЩЕНО:</b> {clean_text}</div>'
             else:
                 action_html = f'<div class="instruction-cell">🟢 {row["Технологическое требование / Инструкция"]}</div>'
-                
-            # Стилизуем отображение ролей ИТР
+
             style_nnb = f'<div class="role-active">{row["Инженер по ННБ (Ваша зона)"]}</div>' if "КРИТИЧЕСКИЙ" in row["Инженер по ННБ (Ваша зона)"] else f'<div class="role-info">{row["Инженер по ННБ (Ваша зона)"]}</div>'
             style_master = f'<div class="role-active">{row["Буровой подрядчик / Вахта"]}</div>' if "Выполнение" in row["Буровой подрядчик / Вахта"] else f'<div class="role-info">{row["Буровой подрядчик / Вахта"]}</div>'
             style_super = f'<div class="role-active">{row["Супервайзер / Контроль ЛНД"]}</div>' if "Контроль" in row["Супервайзер / Контроль ЛНД"] else f'<div class="role-info">{row["Супервайзер / Контроль ЛНД"]}</div>'
-            
+
             html_table += f"""
                 <tr>
                     <td><b>{row['Заказчик']}</b></td>
@@ -226,12 +182,7 @@ if items and isinstance(items, list):
                     <td>{style_super}</td>
                 </tr>
             """
-            
-        html_table += "</tbody></table>"
-        
-        # Выводим готовую чистую матрицу без скроллбаров прямо на экран
-        st.write(html_table, unsafe_allow_html=True)
-        
-        # Дальше идет ваш существующий блок чек-боксов "Верификация выполнения регламентов вахтой"...
 
+        html_table += "</tbody></table>"
+        st.write(html_table, unsafe_allow_html=True)
 
