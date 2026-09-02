@@ -132,59 +132,150 @@ if items and isinstance(items, list):
             "Супервайзер / Контроль ЛНД": role_super
         })
 
-    if table_rows:
+        if table_rows:
         df = pd.DataFrame(table_rows)
         st.markdown(f"### 📊 Сводная таблица взаимодействия сторон: *{selected_op}*")
 
+        # Новая структура матрицы, на 100% повторяющая ваш шаблон из Word
         html_table = """
         <style>
-            .matrix-table { width: 100%; border-collapse: collapse; font-family: 'Segoe UI', sans-serif; margin-bottom: 25px; font-size: 14px; }
-            .matrix-table th { background-color: #2c3e50; color: white; padding: 12px; text-align: left; border: 1px solid #bdc3c7; font-weight: 600; }
-            .matrix-table td { padding: 12px; border: 1px solid #bdc3c7; vertical-align: top; line-height: 1.5; word-wrap: break-word; }
-            .matrix-table tr:nth-child(even) { background-color: #f8f9fa; }
-            .prohib-cell { background-color: #ffebee; border-left: 4px solid #c62828 !important; padding: 6px 10px; border-radius: 4px; color: #c62828; font-weight: 500; }
-            .instruction-cell { color: #2c3e50; }
-            .role-active { background-color: #e8f5e9; color: #2e7d32; font-weight: bold; border-radius: 4px; padding: 4px 8px; font-size: 13px; }
-            .role-info { color: #7f8c8d; font-size: 13px; }
+            .matrix-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-family: 'Segoe UI', sans-serif;
+                margin-bottom: 25px;
+                font-size: 14px;
+            }
+            .matrix-table th {
+                background-color: #2c3e50;
+                color: white;
+                padding: 12px;
+                text-align: left;
+                border: 1px solid #bdc3c7;
+                font-weight: 600;
+            }
+            .matrix-table td {
+                padding: 12px;
+                border: 1px solid #bdc3c7;
+                vertical-align: top;
+                line-height: 1.5;
+                word-wrap: break-word;
+            }
+            .matrix-table tr:nth-child(even) {
+                background-color: #f8f9fa;
+            }
+            .prohib-cell {
+                background-color: #ffebee;
+                border-left: 4px solid #c62828 !important;
+                padding: 8px 12px;
+                border-radius: 4px;
+                color: #c62828;
+                font-weight: 500;
+            }
+            .instruction-cell {
+                color: #2c3e50;
+            }
+            .status-resp {
+                background-color: #e8f5e9;
+                color: #2e7d32;
+                font-weight: bold;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 13px;
+                text-align: center;
+            }
+            .status-control {
+                background-color: #fff3e0;
+                color: #e65100;
+                font-weight: bold;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 13px;
+                text-align: center;
+            }
+            .status-info {
+                color: #7f8c8d;
+                font-size: 13px;
+                text-align: center;
+            }
         </style>
         <table class="matrix-table">
             <thead>
                 <tr>
-                    <th style="width: 12%;">Заказчик</th>
-                    <th style="width: 15%;">Пункт / Раздел</th>
-                    <th style="width: 43%;">Технологическое требование / Инструкция</th>
-                    <th style="width: 10%;">Инженер ННБ</th>
-                    <th style="width: 10%;">Буровая вахта</th>
-                    <th style="width: 10%;">Супервайзер</th>
+                    <th style="width: 10%;">Заказчик</th>
+                    <th style="width: 12%;">Пункт / Раздел</th>
+                    <th style="width: 38%;">Технологическое требование / Инструкция</th>
+                    <th style="width: 10%; text-align: center;">Инженер ННБ</th>
+                    <th style="width: 10%; text-align: center;">Буровой подрядчик</th>
+                    <th style="width: 10%; text-align: center;">Супервайзер</th>
+                    <th style="width: 10%; text-align: center;">Подрядчик по растворам</th>
                 </tr>
             </thead>
             <tbody>
         """
 
-        for row in table_rows:
-            if "🛑 ЗАПРЕЩЕНО:" in row["Технологическое требование / Инструкция"]:
-                clean_text = row["Технологическое требование / Инструкция"].replace("🛑 ЗАПРЕЩЕНО:", "").strip()
-                action_html = f'<div class="prohib-cell"><b>🛑 ЗАПРЕЩЕНО:</b> {clean_text}</div>'
-            else:
-                action_html = f'<div class="instruction-cell">🟢 {row["Технологическое требование / Инструкция"]}</div>'
+        for idx, item in enumerate(items):
+            if not isinstance(item, dict):
+                continue
+                
+            client_name = item.get("client", "Неизвестный")
+            action_text = item.get("action", "")
+            
+            # Фильтрация по выбранным заказчикам
+            if client_filter and client_name not in client_filter:
+                continue
+                
+            # Проверяем, является ли пункт запретом
+            is_prohib = "ЗАПРЕЩАЕТСЯ" in action_text.upper() or "🛑" in action_text
+            if type_filter == "Только КРИТИЧЕСКИЕ ЗАПРЕТЫ" and not is_prohib:
+                continue
 
-            style_nnb = f'<div class="role-active">{row["Инженер по ННБ (Ваша зона)"]}</div>' if "КРИТИЧЕСКИЙ" in row["Инженер по ННБ (Ваша зона)"] else f'<div class="role-info">{row["Инженер по ННБ (Ваша зона)"]}</div>'
-            style_master = f'<div class="role-active">{row["Буровой подрядчик / Вахта"]}</div>' if "Выполнение" in row["Буровой подрядчик / Вахта"] else f'<div class="role-info">{row["Буровой подрядчик / Вахта"]}</div>'
-            style_super = f'<div class="role-active">{row["Супервайзер / Контроль ЛНД"]}</div>' if "Контроль" in row["Супервайзер / Контроль ЛНД"] else f'<div class="role-info">{row["Супервайзер / Контроль ЛНД"]}</div>'
+            # Форматируем текст ячейки требования
+            if is_prohib:
+                clean_req = action_text.replace("ЗАПРЕЩАЕТСЯ:", "").replace("🛑", "").strip()
+                action_html = f'<div class="prohib-cell"><b>🛑 ЗАПРЕЩАЕТСЯ:</b> {clean_req}</div>'
+            else:
+                action_html = f'<div class="instruction-cell">🟢 {action_text}</div>'
+
+            # Функция для красивой цветовой стилизации статусов RACI из ИИ
+            def style_status(status_text):
+                st_low = str(status_text).lower()
+                if "ответствен" in st_low:
+                    return f'<div class="status-resp">Ответственный</div>'
+                elif "контрол" in st_low:
+                    return f'<div class="status-control">Контроль</div>'
+                return f'<div class="status-info">Проинформирован</div>'
+
+            # Извлекаем статусы ролей, которые разметил ИИ-аналитик
+            nnb_html = style_status(item.get("nnb", "Проинформирован"))
+            contractor_html = style_status(item.get("contractor", "Проинформирован"))
+            supervisor_html = style_status(item.get("supervisor", "Проинформирован"))
+            mud_html = style_status(item.get("mud_service", "Проинформирован"))
 
             html_table += f"""
                 <tr>
-                    <td><b>{row['Заказчик']}</b></td>
-                    <td><small>{row['Пункт / Раздел']}</small></td>
+                    <td><b>{client_name}</b></td>
+                    <td><small>п. {item.get('step_id', 'Б/Н')}<br><i style="color:#7f8c8d;">{item.get('original_section', '')[:20]}...</i></small></td>
                     <td>{action_html}</td>
-                    <td>{style_nnb}</td>
-                    <td>{style_master}</td>
-                    <td>{style_super}</td>
+                    <td>{nnb_html}</td>
+                    <td>{contractor_html}</td>
+                    <td>{supervisor_html}</td>
+                    <td>{mud_html}</td>
                 </tr>
             """
 
         html_table += "</tbody></table>"
-        # Используем специальный компонент Streamlit для вставки готовой адаптивной HTML-матрицы
+        
+        # Выводим готовую интерактивную матрицу ИТР на экран
         st.html(html_table)
 
-
+        # --- БЛОК СБОРА МЕТАДАННЫХ ДЛЯ ВЕРИФИКАЦИИ ---
+        st.markdown("### 📝 Верификация выполнения регламентов вахтой")
+        verified_tasks = []
+        for i, item in enumerate(items[:10]):
+            if client_filter and item.get("client") not in client_filter:
+                continue
+            task_title = item.get("action", "")[:90] + "..."
+            state = st.checkbox(f"{item.get('client')} | п. {item.get('step_id', 'Б/Н')}: {task_title}", key=f"chk_v_{i}")
+            if state:
+                verified_tasks.append(item)
