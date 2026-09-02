@@ -184,5 +184,7 @@ if items and isinstance(items, list):
             """
 
         html_table += "</tbody></table>"
-        st.write(html_table, unsafe_allow_html=True)
+        # Используем специальный компонент Streamlit для вставки готовой адаптивной HTML-матрицы
+        st.html(html_table)
+
 
