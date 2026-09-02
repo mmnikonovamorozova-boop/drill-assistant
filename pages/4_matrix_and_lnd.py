@@ -131,73 +131,21 @@ if items and isinstance(items, list):
             "Буровой подрядчик / Вахта": role_master,
             "Супервайзер / Контроль ЛНД": role_super
         })
-
-        if table_rows:
+    if table_rows:
         df = pd.DataFrame(table_rows)
         st.markdown(f"### 📊 Сводная таблица взаимодействия сторон: *{selected_op}*")
 
-        # Новая структура матрицы, на 100% повторяющая ваш шаблон из Word
         html_table = """
         <style>
-            .matrix-table {
-                width: 100%;
-                border-collapse: collapse;
-                font-family: 'Segoe UI', sans-serif;
-                margin-bottom: 25px;
-                font-size: 14px;
-            }
-            .matrix-table th {
-                background-color: #2c3e50;
-                color: white;
-                padding: 12px;
-                text-align: left;
-                border: 1px solid #bdc3c7;
-                font-weight: 600;
-            }
-            .matrix-table td {
-                padding: 12px;
-                border: 1px solid #bdc3c7;
-                vertical-align: top;
-                line-height: 1.5;
-                word-wrap: break-word;
-            }
-            .matrix-table tr:nth-child(even) {
-                background-color: #f8f9fa;
-            }
-            .prohib-cell {
-                background-color: #ffebee;
-                border-left: 4px solid #c62828 !important;
-                padding: 8px 12px;
-                border-radius: 4px;
-                color: #c62828;
-                font-weight: 500;
-            }
-            .instruction-cell {
-                color: #2c3e50;
-            }
-            .status-resp {
-                background-color: #e8f5e9;
-                color: #2e7d32;
-                font-weight: bold;
-                border-radius: 4px;
-                padding: 4px 8px;
-                font-size: 13px;
-                text-align: center;
-            }
-            .status-control {
-                background-color: #fff3e0;
-                color: #e65100;
-                font-weight: bold;
-                border-radius: 4px;
-                padding: 4px 8px;
-                font-size: 13px;
-                text-align: center;
-            }
-            .status-info {
-                color: #7f8c8d;
-                font-size: 13px;
-                text-align: center;
-            }
+            .matrix-table { width: 100%; border-collapse: collapse; font-family: 'Segoe UI', sans-serif; margin-bottom: 25px; font-size: 14px; }
+            .matrix-table th { background-color: #2c3e50; color: white; padding: 12px; text-align: left; border: 1px solid #bdc3c7; font-weight: 600; }
+            .matrix-table td { padding: 12px; border: 1px solid #bdc3c7; vertical-align: top; line-height: 1.5; word-wrap: break-word; }
+            .matrix-table tr:nth-child(even) { background-color: #f8f9fa; }
+            .prohib-cell { background-color: #ffebee; border-left: 4px solid #c62828 !important; padding: 8px 12px; border-radius: 4px; color: #c62828; font-weight: 500; }
+            .instruction-cell { color: #2c3e50; }
+            .status-resp { background-color: #e8f5e9; color: #2e7d32; font-weight: bold; border-radius: 4px; padding: 4px 8px; font-size: 13px; text-align: center; }
+            .status-control { background-color: #fff3e0; color: #e65100; font-weight: bold; border-radius: 4px; padding: 4px 8px; font-size: 13px; text-align: center; }
+            .status-info { color: #7f8c8d; font-size: 13px; text-align: center; }
         </style>
         <table class="matrix-table">
             <thead>
@@ -217,36 +165,32 @@ if items and isinstance(items, list):
         for idx, item in enumerate(items):
             if not isinstance(item, dict):
                 continue
-                
+
             client_name = item.get("client", "Неизвестный")
             action_text = item.get("action", "")
-            
-            # Фильтрация по выбранным заказчикам
+
             if client_filter and client_name not in client_filter:
                 continue
-                
-            # Проверяем, является ли пункт запретом
+
             is_prohib = "ЗАПРЕЩАЕТСЯ" in action_text.upper() or "🛑" in action_text
             if type_filter == "Только КРИТИЧЕСКИЕ ЗАПРЕТЫ" and not is_prohib:
                 continue
 
-            # Форматируем текст ячейки требования
             if is_prohib:
                 clean_req = action_text.replace("ЗАПРЕЩАЕТСЯ:", "").replace("🛑", "").strip()
                 action_html = f'<div class="prohib-cell"><b>🛑 ЗАПРЕЩАЕТСЯ:</b> {clean_req}</div>'
             else:
                 action_html = f'<div class="instruction-cell">🟢 {action_text}</div>'
 
-            # Функция для красивой цветовой стилизации статусов RACI из ИИ
+            # Функция стилизации статусов с правильными внутренними отступами
             def style_status(status_text):
                 st_low = str(status_text).lower()
                 if "ответствен" in st_low:
-                    return f'<div class="status-resp">Ответственный</div>'
+                    return '<div class="status-resp">Ответственный</div>'
                 elif "контрол" in st_low:
-                    return f'<div class="status-control">Контроль</div>'
-                return f'<div class="status-info">Проинформирован</div>'
+                    return '<div class="status-control">Контроль</div>'
+                return '<div class="status-info">Проинформирован</div>'
 
-            # Извлекаем статусы ролей, которые разметил ИИ-аналитик
             nnb_html = style_status(item.get("nnb", "Проинформирован"))
             contractor_html = style_status(item.get("contractor", "Проинформирован"))
             supervisor_html = style_status(item.get("supervisor", "Проинформирован"))
@@ -265,11 +209,8 @@ if items and isinstance(items, list):
             """
 
         html_table += "</tbody></table>"
-        
-        # Выводим готовую интерактивную матрицу ИТР на экран
         st.html(html_table)
 
-        # --- БЛОК СБОРА МЕТАДАННЫХ ДЛЯ ВЕРИФИКАЦИИ ---
         st.markdown("### 📝 Верификация выполнения регламентов вахтой")
         verified_tasks = []
         for i, item in enumerate(items[:10]):
