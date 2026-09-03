@@ -166,10 +166,10 @@ if items and isinstance(items, list):
         # Смарт-подсветка роли Исполнителя для инженера ННБ
         nnb_val = str(r['Инженер ННБ'])
         if "исполнитель" in nnb_val.lower():
-            nnb_display = f"<b style='color: #2b8a3e;'>⚙️ {nnb_val}</b>"
+            nnb_display = f"<span style='color: #2b8a3e !important; font-weight: bold !important;'>⚙️ {nnb_val}</span>"
         else:
             nnb_display = nnb_val
-            
+
         row_html = f"<tr{row_style}>"
         row_html += f"<td style='text-align:center;'>{r['Заказчик']}</td>"
         row_html += f"<td style='text-align:center;'>{r['Пункт']}</td>"
