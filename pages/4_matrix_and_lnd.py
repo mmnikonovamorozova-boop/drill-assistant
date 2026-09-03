@@ -153,26 +153,28 @@ if items and isinstance(items, list):
             "Буровой подрядчик": master_status,
             "Супервайзер": super_status
         })
-        if table_rows:
+    if table_rows:
         st.markdown(f"### 📊 Сводная таблица взаимодействия сторон: *{selected_op}*")
         
-        # Задаем стили оформления
+        # Задаем стили оформления (4 пробела от края)
         s = "<style>.mt { width:100%; border-collapse:collapse; font-size:14px; }"
         s += ".mt th { background:#f1f3f5; padding:10px; border:1px solid #dee2e6; }"
         s += ".mt td { padding:10px; border:1px solid #dee2e6; vertical-align:top; word-break:break-word; }"
         s += ".pr { background:#ffcccc !important; }</style>"
         
-        # Формируем заголовки колонок
+        # Формируем заголовки колонок (4 пробела от края)
         h = "<table class='mt'><thead><tr>"
         h += "<th>Заказчик</th><th>Пункт</th><th style='width:50%;'>Технологическое требование</th>"
         h += "<th>Инженер ННБ</th><th>Буровой подрядчик</th><th>Супервайзер</th>"
         h += "</tr></thead><tbody>"
         
         html_table = s + h
+
         for r in table_rows:
             is_p = "🛑 ЗАПРЕЩЕНО" in str(r["Технологическое требование"])
             row_style = " class='pr'" if is_p else ""
             
+            # Внутри цикла идет 12 пробелов для сборки строк:
             row_html = f"<tr{row_style}>"
             row_html += f"<td>{r['Заказчик']}</td>"
             row_html += f"<td>{r['Пункт']}</td>"
@@ -182,8 +184,10 @@ if items and isinstance(items, list):
             row_html += f"<td>{r['Супервайзер']}</td>"
             row_html += "</tr>"
             
+            # Возврат на 8 пробелов внутри for:
             html_table += row_html
             
+        # Возврат на 4 пробела внутри if:
         html_table += "</tbody></table>"
         st.markdown(html_table, unsafe_allow_html=True)
 
