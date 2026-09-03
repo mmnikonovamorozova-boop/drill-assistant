@@ -191,9 +191,9 @@ if items and isinstance(items, list):
                 <td>{r['Супервайзер']}</td>
             </tr>
             """
-            
-        html_table += "</tbody></table>"
-        st.markdown(html_table, unsafe_allow_html=True)
+            html_table += "</tbody></table>"
+            st.markdown(html_table, unsafe_allow_html=True)
+
         # --- ИНТЕРАКТИВНЫЙ ЧЕК-ЛИСТ ВЕРИФИКАЦИИ ---
         st.markdown("---")
         st.markdown("### 📝 Полевой чек-лист верификации регламентов ЛНД")
