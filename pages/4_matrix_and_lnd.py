@@ -155,26 +155,31 @@ if items and isinstance(items, list):
         })
 
     # Выводим собранный датафрейм на экран
+        # Выводим собранный датафрейм на экран
     if table_rows:
         df_matrix = pd.DataFrame(table_rows)
         st.markdown(f"### 📊 Сводная таблица взаимодействия сторон: *{selected_op}*")
         
-        # Функция подсветки: если строка содержит запрет, красим её целиком
+        # Функция подсветки запретов
         def highlight_prohibitions(row):
             if "🛑 ЗАПРЕЩЕНО" in str(row["Технологическое требование"]):
                 return ["background-color: #ffcccc"] * len(row)
             return [""] * len(row)
             
-        # Вывод таблицы с автопереносом текста через специальный аргумент конфигурации
+        # Настройка отображения таблицы с принудительным переносом строк (wrap=True)
         st.dataframe(
             df_matrix.style.apply(highlight_prohibitions, axis=1),
             use_container_width=True,
             hide_index=True,
             column_config={
                 "Технологическое требование": st.column_config.TextColumn(
+                    label="Технологическое требование",
                     width="large",
-                    disabled=False
-                )
+                    wrap=True
+                ),
+                "Инженер ННБ": st.column_config.TextColumn(width="medium", wrap=True),
+                "Буровой подрядчик": st.column_config.TextColumn(width="medium", wrap=True),
+                "Супервайзер": st.column_config.TextColumn(width="medium", wrap=True)
             }
         )
 
