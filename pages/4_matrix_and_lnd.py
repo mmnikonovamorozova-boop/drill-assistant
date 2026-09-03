@@ -161,27 +161,33 @@ if items and isinstance(items, list):
             "is_prohib": is_prohib
         })
     for r in table_rows:
-        row_style = " class='pr'" if r["is_prohib"] else ""
+        is_p = "🛑 ЗАПРЕЩЕНО" in str(r["Технологическое требование"])
+        row_style = " class='pr'" if is_p else ""
         
-        # Смарт-подсветка роли Исполнителя для инженера ННБ
         nnb_val = str(r['Инженер ННБ'])
+        
+        # Проверяем, является ли инженер ННБ исполнителем
         if "исполнитель" in nnb_val.lower():
-            nnb_display = f"<span style='color: #2b8a3e !important; font-weight: bold !important;'>⚙️ {nnb_val}</span>"
+            # Делаем ТЕКСТ ТРЕБОВАНИЯ жирным, чтобы он сразу бросался в глаза
+            action_display = f"<b>{r['Технологическое требование']}</b>"
+            # Подсвечиваем саму ячейку статуса ярким зеленым цветом
+            nnb_display = f"<span style='color:#2b8a3e !important; font-weight:bold !important;'>⚙️ {nnb_val}</span>"
         else:
+            action_display = r['Технологическое требование']
             nnb_display = nnb_val
-
+            
         row_html = f"<tr{row_style}>"
         row_html += f"<td style='text-align:center;'>{r['Заказчик']}</td>"
         row_html += f"<td style='text-align:center;'>{r['Пункт']}</td>"
-        row_html += f"<td>{r['Технологическое требование']}</td>"
-        # Выводим подсвеченную роль
+        # Выводим жирное требование
+        row_html += f"<td>{action_display}</td>"
         row_html += f"<td class='st-cell'>{nnb_display}</td>"
         row_html += f"<td class='st-cell'>{r['Буровой подрядчик']}</td>"
         row_html += f"<td class='st-cell'>{r['Супервайзер']}</td>"
         row_html += "</tr>"
         
         html_table += row_html
-        
+
     html_table += "</tbody></table>"
     st.markdown(html_table, unsafe_allow_html=True)
     
