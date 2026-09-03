@@ -156,19 +156,38 @@ if items and isinstance(items, list):
     if table_rows:
         st.markdown(f"### 📊 Сводная таблица взаимодействия сторон: *{selected_op}*")
         
-        # Задаем стили оформления (4 пробела от края)
+    # Наводим красоту: центрируем заголовки и расширяем колонки статусов до 13%
         s = "<style>.mt { width:100%; border-collapse:collapse; font-size:14px; }"
-        s += ".mt th { background:#f1f3f5; padding:10px; border:1px solid #dee2e6; }"
+        s += ".mt th { background:#f1f3f5; padding:10px; border:1px solid #dee2e6; text-align:center; }"
         s += ".mt td { padding:10px; border:1px solid #dee2e6; vertical-align:top; word-break:break-word; }"
         s += ".pr { background:#ffcccc !important; }</style>"
         
-        # Формируем заголовки колонок (4 пробела от края)
         h = "<table class='mt'><thead><tr>"
-        h += "<th>Заказчик</th><th>Пункт</th><th style='width:50%;'>Технологическое требование</th>"
-        h += "<th>Инженер ННБ</th><th>Буровой подрядчик</th><th>Супервайзер</th>"
+        h += "<th style='width:9%;'>Заказчик</th><th style='width:6%;'>Пункт</th>"
+        h += "<th style='width:46%; text-align:left;'>Технологическое требование</th>"
+        h += "<th style='width:13%;'>Инженер ННБ</th><th style='width:13%;'>Буровой подрядчик</th>"
+        h += "<th style='width:13%;'>Супервайзер</th>"
         h += "</tr></thead><tbody>"
         
         html_table = s + h
+        for r in table_rows:
+            is_p = "🛑 ЗАПРЕЩЕНО" in str(r["Технологическое требование"])
+            row_style = " class='pr'" if is_p else ""
+            
+            row_html = f"<tr{row_style}>"
+            row_html += f"<td style='text-align:center;'>{r['Заказчик']}</td>"
+            row_html += f"<td style='text-align:center;'>{r['Пункт']}</td>"
+            row_html += f"<td>{r['Технологическое требование']}</td>"
+            # Центрируем роли участников внутри расширенных ячеек
+            row_html += f"<td style='text-align:center;'>{r['Инженер ННБ']}</td>"
+            row_html += f"<td style='text-align:center;'>{r['Буровой подрядчик']}</td>"
+            row_html += f"<td style='text-align:center;'>{r['Супервайзер']}</td>"
+            row_html += "</tr>"
+            
+            html_table += row_html
+            
+        html_table += "</tbody></table>"
+        st.markdown(html_table, unsafe_allow_html=True)
 
         for r in table_rows:
             is_p = "🛑 ЗАПРЕЩЕНО" in str(r["Технологическое требование"])
