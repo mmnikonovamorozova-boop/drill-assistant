@@ -143,18 +143,19 @@ if items and isinstance(items, list):
         master_status = item.get("contractor", "Проинформирован")
         super_status = item.get("supervisor", "Проинформирован")
         # Упаковываем данные в строку для датафрейма
+                # Упаковываем данные в строку для датафрейма (УБРАЛИ КОЛОНКУ РАЗДЕЛ)
         table_rows.append({
             "Заказчик": client_name,
             "Пункт": f"п. {item.get('step_id', 'Б/Н')}",
-            "Раздел": item.get('original_section', '—'),
             "Технологическое требование": action_text if not is_prohib else f"🛑 ЗАПРЕЩЕНО: {action_text}",
             "Инженер ННБ": nnb_status,
             "Буровой подрядчик": master_status,
             "Супервайзер": super_status
         })
+
     # Выводим собранный датафрейм на экран
     if table_rows:
-        df_matrix = pd.DataFrame(table_rows)
+        df_matrix = pd. DataFrame(table_rows)
         st.markdown(f"### 📊 Сводная таблица взаимодействия сторон: *{selected_op}*")
         
         # Функция подсветки: если строка содержит запрет, красим её целиком
@@ -163,11 +164,19 @@ if items and isinstance(items, list):
                 return ["background-color: #ffcccc"] * len(row)
             return [""] * len(row)
             
+        # Вывод таблицы с автопереносом текста в длинных колонках
         st.dataframe(
             df_matrix.style.apply(highlight_prohibitions, axis=1),
             use_container_width=True,
-            hide_index=True
+            hide_index=True,
+            column_config={
+                "Технологическое требование": st.column_config.TextColumn(width="large"),
+                "Инженер ННБ": st.column_config.TextColumn(width="medium"),
+                "Буровой подрядчик": st.column_config.TextColumn(width="medium"),
+                "Супервайзер": st.column_config.TextColumn(width="medium")
+            }
         )
+
         # --- ИНТЕРАКТИВНЫЙ ЧЕК-ЛИСТ ВЕРИФИКАЦИИ ---
         st.markdown("---")
         st.markdown("### 📝 Полевой чек-лист верификации регламентов ЛНД")
