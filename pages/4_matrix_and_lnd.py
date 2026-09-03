@@ -173,7 +173,6 @@ if items and isinstance(items, list):
             hide_index=True,
             column_config={
                 "Технологическое требование": st.column_config.TextColumn(
-                    label="Технологическое требование",
                     width="large",
                     wrap=True
                 ),
@@ -181,7 +180,6 @@ if items and isinstance(items, list):
                 "Буровой подрядчик": st.column_config.TextColumn(width="medium", wrap=True),
                 "Супервайзер": st.column_config.TextColumn(width="medium", wrap=True)
             }
-        )
 
         # --- ИНТЕРАКТИВНЫЙ ЧЕК-ЛИСТ ВЕРИФИКАЦИИ ---
         st.markdown("---")
