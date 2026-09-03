@@ -153,46 +153,39 @@ if items and isinstance(items, list):
             "Буровой подрядчик": master_status,
             "Супервайзер": super_status
         })
-    if table_rows:
+        if table_rows:
         st.markdown(f"### 📊 Сводная таблица взаимодействия сторон: *{selected_op}*")
         
-        # Строим таблицу на чистом HTML для принудительного переноса слов
-        html_table = """
-        <style>
-            .matrix-table { width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 14px; }
-            .matrix-table th { background-color: #f1f3f5; padding: 10px; border: 1px solid #dee2e6; text-align: left; }
-            .matrix-table td { padding: 10px; border: 1px solid #dee2e6; vertical-align: top; white-space: normal; word-break: break-word; }
-            .prohib-row { background-color: #ffcccc !important; }
-        </style>
-        <table class='matrix-table'>
-            <thead>
-                <tr>
-                    <th style='width: 10%;'>Заказчик</th>
-                    <th style='width: 8%;'>Пункт</th>
-                    <th style='width: 52%;'>Технологическое требование</th>
-                    <th style='width: 10%;'>Инженер ННБ</th>
-                    <th style='width: 10%;'>Буровой подрядчик</th>
-                    <th style='width: 10%;'>Супервайзер</th>
-                </tr>
-            </thead>
-            <tbody>
-        """
+        # Задаем стили оформления
+        s = "<style>.mt { width:100%; border-collapse:collapse; font-size:14px; }"
+        s += ".mt th { background:#f1f3f5; padding:10px; border:1px solid #dee2e6; }"
+        s += ".mt td { padding:10px; border:1px solid #dee2e6; vertical-align:top; word-break:break-word; }"
+        s += ".pr { background:#ffcccc !important; }</style>"
+        
+        # Формируем заголовки колонок
+        h = "<table class='mt'><thead><tr>"
+        h += "<th>Заказчик</th><th>Пункт</th><th style='width:50%;'>Технологическое требование</th>"
+        h += "<th>Инженер ННБ</th><th>Буровой подрядчик</th><th>Супервайзер</th>"
+        h += "</tr></thead><tbody>"
+        
+        html_table = s + h
         for r in table_rows:
             is_p = "🛑 ЗАПРЕЩЕНО" in str(r["Технологическое требование"])
-            row_class = " class='prohib-row'" if is_p else ""
+            row_style = " class='pr'" if is_p else ""
             
-            html_table += f"""
-            <tr{row_class}>
-                <td>{r['Заказчик']}</td>
-                <td>{r['Пункт']}</td>
-                <td>{r['Технологическое требование']}</td>
-                <td>{r['Инженер ННБ']}</td>
-                <td>{r['Буровой подрядчик']}</td>
-                <td>{r['Супервайзер']}</td>
-            </tr>
-            """
-            html_table += "</tbody></table>"
-            st.markdown(html_table, unsafe_allow_html=True)
+            row_html = f"<tr{row_style}>"
+            row_html += f"<td>{r['Заказчик']}</td>"
+            row_html += f"<td>{r['Пункт']}</td>"
+            row_html += f"<td>{r['Технологическое требование']}</td>"
+            row_html += f"<td>{r['Инженер ННБ']}</td>"
+            row_html += f"<td>{r['Буровой подрядчик']}</td>"
+            row_html += f"<td>{r['Супервайзер']}</td>"
+            row_html += "</tr>"
+            
+            html_table += row_html
+            
+        html_table += "</tbody></table>"
+        st.markdown(html_table, unsafe_allow_html=True)
 
         # --- ИНТЕРАКТИВНЫЙ ЧЕК-ЛИСТ ВЕРИФИКАЦИИ ---
         st.markdown("---")
