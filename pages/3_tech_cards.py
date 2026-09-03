@@ -291,21 +291,34 @@ else:
     st.info("ℹ️ Для выбранного инцидента маршрут верификации в базе данных не задан.")
 st.markdown("### 💼 Ограничения Заказчиков и превентивные рекомендации")
 
-# Отображаем ограничение строго для выбранной компании Заказчика
-if restrictions and isinstance(restrictions, dict):
-    client_restriction = restrictions.get(selected_client, "Специфических ограничений для данной компании не зафиксировано.")
-    st.warning(f"**Ограничение {selected_client}**: {client_restriction}")
+# Вытягиваем ограничения текущего инцидента из словаря current_card
+card_restrictions = current_card.get("restrictions", {})
+available_card_clients = list(card_restrictions.keys()) if card_restrictions else ["Роснефть", "Газпром нефть", "Лукойл", "ИНТИ"]
+
+# Пытаемся автоматически определить заказчика из глобальной памяти Матрицы ЛНД
+default_client_index = 0
+if "global_selected_client" in st.session_state and st.session_state["global_selected_client"] in available_card_clients:
+    default_client_index = available_card_clients.index(st.session_state["global_selected_client"])
+
+# Селектбокс выбора Заказчика
+selected_client = st.selectbox(
+    "💼 Выберите компанию Заказчика для адаптации техкарты:",
+    available_card_clients,
+    index=default_client_index,
+    key="client_selector_tech"
+)
+st.markdown("---")
+if card_restrictions and isinstance(card_restrictions, dict):
+    client_res = card_restrictions.get(selected_client, "Специфических ограничений не зафиксировано.")
+    st.warning(f"⚠️ Ограничение компании {selected_client}: {client_res}")
 else:
     st.info("ℹ️ Специфических ограничений Заказчиков для данного инцидента не найдено.")
-
-# Извлекаем и выводим общие превентивные рекомендации
 recommendations = current_card.get("recommendations", [])
 if recommendations and isinstance(recommendations, list):
     st.markdown("#### 💡 Рекомендации по предотвращению повторения брака:")
     for rec in recommendations:
         st.info(f"• {rec}")
 
-st.markdown("---")
 st.markdown("### 📄 Отчетность и фиксация параметров")
 
 # 3. Кнопка формирования и скачивания рапорта верификации инцидента
