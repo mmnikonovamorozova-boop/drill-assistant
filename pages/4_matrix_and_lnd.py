@@ -3,220 +3,233 @@ import json
 import os
 import requests
 import pandas as pd
+import io
 from datetime import datetime
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 
+# --- ПРОВЕРКА АВТОРИЗАЦИИ ---
 if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
-    st.error("🚨 ДОСТУП ОГРАНИЧЕН: Выполните авторизацию.")
+    st.error("🚨 ДОСТУП ОГРАНИЧЕН: Выполните авторизацию на главной странице.")
     st.stop()
 
+# --- КОНФИГУРАЦИЯ СТРАНИЦЫ ---
 st.set_page_config(page_title="Матрица ответственности ИТР", page_icon="📋", layout="wide")
 st.title("📋 Матрица оперативного контроля и ответственности ИТР")
 st.caption("Полевой контроль технологической дисциплины, регламентов ЛНД и верификация СМК на устье")
-# --- СБОР МЕТАДАННЫХ (SIDEBAR) ---
-st.sidebar.header("📋 Метаданные рапорта")
-well_number = st.sidebar.text_input("Номер скважины / Куст:", value="Скв. № 102, Куст 12")
-engineer_name = st.sidebar.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
-field_name = st.sidebar.text_input("Месторождение:", value="Приобское")
-st.sidebar.markdown("---")
-st.sidebar.info("💡 Выберите операцию и условия по центру экрана.")
 
+# --- ОТКАЗОУСТОЙЧИВАЯ ФУНКЦИЯ ЗАГРУЗКИ (GITHUB + ЛОКАЛЬНЫЙ БЭКАП) ---
 @st.cache_data(ttl=60)
 def load_kb_database():
+    backup_filename = "local_kb_backup.json"
+    
+    # Попытка №1: Идём в GitHub API за свежим JSON
     try:
         token = st.secrets["kb_parser_integration"]["token"]
         user = st.secrets["kb_parser_integration"]["user"].strip().replace("/", "")
         
-        # Перестраховываемся и собираем URL максимально жестко
         domain_parts = ["api", "github", "com"]
         base_api = f"https://{'.'.join(domain_parts)}/repos"
         repo_path = "mmnikonovamorozova-boop/drill-kb-parser/contents"
         file_path = "output_json/automated_kb.json"
         url = f"{base_api}/{repo_path}/{file_path}"
-
+        
         headers = {
             "Authorization": f"token {token}",
             "Accept": "application/vnd.github.v3.raw"
         }
         
         response = requests.get(url, headers=headers, timeout=10)
-
-        # ВЫВОД ОТЛАДКИ ПРЯМО НА ЭКРАН (Удалим, как только увидим код)
-        if response.status_code != 200:
-            st.error(f"🛑 Ошибка GitHub API. Статус-код сервера: {response.status_code}")
-            st.info(f"Проверяемый URL: {url}")
-            if response.status_code == 404:
-                st.warning("Код 404 означает: либо репозиторий не найден, либо GitHub-токен не имеет прав на чтение этого приватного репозитория.")
         
         if response.status_code == 200:
-            return json.loads(response.text)
-            
+            data = json.loads(response.text)
+            # Локально сохраняем самую свежую версию на случай будущих сбоев
+            with open(backup_filename, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=4)
+            return data
+        else:
+            st.sidebar.warning(f"⚠️ GitHub вернул статус {response.status_code}. Переключаюсь на бэкап.")
     except Exception as e:
-        st.error(f"❌ Системный сбой при запросе: {str(e)}")
-    
-    return None
+        st.sidebar.warning(f"⚠️ Ошибка сети при связи с GitHub: {str(e)}. Ищу локальный файл.")
 
+    # Попытка №2: Если GitHub упал, ищем сохранённую ранее копию в памяти
+    if os.path.exists(backup_filename):
+        try:
+            with open(backup_filename, "r", encoding="utf-8") as f:
+                st.sidebar.info("🔄 Данные успешно загружены из локального кэша памяти.")
+                return json.load(f)
+        except Exception as e:
+            st.sidebar.error(f"❌ Не удалось прочесть даже локальный бэкап: {str(e)}")
+            return None
+    else:
+        st.sidebar.error("❌ Критическая ошибка: GitHub недоступен, а локальный кэш памяти пуст.")
+        return None
+
+# Загружаем базу данных
 kb_data = load_kb_database()
 if not kb_data:
-    st.warning("⚠ Файл базы знаний не найден.")
+    st.warning("⚠️ База знаний полностью недоступна. Проверьте подключение.")
     st.stop()
+# --- СБОР МЕТАДАННЫХ (SIDEBAR) ---
+st.sidebar.header("📋 Метаданные рапорта")
+well_number = st.sidebar.text_input("Номер скважины / Куст:", value="Скв. № 102, Куст 12")
+engineer_name = st.sidebar.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
+field_name = st.sidebar.text_input("Месторождение:", value="Приобское")
+st.sidebar.markdown("---")
+st.sidebar.info("💡 Метаданные автоматически попадут в скачиваемый PDF-акт верификации.")
 st.subheader("📋 Условия проведения операции на устье")
 
-# Собираем список верхнеуровневых ключей
+# Получаем список технологических операций
 global_operations = list(kb_data.keys()) if kb_data else []
 selected_op = st.selectbox("🎯 Выберите технологическую операцию:", global_operations, index=0)
 
-# БЕЗОПАСНЫЙ СБОР ЗАКАЗЧИКОВ (Защита от TypeError)
+# Сбор доступных заказчиков
 available_clients = []
 items = []
 
 if selected_op and isinstance(kb_data.get(selected_op), list):
-    # Если структура новая (список объектов)
     items = kb_data[selected_op]
     available_clients = list(set(item.get("client", "Неизвестный") for item in items if isinstance(item, dict)))
 else:
-    # Если структура старая (словарь, где ключи - подкатегории)
-    st.info("🔄 Обнаружена старая структура базы данных. Пожалуйста, загрузите любой PDF в репозиторий парсера для обновления.")
     if selected_op and isinstance(kb_data.get(selected_op), dict):
-        available_clients = [selected_op] # В старой структуре это и был заказчик
+        available_clients = [selected_op]
 
+# Разметка панели управления фильтрами
 col_f1, col_f2 = st.columns(2)
 with col_f1:
-    client_filter = st.multiselect("💼 Фильтр по Заказчикам (По умолчанию показаны все):", available_clients)
+    client_filter = st.multiselect("💼 Фильтр по Заказчикам (По умолчанию все):", available_clients)
 with col_f2:
     type_filter = st.radio("🔍 Фильтр требований:", ["Все пункты", "Только КРИТИЧЕСКИЕ ЗАПРЕТЫ"], horizontal=True)
 
-st.markdown("---")
+# Дополнительные инструменты инженера ННБ
+col_f3, col_f4 = st.columns([2, 1])
+with col_f3:
+    search_query = st.text_input("🔎 Smart Поиск по ключевому слову (например: опрессовка, гайка, шаблон):", value="")
+with col_f4:
+    st.markdown("<br>", unsafe_allow_html=True)
+    nnb_only_filter = st.toggle("⚡ Только моя зона (ННБ)", value=False)
 
 st.markdown("---")
-
-# --- ФОРМИРОВАНИЕ СВОДНОЙ МАТРИЦЫ В ВИДЕ ТАБЛИЦЫ ---
 if items and isinstance(items, list):
-    table_rows = []
+    st.markdown(f"### 📊 Сводная таблица взаимодействия сторон: *{selected_op}*")
     
+    # Задаем CSS стили для адаптивной таблицы на буровой
+    table_style = """
+    <style>
+    /* Полный CSS-код для таблиц и статусов доступен в исходных материалах */
+    </style>
+    """
+    st.markdown(table_style, unsafe_allow_html=True)
+    table_rows = []
     for idx, item in enumerate(items):
         if not isinstance(item, dict):
             continue
-            
         client_name = item.get("client", "Неизвестный")
         action_text = item.get("action", "")
-        resp_raw = item.get("responsibility_raw", "").lower()
+        action_upper = action_text.upper()
         
-        # Применение фильтров по заказчикам
+        # Интеллектуальный поиск критических запретов
+        is_prohib = any(w in action_upper for w in ["ЗАПРЕЩ", "НЕ ДОПУСК", "🛑", "ЗАПРЕТИТЬ"])
+        # Применяем фильтр по Заказчикам
         if client_filter and client_name not in client_filter:
             continue
             
-        # Интеллектуальное выделение запретов
-        is_prohib = item.get("is_prohibition", False)
+        # Применяем фильтр по запретам
         if type_filter == "Только КРИТИЧЕСКИЕ ЗАПРЕТЫ" and not is_prohib:
             continue
+        # Применяем текстовый Smart-поиск по ключевому слову
+        if search_query and search_query.lower() not in action_text.lower():
+            continue
             
-        # Автоматическое распределение зон ответственности по колонкам матрицы
-        role_nnb = "Контроль параметров" if any(w in resp_raw for w in ["ннб", "телеметр", "dd", "mwd"]) else "Информирован"
-        role_master = "Выполнение / Сборка" if any(w in resp_raw for w in ["мастер", "бурильщик", "подрядчик"]) else "Информирован"
-        role_super = "Контроль / Согласование" if any(w in resp_raw for w in ["супервайзер", "усб", "заказчик"]) else "Информирован"
-        
-        # Точечное извлечение требований конкретно для инженера по ННБ из контекста
-        if "ннб" in resp_raw or "телеметр" in resp_raw:
-            role_nnb = "❗ КРИТИЧЕСКИЙ КОНТРОЛЬ: " + item.get("responsibility_raw", "")
+        # Определяем статус контроля для инженера ННБ
+        nnb_status = item.get("nnb", "Проинформирован")
+        # Применяем тумблер фокуса ответственности ННБ
+        if nnb_only_filter and "проинформирован" in str(nnb_status).lower():
+            continue
             
+        # Достаем остальные статусы сторон
+        master_status = item.get("contractor", "Проинформирован")
+        super_status = item.get("supervisor", "Проинформирован")
+        mud_status = item.get("mud_service", "Проинформирован")
+        # Собираем данные в строку таблицы
         table_rows.append({
             "Заказчик": client_name,
-            "Пункт / Раздел": f"п. {item.get('step_id', 'Б/Н')} ({item.get('original_section', '')})",
-            "Технологическое требование / Инструкция": action_text if not is_prohib else f"🛑 ЗАПРЕЩЕНО: {action_text}",
-            "Инженер по ННБ (Ваша зона)": role_nnb,
-            "Буровой подрядчик / Вахта": role_master,
-            "Супервайзер / Контроль ЛНД": role_super
+            "Пункт": f"п. {item.get('step_id', 'Б/Н')}",
+            "Раздел": item.get('original_section', '—'),
+            "Технологическое требование": action_text if not is_prohib else f"🛑 ЗАПРЕЩЕНО: {action_text}",
+            "Инженер ННБ": nnb_status,
+            "Буровой подрядчик": master_status,
+            "Супервайзер": super_status
         })
+    # Выводим собранный датафрейм на экран
     if table_rows:
-        df = pd.DataFrame(table_rows)
-        st.markdown(f"### 📊 Сводная таблица взаимодействия сторон: *{selected_op}*")
-
-        html_table = """
-        <style>
-            .matrix-table { width: 100%; border-collapse: collapse; font-family: 'Segoe UI', sans-serif; margin-bottom: 25px; font-size: 14px; }
-            .matrix-table th { background-color: #2c3e50; color: white; padding: 12px; text-align: left; border: 1px solid #bdc3c7; font-weight: 600; }
-            .matrix-table td { padding: 12px; border: 1px solid #bdc3c7; vertical-align: top; line-height: 1.5; word-wrap: break-word; }
-            .matrix-table tr:nth-child(even) { background-color: #f8f9fa; }
-            .prohib-cell { background-color: #ffebee; border-left: 4px solid #c62828 !important; padding: 8px 12px; border-radius: 4px; color: #c62828; font-weight: 500; }
-            .instruction-cell { color: #2c3e50; }
-            .status-resp { background-color: #e8f5e9; color: #2e7d32; font-weight: bold; border-radius: 4px; padding: 4px 8px; font-size: 13px; text-align: center; }
-            .status-control { background-color: #fff3e0; color: #e65100; font-weight: bold; border-radius: 4px; padding: 4px 8px; font-size: 13px; text-align: center; }
-            .status-info { color: #7f8c8d; font-size: 13px; text-align: center; }
-        </style>
-        <table class="matrix-table">
-            <thead>
-                <tr>
-                    <th style="width: 10%;">Заказчик</th>
-                    <th style="width: 12%;">Пункт / Раздел</th>
-                    <th style="width: 38%;">Технологическое требование / Инструкция</th>
-                    <th style="width: 10%; text-align: center;">Инженер ННБ</th>
-                    <th style="width: 10%; text-align: center;">Буровой подрядчик</th>
-                    <th style="width: 10%; text-align: center;">Супервайзер</th>
-                    <th style="width: 10%; text-align: center;">Подрядчик по растворам</th>
-                </tr>
-            </thead>
-            <tbody>
-        """
-
-        for idx, item in enumerate(items):
-            if not isinstance(item, dict):
-                continue
-
-            client_name = item.get("client", "Неизвестный")
-            action_text = item.get("action", "")
-
-            if client_filter and client_name not in client_filter:
-                continue
-
-            is_prohib = "ЗАПРЕЩАЕТСЯ" in action_text.upper() or "🛑" in action_text
-            if type_filter == "Только КРИТИЧЕСКИЕ ЗАПРЕТЫ" and not is_prohib:
-                continue
-
-            if is_prohib:
-                clean_req = action_text.replace("ЗАПРЕЩАЕТСЯ:", "").replace("🛑", "").strip()
-                action_html = f'<div class="prohib-cell"><b>🛑 ЗАПРЕЩАЕТСЯ:</b> {clean_req}</div>'
-            else:
-                action_html = f'<div class="instruction-cell">🟢 {action_text}</div>'
-
-            # Функция стилизации статусов с правильными внутренними отступами
-            def style_status(status_text):
-                st_low = str(status_text).lower()
-                if "ответствен" in st_low:
-                    return '<div class="status-resp">Ответственный</div>'
-                elif "контрол" in st_low:
-                    return '<div class="status-control">Контроль</div>'
-                return '<div class="status-info">Проинформирован</div>'
-
-            nnb_html = style_status(item.get("nnb", "Проинформирован"))
-            contractor_html = style_status(item.get("contractor", "Проинформирован"))
-            supervisor_html = style_status(item.get("supervisor", "Проинформирован"))
-            mud_html = style_status(item.get("mud_service", "Проинформирован"))
-
-            html_table += f"""
-                <tr>
-                    <td><b>{client_name}</b></td>
-                    <td><small>п. {item.get('step_id', 'Б/Н')}<br><i style="color:#7f8c8d;">{item.get('original_section', '')[:20]}...</i></small></td>
-                    <td>{action_html}</td>
-                    <td>{nnb_html}</td>
-                    <td>{contractor_html}</td>
-                    <td>{supervisor_html}</td>
-                    <td>{mud_html}</td>
-                </tr>
-            """
-
-        html_table += "</tbody></table>"
-        st.html(html_table)
-
-        st.markdown("### 📝 Верификация выполнения регламентов вахтой")
-        verified_tasks = []
-        for i, item in enumerate(items[:10]):
-            if client_filter and item.get("client") not in client_filter:
-                continue
-            task_title = item.get("action", "")[:90] + "..."
-            state = st.checkbox(f"{item.get('client')} | п. {item.get('step_id', 'Б/Н')}: {task_title}", key=f"chk_v_{i}")
-            if state:
-                verified_tasks.append(item)
+        df_matrix = pd.DataFrame(table_rows)
+        
+        # Применяем подсветку: если требование содержит "ЗАПРЕЩЕНО", красим строку в пастельно-красный
+        def highlight_prohibitions(row):
+            if "🛑 ЗАПРЕЩЕНО" in str(row["Технологическое требование"]):
+                return ["background-color: #ffcccc"] * len(row)
+            return [""] * len(row)
+            
+        st.dataframe(
+            df_matrix.style.apply(highlight_prohibitions, axis=1),
+            use_container_width=True,
+            hide_index=True
+        )
+    # --- ИНТЕРАКТИВНЫЙ ЧЕК-ЛИСТ ВЕРИФИКАЦИИ ---
+    st.markdown("---")
+    st.markdown("### 📝 Полевой чек-лист верификации регламентов ЛНД")
+    st.caption("Отметьте выполненные на устье операции для включения их в официальный рапорт")
+    
+    verified_tasks = []
+    # Берем первые 15 отфильтрованных пунктов для чек-листа
+    for i, row in enumerate(table_rows[:15]):
+        task_label = f"{row['Заказчик']} | {row['Пункт']}: {row['Технологическое требование'][:80]}..."
+        if st.checkbox(task_label, key=f"chk_v_{i}"):
+            verified_tasks.append(row)
+    # --- КНОПКА ГЕНЕРАЦИИ PDF-АКТА ---
+    if verified_tasks:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("📄 Сформировать официальный Акт верификации ЛНД"):
+            buffer = io.BytesIO()
+            doc = SimpleDocTemplate(buffer, pagesize=letter)
+            styles = getSampleStyleSheet()
+            
+            # Настройка структуры PDF
+            story = [
+                Paragraph(f"<b>АКТ ПОЛЕВОЙ ВЕРИФИКАЦИИ ТЕХНОЛОГИЧЕСКОЙ ДИСЦИПЛИНЫ</b>", styles["Title"]),
+                Spacer(1, 15),
+                Paragraph(f"<b>Дата проверки:</b> {datetime.now().strftime('%d.%m.%Y %H:%M')}", styles["Normal"]),
+                Paragraph(f"<b>Месторождение:</b> {field_name}", styles["Normal"]),
+                Paragraph(f"<b>Скважина / Куст:</b> {well_number}", styles["Normal"]),
+                Paragraph(f"<b>Инженер по ННБ:</b> {engineer_name}", styles["Normal"]),
+                Spacer(1, 15),
+                Paragraph("<b>Перечень проверенных требований и регламентов ЛНД:</b>", styles["Heading3"]),
+                Spacer(1, 10)
+            ]
+            
+            # Заполняем PDF пунктами
+            for t in verified_tasks:
+                bullet = f"• [{t['Заказчик']}] {t['Пункт']} - {t['Технологическое требование']}"
+                story.append(Paragraph(bullet, styles["Normal"]))
+                story.append(Spacer(1, 5))
+                
+            story.append(Spacer(1, 20))
+            story.append(Paragraph("<b>Подписи сторон:</b>", styles["Heading3"]))
+            story.append(Spacer(1, 10))
+            story.append(Paragraph("Инженер по ННБ: _______________________", styles["Normal"]))
+            story.append(Spacer(1, 10))
+            story.append(Paragraph("Буровой мастер / Супервайзер: _______________________", styles["Normal"]))
+            
+            doc.build(story)
+            buffer.seek(0)
+            
+            st.success("✅ Акт успешно сформирован!")
+            st.download_button(
+                label="📥 Скачать Акт верификации (PDF)",
+                data=buffer,
+                file_name=f"Verification_Act_{well_number.replace(' ', '_')}.pdf",
+                mime="application/pdf"
+            )
