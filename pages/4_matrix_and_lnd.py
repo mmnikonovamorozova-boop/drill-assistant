@@ -136,14 +136,15 @@ if items and isinstance(items, list):
         if search_query and search_query.lower() not in action_text.lower():
             continue
         # Фильтр зоны ответственности инженера по ННБ
+                # Фильтр зоны ответственности: оставляем ТОЛЬКО статус "Исполнитель"
         nnb_status = item.get("nnb", "Проинформирован")
-        if nnb_only_filter and "проинформирован" in str(nnb_status).lower():
+        if nnb_only_filter and "исполнитель" not in str(nnb_status).lower():
             continue
             
         master_status = item.get("contractor", "Проинформирован")
         super_status = item.get("supervisor", "Проинформирован")
-        # Упаковываем данные в строку для датафрейма
-                # Упаковываем данные в строку для датафрейма (УБРАЛИ КОЛОНКУ РАЗДЕЛ)
+
+        # Упаковываем данные в строку для датафрейма (УБРАЛИ КОЛОНКУ РАЗДЕЛ)
         table_rows.append({
             "Заказчик": client_name,
             "Пункт": f"п. {item.get('step_id', 'Б/Н')}",
@@ -155,7 +156,7 @@ if items and isinstance(items, list):
 
     # Выводим собранный датафрейм на экран
     if table_rows:
-        df_matrix = pd. DataFrame(table_rows)
+        df_matrix = pd.DataFrame(table_rows)
         st.markdown(f"### 📊 Сводная таблица взаимодействия сторон: *{selected_op}*")
         
         # Функция подсветки: если строка содержит запрет, красим её целиком
@@ -164,16 +165,16 @@ if items and isinstance(items, list):
                 return ["background-color: #ffcccc"] * len(row)
             return [""] * len(row)
             
-        # Вывод таблицы с автопереносом текста в длинных колонках
+        # Вывод таблицы с автопереносом текста через специальный аргумент конфигурации
         st.dataframe(
             df_matrix.style.apply(highlight_prohibitions, axis=1),
             use_container_width=True,
             hide_index=True,
             column_config={
-                "Технологическое требование": st.column_config.TextColumn(width="large"),
-                "Инженер ННБ": st.column_config.TextColumn(width="medium"),
-                "Буровой подрядчик": st.column_config.TextColumn(width="medium"),
-                "Супервайзер": st.column_config.TextColumn(width="medium")
+                "Технологическое требование": st.column_config.TextColumn(
+                    width="large",
+                    disabled=False
+                )
             }
         )
 
