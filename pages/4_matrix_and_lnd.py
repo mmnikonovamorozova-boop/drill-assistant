@@ -115,14 +115,11 @@ with col_f4:
 st.markdown("---")
 if items and isinstance(items, list):
     st.markdown(f"### 📊 Сводная таблица взаимодействия сторон: *{selected_op}*")
-    
-    # Запрещаем перенос слов (nowrap) для статусов, чтобы они не рвались
     s = "<style>.mt { width:100%; border-collapse:collapse; font-size:14px; }"
     s += ".mt th { background:#f1f3f5; padding:10px; border:1px solid #dee2e6; text-align:center; }"
     s += ".mt td { padding:10px; border:1px solid #dee2e6; vertical-align:top; }"
     s += ".st-cell { text-align:center; white-space:nowrap; }"
     s += ".pr { background:#ffcccc !important; }</style>"
-    
     h = "<table class='mt'><thead><tr>"
     h += "<th style='width:10%;'>Заказчик</th><th style='width:6%;'>Пункт</th>"
     h += "<th style='text-align:left;'>Технологическое требование</th>"
@@ -147,7 +144,6 @@ if items and isinstance(items, list):
             continue
         if search_query and search_query.lower() not in action_text.lower():
             continue
-            
         nnb_status = item.get("nnb", "Проинформирован")
         if nnb_only_filter and "проинформирован" in str(nnb_status).lower():
             continue
@@ -164,7 +160,6 @@ if items and isinstance(items, list):
             "Супервайзер": super_status,
             "is_prohib": is_prohib
         })
-
     for r in table_rows:
         row_style = " class='pr'" if r["is_prohib"] else ""
         
@@ -181,43 +176,44 @@ if items and isinstance(items, list):
         
     html_table += "</tbody></table>"
     st.markdown(html_table, unsafe_allow_html=True)
-
-        # --- ИНТЕРАКТИВНЫЙ ЧЕК-ЛИСТ ВЕРИФИКАЦИИ ---
-        st.markdown("---")
-        st.markdown("### 📝 Полевой чек-лист верификации регламентов ЛНД")
-        st.caption("Отметьте выполненные на устье операции для включения их в официальный рапорт")
-        
-        verified_tasks = []
-        # Выводим пункты для чек-листа
-        for i, row in enumerate(table_rows[:15]):
-            task_label = f"{row['Заказчик']} | {row['Пункт']}: {row['Технологическое требование'][:80]}..."
-            if st.checkbox(task_label, key=f"chk_v_{i}"):
-                verified_tasks.append(row)
-        # --- КНОПКА ГЕНЕРАЦИИ PDF-АКТА ---
-        if verified_tasks:
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("📄 Сформировать официальный Акт верификации ЛНД"):
-                buffer = io.BytesIO()
-                doc = SimpleDocTemplate(buffer, pagesize=letter)
-                styles = getSampleStyleSheet()
-                # Собираем текстовый рапорт верификации регламентов
-                report_txt = "АКТ ПОЛЕВОЙ ВЕРИФИКАЦИИ ТЕХНОЛОГИЧЕСКОЙ ДИСЦИПЛИНЫ\n"
-                report_txt += f"Дата проверки: {datetime.now().strftime('%d.%m.%Y %H:%M')}\n"
-                report_txt += f"Месторождение: {field_name}\n"
-                report_txt += f"Скважина / Куст: {well_number}\n"
-                report_txt += f"Инженер по ННБ: {engineer_name}\n"
-                report_txt += "========================================\n"
-                report_txt += "Перечень проверенных требований регламентов ЛНД:\n\n"
+    # --- ИНТЕРАКТИВНЫЙ ЧЕК-ЛИСТ ВЕРИФИКАЦИИ ---
+    st.markdown("---")
+    st.markdown("### 📝 Полевой чек-лист верификации регламентов ЛНД")
+    st.caption("Отметьте выполненные на устье операции для включения их в официальный рапорт")
+    
+    verified_tasks = []
+    # Выводим пункты для чек-листа
+    for i, row in enumerate(table_rows[:15]):
+        task_label = f"{row['Заказчик']} | {row['Пункт']}: {row['Технологическое требование'][:80]}..."
+        if st.checkbox(task_label, key=f"chk_v_{i}"):
+            verified_tasks.append(row)
+    # --- КНОПКА ГЕНЕРАЦИИ PDF-АКТА ---
+    if verified_tasks:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("📄 Сформировать официальный Акт верификации ЛНД"):
+            
+            lines = [
+                "АКТ ПОЛЕВОЙ ВЕРИФИКАЦИИ ТЕХНОЛОГИЧЕСКОЙ ДИСЦИПЛИНЫ",
+                f"Дата проверки: {datetime.now().strftime('%d.%m.%Y %H:%M')}",
+                f"Месторождение: {field_name}",
+                f"Скважина / Куст: {well_number}",
+                f"Инженер по ННБ: {engineer_name}",
+                "========================================",
+                "Перечень проверенных требований регламентов ЛНД:",
+                ""
+            ]
+            
+            for idx, t in enumerate(verified_tasks, 1):
+                lines.append(f"{idx}. [{t['Заказчик']}] {t['Пункт']}")
+                lines.append(f"Требование: {t['Технологическое требование']}")
+                lines.append("")
                 
-                for idx, t in enumerate(verified_tasks, 1):
-                    report_txt += f"{idx}. [{t['Заказчик']}] {t['Пункт']}\n Требование: {t['Технологическое требование']}\n\n"
-                
-                st.success("✅ Акт верификации успешно сформирован!")
-                st.download_button(
-                    label="📥 Скачать Акт верификации (TXT)",
-                    data=report_txt,
-                    file_name=f"Verification_Act_{well_number.replace(' ', '_')}.txt",
-                    mime="text/plain"
-                )
-
-
+            report_txt = " ".join([l + "  " for l in lines])
+            
+            st.success("✅ Акт верификации успешно сформирован!")
+            st.download_button(
+                label="📥 Скачать Акт верификации (TXT)",
+                data=report_txt,
+                file_name=f"Verification_Act_{well_number.replace(' ', '_')}.txt",
+                mime="text/plain"
+            )
