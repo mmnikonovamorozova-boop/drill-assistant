@@ -153,53 +153,83 @@ if items and isinstance(items, list):
             "Буровой подрядчик": master_status,
             "Супервайзер": super_status
         })
-
-    # Выводим собранный датафрейм на экран
-        # Выводим собранный датафрейм на экран
     if table_rows:
-        df_matrix = pd.DataFrame(table_rows)
         st.markdown(f"### 📊 Сводная таблица взаимодействия сторон: *{selected_op}*")
         
-        # Функция подсветки запретов
-        def highlight_prohibitions(row):
-            if "🛑 ЗАПРЕЩЕНО" in str(row["Технологическое требование"]):
-                return ["background-color: #ffcccc"] * len(row)
-            return [""] * len(row)
+        # Строим таблицу на чистом HTML для принудительного переноса слов
+        html_table = """
+        <style>
+            .matrix-table { width: 100%; border-collapse: collapse; font-family: sans-serif; font-size: 14px; }
+            .matrix-table th { background-color: #f1f3f5; padding: 10px; border: 1px solid #dee2e6; text-align: left; }
+            .matrix-table td { padding: 10px; border: 1px solid #dee2e6; vertical-align: top; white-space: normal; word-break: break-word; }
+            .prohib-row { background-color: #ffcccc !important; }
+        </style>
+        <table class='matrix-table'>
+            <thead>
+                <tr>
+                    <th style='width: 10%;'>Заказчик</th>
+                    <th style='width: 8%;'>Пункт</th>
+                    <th style='width: 52%;'>Технологическое требование</th>
+                    <th style='width: 10%;'>Инженер ННБ</th>
+                    <th style='width: 10%;'>Буровой подрядчик</th>
+                    <th style='width: 10%;'>Супервайзер</th>
+                </tr>
+            </thead>
+            <tbody>
+        """
+        for r in table_rows:
+            is_p = "🛑 ЗАПРЕЩЕНО" in str(r["Технологическое требование"])
+            row_class = " class='prohib-row'" if is_p else ""
             
-        # Настройка отображения таблицы с принудительным переносом строк (wrap=True)
-        st.dataframe(
-            df_matrix.style.apply(highlight_prohibitions, axis=1),
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Технологическое требование": st.column_config.TextColumn(width="large", wrap=True),
-                "Инженер ННБ": st.column_config.TextColumn(width="medium", wrap=True),
-                "Буровой подрядчик": st.column_config.TextColumn(width="medium", wrap=True),
-                "Супервайзер": st.column_config.TextColumn(width="medium", wrap=True)
-            }
-        )
+            html_table += f"""
+            <tr{row_class}>
+                <td>{r['Заказчик']}</td>
+                <td>{r['Пункт']}</td>
+                <td>{r['Технологическое требование']}</td>
+                <td>{r['Инженер ННБ']}</td>
+                <td>{r['Буровой подрядчик']}</td>
+                <td>{r['Супервайзер']}</td>
+            </tr>
+            """
+            
+        html_table += "</tbody></table>"
+        st.markdown(html_table, unsafe_allow_html=True)
         # --- ИНТЕРАКТИВНЫЙ ЧЕК-ЛИСТ ВЕРИФИКАЦИИ ---
         st.markdown("---")
         st.markdown("### 📝 Полевой чек-лист верификации регламентов ЛНД")
         st.caption("Отметьте выполненные на устье операции для включения их в официальный рапорт")
         
         verified_tasks = []
+        # Выводим пункты для чек-листа
         for i, row in enumerate(table_rows[:15]):
             task_label = f"{row['Заказчик']} | {row['Пункт']}: {row['Технологическое требование'][:80]}..."
             if st.checkbox(task_label, key=f"chk_v_{i}"):
                 verified_tasks.append(row)
-
         # --- КНОПКА ГЕНЕРАЦИИ PDF-АКТА ---
         if verified_tasks:
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("📄 Сформировать официальный Акт верификации ЛНД"):
-                # Генерация PDF-документа с перечнем проверенных требований и подписями сторон
-                # (код сборки ReportLab story и буфера памяти)
-                st.success("✅ Акт успешно сформирован!")
+                buffer = io.BytesIO()
+                doc = SimpleDocTemplate(buffer, pagesize=letter)
+                styles = getSampleStyleSheet()
+                # Собираем текстовый рапорт верификации регламентов
+                report_txt = "АКТ ПОЛЕВОЙ ВЕРИФИКАЦИИ ТЕХНОЛОГИЧЕСКОЙ ДИСЦИПЛИНЫ\n"
+                report_txt += f"Дата проверки: {datetime.now().strftime('%d.%m.%Y %H:%M')}\n"
+                report_txt += f"Месторождение: {field_name}\n"
+                report_txt += f"Скважина / Куст: {well_number}\n"
+                report_txt += f"Инженер по ННБ: {engineer_name}\n"
+                report_txt += "========================================\n"
+                report_txt += "Перечень проверенных требований регламентов ЛНД:\n\n"
+                
+                for idx, t in enumerate(verified_tasks, 1):
+                    report_txt += f"{idx}. [{t['Заказчик']}] {t['Пункт']}\n Требование: {t['Технологическое требование']}\n\n"
+                
+                st.success("✅ Акт верификации успешно сформирован!")
                 st.download_button(
-                    label="📥 Скачать Акт верификации (PDF)",
-                    data=buffer,
-                    file_name=f"Verification_Act_{well_number.replace(' ', '_')}.pdf",
-                    mime="application/pdf"
+                    label="📥 Скачать Акт верификации (TXT)",
+                    data=report_txt,
+                    file_name=f"Verification_Act_{well_number.replace(' ', '_')}.txt",
+                    mime="text/plain"
                 )
+
 
