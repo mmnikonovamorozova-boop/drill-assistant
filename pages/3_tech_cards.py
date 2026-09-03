@@ -1,13 +1,30 @@
 import streamlit as st
+import json
+import os
+import requests
+import pandas as pd
+import io
+from datetime import datetime
 
-# Проверка авторизации инженера
+# --- СИНХРОНИЗАЦИЯ И ИНИЦИАЛИЗАЦИЯ МЕТАДАННЫХ ---
+# Если данные уже были введены на 4-й странице, они подтянутся сюда автоматически
+if "well_number" not in st.session_state:
+    st.session_state["well_number"] = "Скв. № 102, Куст 12"
+if "engineer_name" not in st.session_state:
+    st.session_state["engineer_name"] = "Иванов И.И."
+if "field_name" not in st.session_state:
+    st.session_state["field_name"] = "Приобское"
+
+# --- ПРОВЕРКА АВТОРИЗАЦИИ СЕССИИ ---
 if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
-    st.error("🚨 ДОСТУП ОГРАНИЧЕН: Выполните авторизацию.")
+    st.error("🚨 ДОСТУП ОГРАНИЧЕН: Выполните авторизацию на главной странице.")
     st.stop()
 
-st.set_page_config(page_title="Технологические карты КНБК", page_icon="🔧", layout="wide")
-st.title("🔩 Интерактивные технологические карты сборки КНБК")
-st.caption("Полевой контроль технологической дисциплины и верификация СМК")
+# --- КОНФИГУРАЦИЯ СТРАНИЦЫ ТЕХКАРТ ---
+st.set_page_config(page_title="Технологические карты инцидентов", page_icon="🛠️", layout="wide")
+st.title("🛠️ Технологические карты и Профили инцидентов (DD/MWD)")
+st.caption("Автоматизированные чек-листы ликвидации брака, трибологические расчеты и верификация по СТО ИНТИ")
+
 # Принудительные CSS-стили для корректного вывода бланка на печать в PDF
 st.markdown("""
 <style>
@@ -32,160 +49,269 @@ st.markdown("<div style='color: #4B5563; font-size: 13px; background-color: #F3F
 
 st.markdown("---")
 
-# --- 3. СБОР МЕТАДАННЫХ (SIDEBAR) ---
+# --- СБОР И СИНХРОНИЗАЦИЯ МЕТАДАННЫХ (SIDEBAR) ---
 st.sidebar.header("📋 Метаданные рапорта")
-well_number = st.sidebar.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
-engineer_name = st.sidebar.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
-field_name = st.sidebar.text_input("Месторождение:", value="Приобское")
 
-st.subheader("📋 Выбор условий инцидента")
-selected_client = st.selectbox(
-    "💼 Заказчик (Проект):",
-    ["ПАО Роснефть", "ПАО Газпром нефть", "ПАО ЛУКОЙЛ", "Независимый оператор (ИНТИ)"]
+# Связываем инпуты с session_state для сквозной синхронизации страниц
+well_number = st.sidebar.text_input(
+    "Номер скважины / Куст:", 
+    value=st.session_state["well_number"],
+    key="well_input"
 )
-problem_type = st.selectbox(
-    "🚨 Выберите возникший инцидент/сценарий:",
-    [
-        "Опрессовка: Течь/падение давления в замковом стыке КНБК",
-        "Сборка: Избыточное нанесение резьбовой смазки",
-        "Крепление: Неверное позиционирование ключа на корпусе ВЗД/ТБ"
-    ]
+st.session_state["well_number"] = well_number
+
+engineer_name = st.sidebar.text_input(
+    "ФИО Инженера по ННБ:", 
+    value=st.session_state["engineer_name"],
+    key="eng_input"
 )
+st.session_state["engineer_name"] = engineer_name
 
-st.markdown("---")
+field_name = st.sidebar.text_input(
+    "Месторождение:", 
+    value=st.session_state["field_name"],
+    key="field_input"
+)
+st.session_state["field_name"] = field_name
 
-# ==============================================================================
-# 📥 АВТОМАТИЧЕСКАЯ ЗАГРУЗКА БАЗЫ ТРЕБОВАНИЙ ИЗ JSON-ФАЙЛА
-# ==============================================================================
-import json
-
-@st.cache_data  # Кэшируем функцию, чтобы файл не перечитывался с диска при каждом клике инженера
-def load_tech_requirements():
-    with open("tech_requirements.json", "r", encoding="utf-8") as f:
-        return json.load(f)
-
-# Инициализируем нашу базу знаний динамически из файла
-tech_knowledge_base = load_tech_requirements()
-# ==============================================================================
-
-st.markdown("---")
-
-
-
-# ==============================================================================
-# ЛОГИКА ТЕХНОЛОГИЧЕСКИХ СЦЕНАРИЕВ И ВЫВОД ПРЕДПРОСМОТРА
-# ==============================================================================
-# Проверим наличие инцидента в базе знаний
-if problem_type in tech_knowledge_base:
-    scenario_data = tech_knowledge_base[problem_type]
+st.sidebar.markdown("---")
+st.sidebar.info("💡 Метаданные синхронизированы с модулем Матрицы ЛНД и автоматически попадут во все генерируемые акты.")
+# --- ОТКАЗОУСТОЙЧИВАЯ ФУНКЦИЯ ЗАГРУЗКИ ТЕХКАРТ ---
+@st.cache_data(ttl=60)
+def load_tech_cards_database():
+    filename = "tech_requirements.json"
     
-    # === ЗОНА ПЕЧАТИ 1: Шапка и первоочередной регламент ===
-    st.markdown('<div class="print-preview">', unsafe_allow_html=True)
-    
-    col_b1, col_b2 = st.columns(2)
-    with col_b1:
-        st.write(f"**Месторождение:** {field_name}")
-        st.write(f"**Скважина / Куст:** {well_number}")
-    with col_b2:
-        st.write(f"**Проект (Заказчик):** {selected_client}")
-        st.write(f"**Инженер по ННБ:** {engineer_name}")
-    st.markdown("---")
-    
-    # Выводим заголовок акта и стандарт из JSON
-    st.markdown(f"### {scenario_data['title']}")
-    st.markdown(f"**Применимый стандарт:** `{scenario_data['regulations']['standard']}`")
-    st.info(scenario_data['regulations']['rule'])
-    st.markdown("---")
-    
-    # Выводим пошаговые действия
-    st.markdown("#### 1. Регламент первоочередных действий на роторе:")
-    for step in scenario_data["mandatory_steps"]:
-        st.write(step)
-    st.markdown("---")
-    st.markdown('</div>', unsafe_allow_html=True)
-    # === КОНЕЦ ЗОНЫ ПЕЧАТИ 1 ===
-
-        # === ТЕХНОЛОГИЧЕСКИЙ МАРШРУТ (БЕЗ ПЕЧАТИ) ===
-    st.markdown("#### 2. Маршрут верификации параметров:")
-    nodes = scenario_data.get("interactive_nodes", {})
-    
-    if problem_type == "Опрессовка: Течь/падение давления в замковом стыке КНБК":
-        p_opts = [nodes.get("pumps_normal", "Штатно"), nodes.get("pumps_fail", "Сбой")]
-        pumps_state = st.radio("⚙ Режим работы насосов:", p_opts, key="p_opt")
-        if pumps_state == p_opts[1]:
-            st.error("🚨 ЗАФИКСИРОВАНА ОСТАНОВКА ТЕСТА")
+    # Попытка №1: Читаем локальный JSON-файл техкарт
+    if os.path.exists(filename):
+        try:
+            with open(filename, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            st.sidebar.error(f"⚠️ Ошибка чтения {filename}: {str(e)}")
             
-        d_opts = [nodes.get("inspection_pass", "Норма"), nodes.get("inspection_fail", "Брак")]
-        damage_state = st.radio("📐 Результат дефектоскопии:", d_opts, key="d_opt")
-        if damage_state == d_opts[1]:
-            st.error("🚨 МАРШРУТ ОТБРАКОВКИ ИНСТРУМЕНТА")
-    elif problem_type == "Сборка: Избыточное нанесение резьбовой смазки":
-        l_opts = [nodes.get("lub_standard", "Стандарт"), nodes.get("lub_special", "Специальная")]
-        lubricant_type = st.radio("🔩 Тип применяемой резьбовой смазки (СТО ИНТИ S.QS.7):", l_opts, key="l_opt")
+    # Попытка №2: Если файла нет, генерируем базовую структуру для бесперебойной работы
+    st.sidebar.warning(f"⚠️ Файл {filename} не найден. Создана базовая структура.")
+    fallback_data = {
+        "Сборка: Избыточное нанесение резьбовой смазки": {
+            "title": "Избыточное нанесение резьбовой смазки при сборке КНБК",
+            "inti_standard": "СТО ИНТИ S.QS.7, СТО ИНТИ S.30.13",
+            "description": "Избыток смазки создает гидроклин в замковой резьбе ВЗД/ТТС, вызывая ложные показания момента свинчивания и скрытый излом замка.",
+            "verification_route": [
+                {"step": "Контроль очистки витка резьбы", "role": "Инженер ННБ"},
+                {"step": "Калибровка датчика момента ГК УМК", "role": "Буровой подрядчик"},
+                {"step": "Контроль нанесения смазки тонким слоем", "role": "Супервайзер"}
+            ],
+            "recommendations": [
+                "Удалить излишки смазки сухой ветошью с упорных торцов.",
+                "Использовать только безметалловую сертифицированную смазку."
+            ],
+            "restrictions": {
+                "Газпром нефть": "ЗАПРЕЩАЕТСЯ использование медно-графитовых смазок на телесистемах.",
+                "Роснефть": "НЕ ДОПУСКАЕТСЯ сборка элементов КНБК без проверки калибровки гидроключа."
+            }
+        }
+    }
+    
+    # Сохраняем её локально, чтобы файл физически появился в системе
+    try:
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump(fallback_data, f, ensure_ascii=False, indent=4)
+    except:
+        pass
         
-        st.markdown("##### 🧮 Расчет момента затяжки для гидроключа УМК:")
-        nominal_torque = st.number_input(
-            "Введите номинальный момент свинчивания по паспорту резьбы КНБК (кН·м):",
-            min_value=0.0, value=15.0, step=0.5
+    return fallback_data
+
+# Инициализируем базу данных техкарт
+tech_data = load_tech_cards_database()
+if not tech_data:
+    st.error("❌ Критическая ошибка: Не удалось загрузить базу данных техкарт.")
+    st.stop()
+st.subheader("🎯 Выбор технологической карты инцидента")
+
+# Получаем полный список инцидентов из загруженной базы данных
+incident_list = list(tech_data.keys())
+
+# Логика сквозного перехода: проверяем, пришел ли автоматический запрос со страницы Матрицы ЛНД
+default_index = 0
+if "auto_incident" in st.session_state and st.session_state["auto_incident"] in incident_list:
+    # Находим индекс инцидента, переданного из матрицы, чтобы подставить его по умолчанию
+    default_index = incident_list.index(st.session_state["auto_incident"])
+    st.info(f"🔄 Автоматический переход из Матрицы ЛНД по инциденту: **{st.session_state['auto_incident']}**")
+    # Сразу очищаем триггер, чтобы при ручном обновлении страницы индекс не залипал
+    del st.session_state["auto_incident"]
+
+# Интерактивный селектбокс с динамическим индексом
+selected_incident = st.selectbox(
+    "Выберите тип брака или инцидента для ликвидации:",
+    incident_list,
+    index=default_index,
+    key="incident_selector"
+)
+
+# Вытаскиваем все данные по выбранной техкарте
+current_card = tech_data.get(selected_incident, {})
+st.markdown("---")
+
+# 1. Основное описание инцидента и стандарты ИНТИ
+title_text = current_card.get("title", selected_incident)
+inti_text = current_card.get("inti_standard", "СТО ИНТИ S.QS.7")
+desc_text = current_card.get("description", "")
+
+st.markdown(f"### 📋 {title_text}")
+st.markdown(f"**Соответствие стандартам:** `{inti_text}`")
+st.write(desc_text)
+
+st.markdown("---")
+st.markdown("### 🧮 Трибологический калькулятор момента свинчивания замка")
+st.caption("Автоматический расчет момента на гидроключе УМК по СТО ИНТИ S.QS.7 при изменении коэффициента трения смазки")
+
+col_c1, col_c2 = st.columns(2)
+with col_c1:
+    nominal_torque = st.number_input(
+        "Номинальный момент свинчивания по паспорту резьбы (кН*м):", 
+        min_value=1.0, 
+        max_value=100.0, 
+        value=25.0, 
+        step=0.5
+    )
+with col_c2:
+    lubricant_type = st.radio(
+        "Тип применяемой резьбовой смазки на устье:",
+        ["Стандартная (Медно-графитовая)", "Безметалловая полимерная (сертифицированная ИНТИ)"],
+        horizontal=True
+    )
+
+# Расчет коэффициента и финального момента
+friction_coeff = 1.0
+if lubricant_type == "Безметалловая полимерная (сертифицированная ИНТИ)":
+    # Понижающий трибологический коэффициент 0.875 (-12.5% к трению замка)
+    friction_coeff = 0.875
+
+target_torque = round(nominal_torque * friction_coeff, 2)
+
+# Выводим инженеру четкую рекомендацию для гидроключа
+if friction_coeff < 1.0:
+    st.warning(f"⚠️ Внимание: Безметалловая смазка снижает трение. Для предотвращения скрытого разрыва замка ВЗД снизьте момент на гидроключе УМК!")
+    st.markdown(f"🎯 **Рекомендуемый момент затяжки на гидроключе УМК:** `{target_torque} кН*м` *(Понижающий коэффициент {friction_coeff})*")
+else:
+    st.success(f"✅ Параметры свинчивания в норме.")
+    st.markdown(f"🎯 **Рекомендуемый момент затяжки на гидроключе УМК:** `{target_torque} кН*м` *(Номинальный режим)*")
+st.markdown("---")
+st.markdown("### 🗺️ Маршрут операционной верификации параметров (СТО ИНТИ S.QS.8)")
+st.caption("Пошаговый контроль технологических звеньев на устье скважины при ликвидации брака")
+
+route_steps = current_card.get("verification_route", [])
+verified_route_data = []
+
+if route_steps and isinstance(route_steps, list):
+    for i, step_item in enumerate(route_steps):
+        if not isinstance(step_item, dict):
+            continue
+            
+        step_title = step_item.get("step", f"Шаг № {i+1}")
+        step_role = step_item.get("role", "ИТР")
+        
+        st.markdown(f"#### 🛑 Шаг {i+1}: {step_title}")
+        st.markdown(f"**Зона контроля:** `{step_role}`")
+        
+        # Интерактивный выбор статуса прохождения шага на буровой
+        step_status = st.radio(
+            f"Технологический статус выполнения шага {i+1}:",
+            ["Штатно (Параметры верифицированы)", "Сбой (Выявлено отклонение от ЛНД)"],
+            key=f"status_step_{i}",
+            horizontal=True
         )
         
-                # Математика трибологии ЛНД: расчет снижения на безметалловой смазке
-        if lubricant_type == l_opts[1]:
-            st.warning("⚠️ **ВНИМАНИЕ:** Зафиксировано применение специализированной безметалловой смазки.")
-            corrected_torque = round(nominal_torque * 0.875, 2)
-            
-            # Выводим скорректированный момент крупным читаемым шрифтом
-            st.markdown(f"""
-            <div style="background-color: #fef2f2; padding: 15px; border-radius: 6px; border-left: 5px solid #ef4444; margin-top: 10px;">
-                <span style="color: #991b1b; font-size: 14px; font-weight: bold; display: block; margin-bottom: 5px;">🔧 СКОРРЕКТИРОВАННЫЙ МОМЕНТ ДЛЯ КЛЮЧА УМК (СТО ИНТИ S.QS.7):</span>
-                <span style="color: #b91c1c; font-size: 28px; font-weight: 900;">{corrected_torque} кН·м</span>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.success(f"✅ Финальную затяжку КНБК проводить стандартным номинальным моментом: **`{nominal_torque} кН·м`**")
+        # Дополнительное поле для фиксации фактических данных инженером
+        fact_comment = st.text_input(
+            f"Фактические параметры / Примечание к шагу {i+1}:",
+            value="",
+            key=f"comment_step_{i}",
+            placeholder="Например: Люфт устранен, манометр поверен, смазка нанесена..."
+        )
+        
+        if step_status == "Сбой (Выявлено отклонение от ЛНД)":
+            st.error(f"🚨 Внимание: Зафиксировано нарушение регламента на этапе контроля: '{step_role}'!")
             
         st.markdown("---")
         
-        # Полный код формирования export_html и кнопки скачивания доступен в исходных материалах [INDEX].
-        # Здесь подключается генерация HTML-отчета с данными по скважине, шагам регламента и трибологическому расчету.
-
-
-    # === ЗОНА ПЕЧАТИ 2: Физика процесса и ЛНД Заказчика ===
-    st.markdown('<div class="print-preview">', unsafe_allow_html=True)
-    st.markdown("#### 3. Физика процесса и сопутствующие риски:")
-    st.write(f"**Физический эффект:** *{scenario_data['physics']['effect']}*")
-    st.write(scenario_data["physics"]["description"])
-    st.markdown("---")
-    
-    st.markdown("#### 4. Ограничения Заказчика (ЛНД проекта):")
-    client_rules = scenario_data.get("clients", {})
-    if selected_client in client_rules:
-        client_text = client_rules[selected_client]
-        if "ЗАПРЕТ" in client_text or "КРИТИЧЕСКОЕ" in client_text:
-            st.error(client_text)
-        else:
-            st.warning(client_text)
-    else:
-        st.info(client_rules.get("default", "Действуют стандартные правила ИНТИ."))
-        
-    st.markdown("---")
-    st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший инженер по качеству Никонова-Морозова М.М. • Верифицировано по стандартам СТО ИНТИ © 2026</div>", unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-        # === СБОРКА ТЕКСТОВОГО РАПОРТА ДЛЯ ПЕЧАТИ ===
-    current_lub = st.session_state.get("l_opt", "Стандарт")
-    rep_torque = f"{round(15.0 * 0.875, 2)} кН·м (Снижен на 12.5%)" if "Специальная" in current_lub else "15.0 кН·м (Номинал)"
-    
-    # Собираем текстовый рапорт
-    report_text = f"ТЕХНОЛОГИЧЕСКАЯ КАРТА ЛИКВИДАЦИИ ИНЦИДЕНТА\nМесторождение: {field_name}\nСкважина: {well_number}\nЗаказчик: {selected_client}\nИнженер по ННБ: {engineer_name}\n\nСценарий: {problem_type}\nКрутящий момент на гидроключе УМК: {rep_torque}"
-    
-    # Выводим кнопку скачивания в боковую панель слева
-    st.sidebar.markdown("---")
-    st.sidebar.download_button(
-        label="💾 Скачать готовый рапорт",
-        data=report_text,
-        file_name=f"Tech_Card_{well_number.replace(' ', '_')}.txt",
-        mime="text/plain",
-        key="download_report_btn"
-)
+        # Сохраняем данные шага для генерации итогового рапорта
+        verified_route_data.append({
+            "step_num": i + 1,
+            "title": step_title,
+            "role": step_role,
+            "status": step_status,
+            "comment": fact_comment if fact_comment else "Без комментариев"
+        })
 else:
-        st.error("🚨 КРИТИЧЕСКАЯ ОШИБКА: Сценарий не найден в конфигурационном файле JSON.")
+    st.info("ℹ️ Для выбранного инцидента маршрут верификации в базе данных не задан.")
+st.markdown("### 💼 Ограничения Заказчиков и превентивные рекомендации")
+
+# 1. Извлекаем и выводим ограничения Заказчика
+restrictions = current_card.get("restrictions", {})
+if restrictions and isinstance(restrictions, dict):
+    st.markdown("#### 🚫 Специфические запреты по компаниям:")
+    for client, restriction_text in restrictions.items():
+        st.warning(f"**{client}**: {restriction_text}")
+else:
+    st.info("ℹ️ Специфических ограничений Заказчиков для данного инцидента не найдено.")
+
+# 2. Извлекаем и выводим общие рекомендации
+recommendations = current_card.get("recommendations", [])
+if recommendations and isinstance(recommendations, list):
+    st.markdown("#### 💡 Рекомендации по предотвращению повторения брака:")
+    for rec in recommendations:
+        st.info(f"• {rec}")
+
+st.markdown("---")
+st.markdown("### 📄 Отчетность и фиксация параметров")
+
+# 3. Кнопка формирования и скачивания рапорта верификации инцидента
+if st.button("📝 Сформировать Рапорт ликвидации технологического брака"):
+    # Собираем текстовый документ построчно через список строк
+    lines = [
+        "РАПОРТ ЛИКВИДАЦИИ ТЕХНОЛОГИЧЕСКОГО БРАКА И ВЕРИФИКАЦИИ ПАРАМЕТРОВ",
+        f"Дата и время формирования: {datetime.now().strftime('%d.%m.%Y %H:%M')}",
+        f"Месторождение: {st.session_state['field_name']}",
+        f"Скважина / Куст: {st.session_state['well_number']}",
+        f"Инженер по ННБ: {st.session_state['engineer_name']}",
+        "========================================",
+        f"Тип инцидента: {title_text}",
+        f"Нормативная база: {inti_text}",
+        "----------------------------------------",
+        "РЕЗУЛЬТАТЫ ТРИБОЛОГИЧЕСКОГО РАСЧЕТА МОМЕНТА СВИНЧИВАНИЯ КНБК:",
+        f" Выбранный тип смазки резьбы: {lubricant_type}",
+        f" Паспортный (номинальный) момент: {nominal_torque} кН*м",
+        f" Финальный расчетный момент для гидроключа УМК: {target_torque} кН*м",
+        "----------------------------------------",
+        "РЕЗУЛЬТАТЫ ПОШАГОВОЙ ПОЛЕВОЙ ВЕРИФИКАЦИИ МАРШРУТА:",
+        ""
+    ]
+    
+    # Добавляем данные по каждому шагу верификации маршрута
+    for step in verified_route_data:
+        lines.append(f"Шаг {step['step_num']}: {step['title']}")
+        lines.append(f" Зона ответственности: {step['role']}")
+        lines.append(f" Технологический статус: {step['status']}")
+        lines.append(f" Примечание инженера: {step['comment']}")
+        lines.append("")
+        
+    lines.append("========================================")
+    lines.append("Подписи сторон на устье скважины:")
+    lines.append("")
+    lines.append("Инженер по ННБ: _______________________")
+    lines.append("")
+    lines.append("Представитель Бурового подрядчика: _______________________")
+    lines.append("")
+    lines.append("Супервайзер Заказчика: _______________________")
+    
+    # Объединяем список строк в единую текстовую переменную
+    report_content = "  ".join([l + "  " for l in lines])
+    
+    st.success("✅ Официальный Рапорт верификации успешно сформирован!")
+    st.download_button(
+        label="📥 Скачать Рапорт ликвидации инцидента (TXT)",
+        data=report_content,
+        file_name=f"Incident_Report_{st.session_state['well_number'].replace(' ', '_')}.txt",
+        mime="text/plain"
+    )
