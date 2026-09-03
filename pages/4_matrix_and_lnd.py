@@ -163,11 +163,19 @@ if items and isinstance(items, list):
     for r in table_rows:
         row_style = " class='pr'" if r["is_prohib"] else ""
         
+        # Смарт-подсветка роли Исполнителя для инженера ННБ
+        nnb_val = str(r['Инженер ННБ'])
+        if "исполнитель" in nnb_val.lower():
+            nnb_display = f"<b style='color: #2b8a3e;'>⚙️ {nnb_val}</b>"
+        else:
+            nnb_display = nnb_val
+            
         row_html = f"<tr{row_style}>"
         row_html += f"<td style='text-align:center;'>{r['Заказчик']}</td>"
         row_html += f"<td style='text-align:center;'>{r['Пункт']}</td>"
         row_html += f"<td>{r['Технологическое требование']}</td>"
-        row_html += f"<td class='st-cell'>{r['Инженер ННБ']}</td>"
+        # Выводим подсвеченную роль
+        row_html += f"<td class='st-cell'>{nnb_display}</td>"
         row_html += f"<td class='st-cell'>{r['Буровой подрядчик']}</td>"
         row_html += f"<td class='st-cell'>{r['Супервайзер']}</td>"
         row_html += "</tr>"
@@ -176,6 +184,7 @@ if items and isinstance(items, list):
         
     html_table += "</tbody></table>"
     st.markdown(html_table, unsafe_allow_html=True)
+    
     # --- ИНТЕРАКТИВНЫЙ ЧЕК-ЛИСТ ВЕРИФИКАЦИИ ---
     st.markdown("---")
     st.markdown("### 📝 Полевой чек-лист верификации регламентов ЛНД")
