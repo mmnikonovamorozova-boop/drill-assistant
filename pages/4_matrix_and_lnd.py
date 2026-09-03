@@ -109,12 +109,29 @@ with col_f3:
     search_query = st.text_input("🔎 Smart Поиск по ключевому слову (например: опрессовка, гайка, шаблон):", value="")
 with col_f4:
     st.markdown("<br>", unsafe_allow_html=True)
-    nnb_only_filter = st.toggle("⚡ Только моя зона (ННБ)", value=False)
+    # Переименовали тумблер для исключения сомнений
+    nnb_only_filter = st.toggle("⚡ Скрыть пункты 'Проинформирован'", value=False)
 
 st.markdown("---")
 if items and isinstance(items, list):
-    table_rows = []
+    st.markdown(f"### 📊 Сводная таблица взаимодействия сторон: *{selected_op}*")
     
+    # Запрещаем перенос слов (nowrap) для статусов, чтобы они не рвались
+    s = "<style>.mt { width:100%; border-collapse:collapse; font-size:14px; }"
+    s += ".mt th { background:#f1f3f5; padding:10px; border:1px solid #dee2e6; text-align:center; }"
+    s += ".mt td { padding:10px; border:1px solid #dee2e6; vertical-align:top; }"
+    s += ".st-cell { text-align:center; white-space:nowrap; }"
+    s += ".pr { background:#ffcccc !important; }</style>"
+    
+    h = "<table class='mt'><thead><tr>"
+    h += "<th style='width:10%;'>Заказчик</th><th style='width:6%;'>Пункт</th>"
+    h += "<th style='text-align:left;'>Технологическое требование</th>"
+    h += "<th style='width:13%;'>Инженер ННБ</th><th style='width:13%;'>Буровой подрядчик</th>"
+    h += "<th style='width:13%;'>Супервайзер</th>"
+    h += "</tr></thead><tbody>"
+    
+    html_table = s + h
+    table_rows = []
     for idx, item in enumerate(items):
         if not isinstance(item, dict):
             continue
@@ -122,93 +139,48 @@ if items and isinstance(items, list):
         action_text = item.get("action", "")
         action_upper = action_text.upper()
         
-        # Интеллектуальный поиск критических запретов
         is_prohib = any(w in action_upper for w in ["ЗАПРЕЩ", "НЕ ДОПУСК", "🛑", "ЗАПРЕТИТЬ"])
-        # Применяем фильтр по Заказчикам
+        
         if client_filter and client_name not in client_filter:
             continue
-            
-        # Применяем фильтр по запретам
         if type_filter == "Только КРИТИЧЕСКИЕ ЗАПРЕТЫ" and not is_prohib:
             continue
-            
-        # Применяем текстовый Smart-поиск
         if search_query and search_query.lower() not in action_text.lower():
             continue
-        # Фильтр зоны ответственности инженера по ННБ
-                # Фильтр зоны ответственности: оставляем ТОЛЬКО статус "Исполнитель"
+            
         nnb_status = item.get("nnb", "Проинформирован")
-        if nnb_only_filter and "исполнитель" not in str(nnb_status).lower():
+        if nnb_only_filter and "проинформирован" in str(nnb_status).lower():
             continue
             
         master_status = item.get("contractor", "Проинформирован")
         super_status = item.get("supervisor", "Проинформирован")
-
-        # Упаковываем данные в строку для датафрейма (УБРАЛИ КОЛОНКУ РАЗДЕЛ)
+        
         table_rows.append({
             "Заказчик": client_name,
             "Пункт": f"п. {item.get('step_id', 'Б/Н')}",
             "Технологическое требование": action_text if not is_prohib else f"🛑 ЗАПРЕЩЕНО: {action_text}",
             "Инженер ННБ": nnb_status,
             "Буровой подрядчик": master_status,
-            "Супервайзер": super_status
+            "Супервайзер": super_status,
+            "is_prohib": is_prohib
         })
-    if table_rows:
-        st.markdown(f"### 📊 Сводная таблица взаимодействия сторон: *{selected_op}*")
-        
-    # Наводим красоту: центрируем заголовки и расширяем колонки статусов до 13%
-        s = "<style>.mt { width:100%; border-collapse:collapse; font-size:14px; }"
-        s += ".mt th { background:#f1f3f5; padding:10px; border:1px solid #dee2e6; text-align:center; }"
-        s += ".mt td { padding:10px; border:1px solid #dee2e6; vertical-align:top; word-break:break-word; }"
-        s += ".pr { background:#ffcccc !important; }</style>"
-        
-        h = "<table class='mt'><thead><tr>"
-        h += "<th style='width:9%;'>Заказчик</th><th style='width:6%;'>Пункт</th>"
-        h += "<th style='width:46%; text-align:left;'>Технологическое требование</th>"
-        h += "<th style='width:13%;'>Инженер ННБ</th><th style='width:13%;'>Буровой подрядчик</th>"
-        h += "<th style='width:13%;'>Супервайзер</th>"
-        h += "</tr></thead><tbody>"
-        
-        html_table = s + h
-        for r in table_rows:
-            is_p = "🛑 ЗАПРЕЩЕНО" in str(r["Технологическое требование"])
-            row_style = " class='pr'" if is_p else ""
-            
-            row_html = f"<tr{row_style}>"
-            row_html += f"<td style='text-align:center;'>{r['Заказчик']}</td>"
-            row_html += f"<td style='text-align:center;'>{r['Пункт']}</td>"
-            row_html += f"<td>{r['Технологическое требование']}</td>"
-            # Центрируем роли участников внутри расширенных ячеек
-            row_html += f"<td style='text-align:center;'>{r['Инженер ННБ']}</td>"
-            row_html += f"<td style='text-align:center;'>{r['Буровой подрядчик']}</td>"
-            row_html += f"<td style='text-align:center;'>{r['Супервайзер']}</td>"
-            row_html += "</tr>"
-            
-            html_table += row_html
-            
-        html_table += "</tbody></table>"
-        st.markdown(html_table, unsafe_allow_html=True)
 
-        for r in table_rows:
-            is_p = "🛑 ЗАПРЕЩЕНО" in str(r["Технологическое требование"])
-            row_style = " class='pr'" if is_p else ""
-            
-            # Внутри цикла идет 12 пробелов для сборки строк:
-            row_html = f"<tr{row_style}>"
-            row_html += f"<td>{r['Заказчик']}</td>"
-            row_html += f"<td>{r['Пункт']}</td>"
-            row_html += f"<td>{r['Технологическое требование']}</td>"
-            row_html += f"<td>{r['Инженер ННБ']}</td>"
-            row_html += f"<td>{r['Буровой подрядчик']}</td>"
-            row_html += f"<td>{r['Супервайзер']}</td>"
-            row_html += "</tr>"
-            
-            # Возврат на 8 пробелов внутри for:
-            html_table += row_html
-            
-        # Возврат на 4 пробела внутри if:
-        html_table += "</tbody></table>"
-        st.markdown(html_table, unsafe_allow_html=True)
+    for r in table_rows:
+        row_style = " class='pr'" if r["is_prohib"] else ""
+        
+        row_html = f"<tr{row_style}>"
+        row_html += f"<td style='text-align:center;'>{r['Заказчик']}</td>"
+        row_html += f"<td style='text-align:center;'>{r['Пункт']}</td>"
+        row_html += f"<td>{r['Технологическое требование']}</td>"
+        row_html += f"<td class='st-cell'>{r['Инженер ННБ']}</td>"
+        row_html += f"<td class='st-cell'>{r['Буровой подрядчик']}</td>"
+        row_html += f"<td class='st-cell'>{r['Супервайзер']}</td>"
+        row_html += "</tr>"
+        
+        html_table += row_html
+        
+    html_table += "</tbody></table>"
+    st.markdown(html_table, unsafe_allow_html=True)
 
         # --- ИНТЕРАКТИВНЫЙ ЧЕК-ЛИСТ ВЕРИФИКАЦИИ ---
         st.markdown("---")
