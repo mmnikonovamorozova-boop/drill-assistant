@@ -113,16 +113,8 @@ with col_f4:
 
 st.markdown("---")
 if items and isinstance(items, list):
-    st.markdown(f"### 📊 Сводная таблица взаимодействия сторон: *{selected_op}*")
-    
-    # Задаем CSS стили для адаптивной таблицы на буровой
-    table_style = """
-    <style>
-    /* Полный CSS-код для таблиц и статусов доступен в исходных материалах */
-    </style>
-    """
-    st.markdown(table_style, unsafe_allow_html=True)
     table_rows = []
+    
     for idx, item in enumerate(items):
         if not isinstance(item, dict):
             continue
@@ -139,21 +131,18 @@ if items and isinstance(items, list):
         # Применяем фильтр по запретам
         if type_filter == "Только КРИТИЧЕСКИЕ ЗАПРЕТЫ" and not is_prohib:
             continue
-        # Применяем текстовый Smart-поиск по ключевому слову
+            
+        # Применяем текстовый Smart-поиск
         if search_query and search_query.lower() not in action_text.lower():
             continue
-            
-        # Определяем статус контроля для инженера ННБ
+        # Фильтр зоны ответственности инженера по ННБ
         nnb_status = item.get("nnb", "Проинформирован")
-        # Применяем тумблер фокуса ответственности ННБ
         if nnb_only_filter and "проинформирован" in str(nnb_status).lower():
             continue
             
-        # Достаем остальные статусы сторон
         master_status = item.get("contractor", "Проинформирован")
         super_status = item.get("supervisor", "Проинформирован")
-        mud_status = item.get("mud_service", "Проинформирован")
-        # Собираем данные в строку таблицы
+        # Упаковываем данные в строку для датафрейма
         table_rows.append({
             "Заказчик": client_name,
             "Пункт": f"п. {item.get('step_id', 'Б/Н')}",
@@ -166,8 +155,9 @@ if items and isinstance(items, list):
     # Выводим собранный датафрейм на экран
     if table_rows:
         df_matrix = pd.DataFrame(table_rows)
+        st.markdown(f"### 📊 Сводная таблица взаимодействия сторон: *{selected_op}*")
         
-        # Применяем подсветку: если требование содержит "ЗАПРЕЩЕНО", красим строку в пастельно-красный
+        # Функция подсветки: если строка содержит запрет, красим её целиком
         def highlight_prohibitions(row):
             if "🛑 ЗАПРЕЩЕНО" in str(row["Технологическое требование"]):
                 return ["background-color: #ffcccc"] * len(row)
@@ -178,58 +168,59 @@ if items and isinstance(items, list):
             use_container_width=True,
             hide_index=True
         )
-    # --- ИНТЕРАКТИВНЫЙ ЧЕК-ЛИСТ ВЕРИФИКАЦИИ ---
-    st.markdown("---")
-    st.markdown("### 📝 Полевой чек-лист верификации регламентов ЛНД")
-    st.caption("Отметьте выполненные на устье операции для включения их в официальный рапорт")
-    
-    verified_tasks = []
-    # Берем первые 15 отфильтрованных пунктов для чек-листа
-    for i, row in enumerate(table_rows[:15]):
-        task_label = f"{row['Заказчик']} | {row['Пункт']}: {row['Технологическое требование'][:80]}..."
-        if st.checkbox(task_label, key=f"chk_v_{i}"):
-            verified_tasks.append(row)
-    # --- КНОПКА ГЕНЕРАЦИИ PDF-АКТА ---
-    if verified_tasks:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("📄 Сформировать официальный Акт верификации ЛНД"):
-            buffer = io.BytesIO()
-            doc = SimpleDocTemplate(buffer, pagesize=letter)
-            styles = getSampleStyleSheet()
-            
-            # Настройка структуры PDF
-            story = [
-                Paragraph(f"<b>АКТ ПОЛЕВОЙ ВЕРИФИКАЦИИ ТЕХНОЛОГИЧЕСКОЙ ДИСЦИПЛИНЫ</b>", styles["Title"]),
-                Spacer(1, 15),
-                Paragraph(f"<b>Дата проверки:</b> {datetime.now().strftime('%d.%m.%Y %H:%M')}", styles["Normal"]),
-                Paragraph(f"<b>Месторождение:</b> {field_name}", styles["Normal"]),
-                Paragraph(f"<b>Скважина / Куст:</b> {well_number}", styles["Normal"]),
-                Paragraph(f"<b>Инженер по ННБ:</b> {engineer_name}", styles["Normal"]),
-                Spacer(1, 15),
-                Paragraph("<b>Перечень проверенных требований и регламентов ЛНД:</b>", styles["Heading3"]),
-                Spacer(1, 10)
-            ]
-            
-            # Заполняем PDF пунктами
-            for t in verified_tasks:
-                bullet = f"• [{t['Заказчик']}] {t['Пункт']} - {t['Технологическое требование']}"
-                story.append(Paragraph(bullet, styles["Normal"]))
-                story.append(Spacer(1, 5))
+        # --- ИНТЕРАКТИВНЫЙ ЧЕК-ЛИСТ ВЕРИФИКАЦИИ ---
+        st.markdown("---")
+        st.markdown("### 📝 Полевой чек-лист верификации регламентов ЛНД")
+        st.caption("Отметьте выполненные на устье операции для включения их в официальный рапорт")
+        
+        verified_tasks = []
+        # Выводим первые 15 отфильтрованных пунктов для экспресс-контроля
+        for i, row in enumerate(table_rows[:15]):
+            task_label = f"{row['Заказчик']} | {row['Пункт']}: {row['Технологическое требование'][:80]}..."
+            if st.checkbox(task_label, key=f"chk_v_{i}"):
+                verified_tasks.append(row)
+        # --- КНОПКА ГЕНЕРАЦИИ PDF-АКТА ---
+        if verified_tasks:
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("📄 Сформировать официальный Акт верификации ЛНД"):
+                buffer = io.BytesIO()
+                doc = SimpleDocTemplate(buffer, pagesize=letter)
+                styles = getSampleStyleSheet()
                 
-            story.append(Spacer(1, 20))
-            story.append(Paragraph("<b>Подписи сторон:</b>", styles["Heading3"]))
-            story.append(Spacer(1, 10))
-            story.append(Paragraph("Инженер по ННБ: _______________________", styles["Normal"]))
-            story.append(Spacer(1, 10))
-            story.append(Paragraph("Буровой мастер / Супервайзер: _______________________", styles["Normal"]))
-            
-            doc.build(story)
-            buffer.seek(0)
-            
-            st.success("✅ Акт успешно сформирован!")
-            st.download_button(
-                label="📥 Скачать Акт верификации (PDF)",
-                data=buffer,
-                file_name=f"Verification_Act_{well_number.replace(' ', '_')}.pdf",
-                mime="application/pdf"
-            )
+                # Собираем структуру документа
+                story = [
+                    Paragraph("<b>АКТ ПОЛЕВОЙ ВЕРИФИКАЦИИ ТЕХНОЛОГИЧЕСКОЙ ДИСЦИПЛИНЫ</b>", styles["Title"]),
+                    Spacer(1, 15),
+                    Paragraph(f"<b>Дата проверки:</b> {datetime.now().strftime('%d.%m.%Y %H:%M')}", styles["Normal"]),
+                    Paragraph(f"<b>Месторождение:</b> {field_name}", styles["Normal"]),
+                    Paragraph(f"<b>Скважина / Куст:</b> {well_number}", styles["Normal"]),
+                    Paragraph(f"<b>Инженер по ННБ:</b> {engineer_name}", styles["Normal"]),
+                    Spacer(1, 15),
+                    Paragraph("<b>Перечень проверенных требований и регламентов ЛНД:</b>", styles["Heading3"]),
+                    Spacer(1, 10)
+                ]
+                
+                # Добавляем отмеченные задачи в PDF
+                for t in verified_tasks:
+                    bullet = f"• [{t['Заказчик']}] {t['Пункт']} - {t['Технологическое требование']}"
+                    story.append(Paragraph(bullet, styles["Normal"]))
+                    story.append(Spacer(1, 5))
+                    
+                story.append(Spacer(1, 20))
+                story.append(Paragraph("<b>Подписи сторон:</b>", styles["Heading3"]))
+                story.append(Spacer(1, 10))
+                story.append(Paragraph("Инженер по ННБ: _______________________", styles["Normal"]))
+                story.append(Spacer(1, 10))
+                story.append(Paragraph("Буровой мастер / Супервайзер: _______________________", styles["Normal"]))
+                
+                doc.build(story)
+                buffer.seek(0)
+                
+                st.success("✅ Акт успешно сформирован!")
+                st.download_button(
+                    label="📥 Скачать Акт верификации (PDF)",
+                    data=buffer,
+                    file_name=f"Verification_Act_{well_number.replace(' ', '_')}.pdf",
+                    mime="application/pdf"
+                )
+
