@@ -96,6 +96,8 @@ else:
     if selected_op and isinstance(kb_data.get(selected_op), dict):
         available_clients = [selected_op]
 
+st.session_state["global_available_clients"] = available_clients
+
 # Разметка панели управления фильтрами
 col_f1, col_f2 = st.columns(2)
 with col_f1:
