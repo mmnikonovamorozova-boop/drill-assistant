@@ -101,28 +101,36 @@ def load_tech_cards_database():
                         }
                     }
     return tech_cards
+# Активируем базу данных через автоматический сканер папок
+tech_data = load_tech_cards_database()
 
 # ==============================================================================
-# БЛОК 3: ВЫБОР ТЕХНОЛОГИЧЕСКОЙ КАРТЫ И ОБРАБОТКА СКВОЗНЫХ ПЕРЕХОДОВ
+# БЛОК 3: ПОИСК И ВЫБОР ТЕХНОЛОГИЧЕСКОЙ КАРТЫ ПО КЛЮЧЕВОМУ СЛОВУ
 # ==============================================================================
-st.subheader("🎯 Выбор технологической карты инцидента")
+st.subheader("🎯 Поиск и выбор технологической карты инцидента")
 
-# Получаем полный упорядоченный список инцидентов из загруженной базы данных
-incident_list = list(tech_data.keys())
+# 1. Интерактивная строка текстового поиска по архиву схем
+search_query = st.text_input(
+    "🔍 Введите ключевое слово для быстрого поиска (например: ясс, прихват, mwd, окно):",
+    value="",
+    placeholder="Начните вводить название операции или осложнения..."
+).strip().lower()
 
-# Автоматическая логика: проверяем, пришел ли сквозной запрос из Матрицы ЛНД
-default_index = 0
-if "auto_incident" in st.session_state and st.session_state["auto_incident"] in incident_list:
-    # Находим точный индекс инцидента в массиве для автовыбора в селектбоксе
-    default_index = incident_list.index(st.session_state["auto_incident"])
-    st.info(f"🔄 Выполнен автоматический переход из Матрицы ЛНД по инциденту: **{st.session_state['auto_incident']}**")
-    # Сразу очищаем сессионный триггер, чтобы избежать залипания индекса при перезапуске страницы
-    del st.session_state["auto_incident"]
-# Интерактивный селектбокс выбора инцидента с динамическим индексом
+# 2. Фильтруем полный список инцидентов на основе введенного слова
+full_incident_list = list(tech_data.keys())
+if search_query:
+    incident_list = [card for card in full_incident_list if search_query in card.lower()]
+    if not incident_list:
+        st.warning(f"🔕 По запросу '{search_query}' ничего не найдено. Показан полный список карт.")
+        incident_list = full_incident_list
+else:
+    incident_list = full_incident_list
+
+# Интерактивный селектбокс выбора из отфильтрованного списка карт
 selected_incident = st.selectbox(
     "Выберите тип брака или инцидента для ликвидации:",
     incident_list,
-    index=default_index,
+    index=0 if search_query else default_index,
     key="incident_selector"
 )
 
