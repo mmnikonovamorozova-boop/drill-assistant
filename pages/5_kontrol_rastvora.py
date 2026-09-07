@@ -507,6 +507,7 @@ region_choice = st.session_state.get("region_choice", "ХМАО / Мегион")
 vendor_choice = st.session_state.get("vendor_choice", "Радиус-Сервис")
 
 # Загрузка базы данных и базовая фильтрация параметров
+# Загрузка базы данных и базовая фильтрация параметров
 def load_advanced_failures_database(file_path):
     try:
         df = pd.read_excel(file_path)
@@ -515,11 +516,26 @@ def load_advanced_failures_database(file_path):
     except Exception:
         return pd.DataFrame()
 
+# Чтение сгенерированной базы данных из файла failures_db.xlsx
 df_failures = load_advanced_failures_database("failures_db.xlsx")
 model_ready, predicted_hours_to_failure, mae_hours, accuracy_pct = False, 0.0, 24.0, 75.0
-# --- ЧАСТЬ 4.3: ОБУЧЕНИЕ ИИ-МОДЕЛИ И ЧАСТЬ 4.4: АНАЛИТИКА И РЕГЛАМЕНТНЫЕ ОТСЕЧКИ ---
-# Полный исходный код обучения RandomForestRegressor на синтетических данных, 
-# а также резервный термодинамический расчет деградации по Аррениусу доступен в программном модуле.
+
+# Фильтрация данных по региону и вендору для обучения модели (создание df_train)
+df_train = pd.DataFrame()
+if df_failures is not None and not df_failures.empty:
+    # Очистка текстовых полей от пробелов для точного совпадения
+    if "Регион" in df_failures.columns and "Производитель" in df_failures.columns:
+        df_failures["Регион_чистый"] = df_failures["Регион"].astype(str).str.strip()
+        df_failures["Производитель_чистый"] = df_failures["Производитель"].astype(str).str.strip()
+        
+        # Берем ключевое слово из выбора пользователя (например, 'РАДИУС' из 'Радиус-Сервис')
+        short_vendor_name = str(vendor_choice).split("-")[0].split(" ")[0].upper()
+        short_region_name = str(region_choice).split("/")[0].split(" ")[0].upper()
+        
+        # Фильтруем общую базу, формируя выборку df_train для обучения ИИ
+        df_geo = df_failures[df_failures["Регион_чистый"].str.upper().str.contains(short_region_name, na=False)]
+        df_train = df_geo[df_geo["Производитель_чистый"].str.upper().str.contains(short_vendor_name, na=False)]
+
 if df_train is not None and not df_train.empty and len(df_train) >= 3:
     try:
         X_train = df_train[["Песок (%)", "Забойная Темп. (°C)", "Кинематика_число", "Агрессивность_БР"]]
