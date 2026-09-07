@@ -48,12 +48,9 @@ st.session_state["field_name"] = field_name
 st.sidebar.markdown("---")
 st.sidebar.info("💡 Метаданные синхронизированы с модулем Матрицы ЛНД и автоматически попадут во все генерируемые акты.")
 
-# --- ОТКАЗОУСТОЙЧИВАЯ ФУНКЦИЯ ЗАГРУЗКИ ТЕХКАРТ ---
 @st.cache_data(ttl=60)
 def load_tech_cards_database():
-
-   filename = "bha_tech_cards_db.json"
-
+    filename = "bha_tech_cards_db.json"
     if os.path.exists(filename):
         try:
             with open(filename, "r", encoding="utf-8") as f:
@@ -61,16 +58,23 @@ def load_tech_cards_database():
         except Exception as e:
             st.sidebar.error(f"⚠ Ошибка чтения {filename}: {str(e)}")
             
-    # Базовый набор технологических карт по Р-ТС-35 (подробнее см. в полной документации)
+    # Базовый набор технологических карт по Р-ТС-35
     fallback_data = {
-        "Наземный тест осциллятора КНБК (Р-ТС-35)": {...},
-        "Контроль люфта и угла ВЗД (Р-ТС-35)": {...},
-        "Позиционирование резистивиметра LWD (Р-ТС-35)": {...}
+        "Наземный тест осциллятора КНБК (Р-ТС-35)": {
+            "title": "Наземный тест осциллятора КНБК (Р-ТС-35)",
+            "inti_standard": "СТО ИНТИ S.QS.7",
+            "description": "Пошаговый контроль параметров осциллятора КНБК перед спуском в скважину."
+        },
+        "Контроль люфта и угла ВЗД (Р-ТС-35)": {
+            "title": "Контроль люфта и угла ВЗД (Р-ТС-35)",
+            "inti_standard": "СТО ИНТИ S.QS.8",
+            "description": "Верификация зазоров опорного узла и угла перекоса силовой секции ВЗД."
+        }
     }
     try:
         with open(filename, "w", encoding="utf-8") as f:
             json.dump(fallback_data, f, ensure_ascii=False, indent=4)
-    except:
+    except Exception:
         pass
     return fallback_data
 
