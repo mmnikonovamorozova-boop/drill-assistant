@@ -704,58 +704,14 @@ with st.expander("🛠️ Модуль стресс-тестирования и 
         f" [ПЕРИОД ОБНОВЛЕНИЯ МОДЕЛИ]: Динамический по рапортам",
         language="bash"
     )
-
-
 # =========================================================================
-# БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ - ЧАСТЬ 5.1
+# БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ (ПОДГОТОВКА ДАННЫХ)
 # =========================================================================
-st.markdown("---")
-import time
-
-# --- ТЕКСТОВАЯ НОРМАЛИЗАЦИЯ И ОЧИСТКА (Исключаем NameError) ---
-# Принудительно приводим переменные к строкам, проверяя их наличие (locals())
-normalized_well = str(well_name).strip() if 'well_name' in locals() else "Скв. № 101, Куст 5"
-normalized_engineer = str(engineer_name).strip() if 'engineer_name' in locals() else "Иванов И.И."
-# ... (остальные переменные normalized_* аналогично) ...
-report_timestamp = time.strftime("%d.%m.%Y %H:%M")
-
-# =========================================================================
-# БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ (ЧАСТЬ 5.1)
-# =========================================================================
-st.markdown("---")
-import time
-
-# --- Безопасная инициализация текстовых полей ---
-report_timestamp = time.strftime("%d.%m.%Y %H:%M")
-normalized_company = locals().get('company_choice', "Роснефть")
-normalized_mud = locals().get('mud_choice', "Полимерный / Биополимерный")
-normalized_field = str(locals().get('field_name', "Приобское")).strip()
-normalized_well = str(locals().get('well_number', "Скв. № 101, Куст 5")).strip()
-normalized_engineer = str(locals().get('engineer_name', "Иванов И.И.")).strip()
-normalized_serial = str(locals().get('serial_number', "№ 6677")).strip()
-
-# --- Единая логика нарушений и формирования статуса ---
-current_threshold = locals().get('sand_threshold', 0.5)
-is_sand_failure = sand_input_val > current_threshold
-
-if "Кислотная пачка" in normalized_mud:
-    final_report_status = "КРИТИЧЕСКИЙ ОТКАЗ: СТОП БУРЕНИЕ! ПРОКАЧКА КИСЛОТЫ. СУММАРНОЕ РАЗРУШЕНИЕ СИЛОВОЙ ПАРЫ ВЗД. СРОЧНОЕ СПО НА ЗАМЕНУ ДВИГАТЕЛЯ РЕГЛАМЕНТ СТО ИНТИ S.100.3!"
-    is_any_failure = True
-elif is_sand_failure:
-    final_report_status = f"ТЕХНОЛОГИЧЕСКОЕ НЕСООТВЕТСТВИЕ: СОДЕРЖАНИЕ ПЕСКА ({sand_input_val:.2f}%) ПРЕВЫШАЕТ ДОПУСТИМЫЙ ЛИМИТ ЗАКАЗЧИКА {current_threshold:.2f}%!"
-    is_any_failure = True
-else:
-    final_report_status = f"Технологический status в норме. Фактическое содержание песка ({sand_input_val:.2f}%) находится в безопасных пределах допуска."
-    is_any_failure = False
-# =========================================================================
-# БЛОК 5: СВОДНЫЙ РАПОРТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ (Шаг 5.2.1)
-# =========================================================================
-st.markdown("---")
 import time
 
 # Безопасное извлечение текстовых переменных (защита от NameError)
 normalized_company = company_choice if 'company_choice' in locals() else "Прочие"
-normalized_mud = mud_choice if 'mud_choice' in locals() else "Полимерный / Bioполимерный"
+normalized_mud = mud_choice if 'mud_choice' in locals() else "Полимерный / Биополимерный"
 normalized_field = str(field_name).strip() if 'field_name' in locals() else "Приобское"
 normalized_well = str(well_number).strip() if 'well_number' in locals() else "Скв. № 101, Куст 5"
 normalized_engineer = str(engineer_name).strip() if 'engineer_name' in locals() else "Иванов И.И."
@@ -763,28 +719,6 @@ normalized_serial = str(serial_number).strip() if 'serial_number' in locals() el
 
 # Формируем официальный штамп времени генерации документа
 report_timestamp = time.strftime("%d.%m.%Y %H:%M")
-# --- АВТО-АНАЛИЗ И ФОРМИРОВАНИЕ ОФИЦИАЛЬНОГО ЗАКЛЮЧЕНИЯ (Шаг 5.2.2) ---
-
-# Проверяем факт превышения содержания абразивного песка (из Блока 2)
-is_sand_failure = sand_input_val > (sand_threshold if 'sand_threshold' in locals() else 0.5)
-
-# Каскадная логика определения легитимного статуса для буровой бригады
-if "Кислотная пачка" in normalized_mud:
-    final_report_status = "🚨 КРИТИЧЕСКИЙ ОТКАЗ: ПРОКАЧКА КИСЛОТЫ! ДАЛЬНЕЙШЕЕ БУРЕНИЕ ЗАПРЕЩЕНО. ТРЕБУЕТСЯ СРОЧНЫЙ ПОДЪЕМ КНБК НА СПО ДЛЯ ЗАМЕНЫ ВЗД (РЕГЛАМЕНТ СТО ИНТИ S.100.3)."
-    status_bg = "#FEE2E2"    # Строгий аварийный красный фон
-    status_color = "#991B1B" # Темно-красный текст
-    is_critical_alert = True
-elif is_sand_failure:
-    final_report_status = "⚠️ КРИТИЧЕСКОЕ НЕСООТВЕТСТВИЕ: ИНТЕНСИВНЫЙ АБРАЗИВНЫЙ ИЗНОС СТАТОРА ВЗД! ТРЕБУЕТСЯ СРОЧНАЯ ОСТАНОВКА БУРЕНИЯ И ОЧИСТКА СИТ!"
-    status_bg = "#FEF3C7"    # Предупреждающий желтый фон
-    status_color = "#92400E" # Коричнево-оранжевый текст
-    is_critical_alert = True
-else:
-    final_report_status = f"✔ Технологический статус в норме: Текущее содержание песка ({sand_input_val:.2f}%) находится в пределах допустимого порога."
-    status_bg = "#D1FAE5"    # Безопасный зеленый фон
-    status_color = "#065F46" # Темно-зеленый текст
-    is_critical_alert = False
-# --- ВИЗУАЛЬНОЕ ПОСТРОЕНИЕ ПЕЧАТНОЙ ФОРМЫ АКТА (Шаг 5.2.3) ---
 
 with st.container(border=True):
     # Логотип и официальная шапка документа
