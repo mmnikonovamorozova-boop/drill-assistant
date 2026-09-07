@@ -76,6 +76,9 @@ def load_tech_cards_database():
         "bottom_hole_survey_extrapolation_protocol": "Методика экстраполяции инклинометрических замеров до забоя",
         "casing_window_milling_flowchart": "Технологическая схема фрезерования окна в обсадной колонне",
         "geosteering_horizontal_navigation": "Геонавигационное сопровождение при проводке горизонтальной секции",
+        "bha_oscillator_testing_flowchart": "Регламент наземного тестирования осциллятора КНБК перед спуском",
+        "bha_rig_site_acceptance_flowchart": "Технологическая карта приемки элементов КНБК на буровой площадке",
+        "bha_lwd_marking_and_tally_flowchart": "Регламент разметки, калибровки и учета элементов LWD (каротажа)",
         "horizontal_hole_cleaning_matrix": "Матрица контроля качества очистки горизонтального ствола от шлама"
     })
     # 2.2. СЛОВАРЬ ПЕРЕВОДА ДЛЯ ПАПКИ 2_TECH_PROCESSES (ЧАСТЬ Б)
@@ -123,7 +126,7 @@ def load_tech_cards_database():
         if os.path.exists(folder_path):
             for file in os.listdir(folder_path):
                 if file.endswith(".png"):
-                    file_key = file.replace(".png", "")
+                    file_key = file.replace(".png", "").lower()
                     card_name = translation_map.get(file_key, file_key.replace("_", " ").capitalize())
                     img_relative_path = f"repository/{folder}/{file}"
                     v_route = [
