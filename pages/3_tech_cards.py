@@ -261,38 +261,42 @@ if route_steps and isinstance(route_steps, list):
 else:
     st.info("ℹ Для выбранного инцидента маршрут верификации в базе данных не задан.")
 # ==============================================================================
-# БЛОК 4: СИНХРОНИЗАЦИЯ ЗАКАЗЧИКОВ С МОДУЛЕМ 4 И ПРЕВЕНТИВНЫЕ РЕКОМЕНДАЦИИ
+# БЛОК 4: СИНХРОНИЗАЦИЯ ЗАКАЗЧИКОВ И ПРЕВЕНТИВНЫЕ РЕКОМЕНДАЦИИ (СВЯЗЬ С МОДУЛЕМ 4)
 # ==============================================================================
 st.markdown("### 💼 Ограничения Заказчиков и превентивные рекомендации")
 
-# Вытягиваем ограничения текущего инцидента из словаря current_card
+# Подтягиваем ограничения из текущей просканированной карты
 card_restrictions = current_card.get("restrictions", {})
 
-# Выпадающий перечень динамически берется из глобальной сессии Модуля 4
+# Сквозная синхронизация: берем список компаний напрямую из сессионной памяти Матрицы ЛНД
 if "global_available_clients" in st.session_state and st.session_state["global_available_clients"]:
     available_card_clients = st.session_state["global_available_clients"]
 else:
-    available_card_clients = list(card_restrictions.keys()) if card_restrictions else ["Роснефть", "Газпром нефть", "Лукойл", "ИНТИ"]
+    # Защитный бэкап на случай, если буровик зашел на страницу техкарт в обход Матрицы
+    available_card_clients = ["Роснефть", "Газпром нефть", "ЛУКОЙЛ", "Прочие"]
 
-# Пытаемся автоматически определить заказчика из глобальной памяти Матрицы ЛНД
-default_client_index = 0
-if "global_selected_client" in st.session_state and st.session_state["global_selected_client"] in available_card_clients:
-    default_client_index = available_card_clients.index(st.session_state["global_selected_client"])
-
-# Селектбокс выбора Заказчика
+# Интерактивный селектбокс выбора Заказчика
 selected_client = st.selectbox(
-    "💼 Выберите компанию Заказчика для адаптации техкарты:",
+    "💼 Выберите компанию Заказчика для адаптации техкарты под ЛНД:",
     available_card_clients,
-    index=default_client_index,
+    index=0,
     key="client_selector_tech"
 )
+
 st.markdown("---")
-# Выводим на экран ЛНД-требования недропользователей
+
+# Формируем красивое технологическое предупреждение без сырых названий файлов
 if card_restrictions and isinstance(card_restrictions, dict):
-    client_res = card_restrictions.get(selected_client, "Специфических ограничений не зафиксировано.")
-    st.warning(f"⚠ Ограничение компании {selected_client}: {client_res}")
+    # Если под конкретное дочернее общество нет индивидуальной записи, берем общую инструкцию по умолчанию
+    client_res = card_restrictions.get(selected_client, card_restrictions.get("Прочие", "Выполнять работы согласно утвержденному плану бурения."))
+    
+    # Если в строке остался сырой английский ключ, подменяем его на понятное русское имя выбранной карты
+    if ".png" in client_res or "wellbore" in client_res:
+        client_res = f"Действия по регламенту компании выполняются строго в соответствии с технологической схемой: «{selected_incident}»."
+    
+    st.warning(f"⚠ **Специфическое ограничение компании {selected_client}:** {client_res}")
 else:
-    st.info("ℹ Специфических ограничений Заказчиков для данного инцидента не найдено.")
+    st.info(f"ℹ Для техкарты «{selected_incident}» специфических ограничений Заказчиков не зафиксировано.")
 
 # Извлекаем и генерируем список общих превентивных рекомендаций
 recommendations = current_card.get("recommendations", [])
