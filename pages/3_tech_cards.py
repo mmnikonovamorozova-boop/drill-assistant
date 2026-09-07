@@ -48,40 +48,60 @@ st.session_state["field_name"] = field_name
 st.sidebar.markdown("---")
 st.sidebar.info("💡 Метаданные синхронизированы с модулем Матрицы ЛНД и автоматически попадут во все генерируемые акты.")
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=10)
 def load_tech_cards_database():
-    filename = "bha_tech_cards_db.json"
-    if os.path.exists(filename):
-        try:
-            with open(filename, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as e:
-            st.sidebar.error(f"⚠ Ошибка чтения {filename}: {str(e)}")
-            
-    # Базовый набор технологических карт по Р-ТС-35
-    fallback_data = {
-        "Наземный тест осциллятора КНБК (Р-ТС-35)": {
-            "title": "Наземный тест осциллятора КНБК (Р-ТС-35)",
-            "inti_standard": "СТО ИНТИ S.QS.7",
-            "description": "Пошаговый контроль параметров осциллятора КНБК перед спуском в скважину."
-        },
-        "Контроль люфта и угла ВЗД (Р-ТС-35)": {
-            "title": "Контроль люфта и угла ВЗД (Р-ТС-35)",
-            "inti_standard": "СТО ИНТИ S.QS.8",
-            "description": "Верификация зазоров опорного узла и угла перекоса силовой секции ВЗД."
-        }
+    base_dir = "repository"
+    tech_cards = {}
+    
+    # Справочник красивых имен для папок
+    categories = {
+        "1_methods": "Методики и навигация",
+        "2_tech_processes": "Технологические процессы",
+        "3_incidents": "Ликвидация осложнений"
     }
-    try:
-        with open(filename, "w", encoding="utf-8") as f:
-            json.dump(fallback_data, f, ensure_ascii=False, indent=4)
-    except Exception:
-        pass
-    return fallback_data
+    
+    # Если папки вообще нет — создаем базовую заглушку
+    if not os.path.exists(base_dir):
+        return {"Пример техкарты (База пуста)": {"title": "Пример техкарты", "inti_standard": "СТО ИНТИ S.QS.7"}}
+        
+    # Сканируем подпапки репозитория
+    for folder, cat_name in categories.items():
+        folder_path = os.path.join(base_dir, folder)
+        if os.path.exists(folder_path):
+            for file in os.listdir(folder_path):
+                if file.endswith(".png"):
+                    # Убираем расширение и нижние подчеркивания для красивого имени
+                    card_name = file.replace(".png", "").replace("_", " ").capitalize()
+                    img_relative_path = f"repository/{folder}/{file}"
+                    
+                    tech_cards[card_name] = {
+                        "title": card_name,
+                        "inti_standard": f"СТО ИНТИ S.QS.7 / S.QS.8 ({cat_name})",
+                        "description": f"Автоматизированный регламент верификации параметров на устье скважины по технологической схеме: {card_name}.",
+                        "verification_route": [
+                            {"step": f"Визуальный аудит и сверка геометрии по схеме {card_name}", "role": "Инженер ННБ / MWD"},
+                            {"step": "Инструментальная верификация калибров и датчиков перед началом работ", "role": "Инженер MWD"},
+                            {"step": "Контроль параметров и подписание акта ликвидации отклонения на устье", "role": "Супервайзер / ИТР"}
+                        ],
+                        "restrictions": {
+                            "Роснефть": f"Согласно регламентам Роснефти, действия выполняются строго по схеме {file}.",
+                            "Газпром нефть": f"Контроль параметров с записью в суточный рапорт бурения по стандартам Газпром нефти.",
+                            "ЛУКОЙЛ": f"Обязательное согласование операции с супервайзером ЛУКОЙЛ на кусту.",
+                            "Прочие": "Действия выполняются по согласованию с Заказчиком."
+                        },
+                        "recommendations": [
+                            "Перед началом работ убедиться, что схема открыта на экране и понятна ИТР.",
+                            "Проверить исправность средств связи с Оперативным центром."
+                        ],
+                        "diagrams": {
+                            "Роснефть": img_relative_path,
+                            "Газпром нефть": img_relative_path,
+                            "ЛУКОЙЛ": img_relative_path,
+                            "Прочие": img_relative_path
+                        }
+                    }
+    return tech_cards
 
-tech_data = load_tech_cards_database()
-if not tech_data:
-    st.error("❌ Критическая ошибка: Не удалось инициализировать базу данных техкарт.")
-    st.stop()
 # ==============================================================================
 # БЛОК 3: ВЫБОР ТЕХНОЛОГИЧЕСКОЙ КАРТЫ И ОБРАБОТКА СКВОЗНЫХ ПЕРЕХОДОВ
 # ==============================================================================
