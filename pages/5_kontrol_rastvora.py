@@ -731,7 +731,8 @@ with st.container(border=True):
     st.markdown(f"**Заказчик:** {normalized_company} | **Месторождение:** {normalized_field} | **Скважина/Куст:** {normalized_well} | **Тип раствора:** {normalized_mud} | **Фактический песок:** {sand_input_val:.2f}% (Лимит ТК: {sand_threshold if 'sand_threshold' in locals() else 0.5:.2f}%)")
     st.markdown("---")
     st.markdown(f"<div style='color: {status_color}; background-color: {status_bg}; padding: 15px; border-radius: 6px; font-weight: bold; border-left: 5px solid {status_color}; font-size: 14px;'>{final_report_status}</div>", unsafe_allow_html=True)
-    st.markdown(f"<p style='text-align: right; color: #9CA3AF; font-size: 12px; margin-top: 10px;'>Инженер по ННБ: {normalized_engineer} | Дата и время: {report_timestamp}</p>", unsafe_allow_html=True)
+    import time
+    st.markdown(f"<p style='text-align: right; color: #9CA3AF; font-size: 12px; margin-top: 10px;'>Инженер по ННБ: {normalized_engineer} | Дата и время: {time.strftime('%d.%m.%Y %H:%M')}</p>", unsafe_allow_html=True)
 
 # =========================================================================
 # БЛОК 5.3: СБОРКА И СКАЧИВАНИЕ ФАЙЛОВ ОТЧЕТНОСТИ (Шаг 5.3)
