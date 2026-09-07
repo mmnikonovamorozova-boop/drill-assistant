@@ -600,6 +600,32 @@ if df_failures is not None and not df_failures.empty and 'df_geo' in locals() an
                     st.caption(f"Производитель: {row.get('Производитель_чистый', 'Н/Д')}")
                     st.markdown(f"⏳ **Наработка до отказа:** `{row.get('Наработка до отказа (Часы)', 0):.1f} ч.`")
                     st.markdown(f"📊 **Параметры:** Песок {row.get('Песок (%)', 0)}% | Т {row.get('Забойная Темп. (°C)', 0)}°C")
+# --- ВИЗУАЛЬНЫЙ ВЫВОД РЕЗУЛЬТАТОВ ИИ В БЛОКЕ 4 ---
+res_cols = st.columns(3)
+with res_cols[0]:
+    st.metric(
+        label="⏱️ Остаточный ресурс ВЗД",
+        value=f"{predicted_hours_to_failure:.1f} ч.",
+        delta=f"Погрешность ±{mae_hours:.1f} ч.",
+        delta_color="inverse"
+    )
+with res_cols[1]:
+    st.metric(
+        label="🎯 Точность прогноза ИИ",
+        value=f"{accuracy_pct:.1f}%",
+        delta="RandomForest" if model_ready else "Аналитика"
+    )
+with res_cols[2]:
+    # Определение статуса безопасности для полевого инженера
+    if predicted_hours_to_failure > 24.0:
+        st.success("🟢 РЕЖИМ БЕЗОПАСЕН\nБурение разрешено")
+    elif predicted_hours_to_failure > 0:
+        st.warning("🟡 ВНИМАНИЕ\nПланируйте СПО на ревизию")
+    else:
+        st.error("🔴 КРИТИЧЕСКИЙ ИЗНОС\nРесурс эластомера исчерпан")
+st.markdown("---")
+# =================================================
+
 # --- ЧАСТЬ 3.3: МОДУЛЬ ОНЛАЙН-ВАЛИДАЦИИ И СТРЕСС-ТЕСТИРОВАНИЯ ИИ-ЯДРА ---
 with st.expander("🛠️ Модуль стресс-тестирования и онлайн-валидации ИИ-ядра (для защиты КД)"):
     st.markdown("#### Симуляция критических и идеальных режимов эксплуатации")
