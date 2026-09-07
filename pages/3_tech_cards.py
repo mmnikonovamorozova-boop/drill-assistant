@@ -51,7 +51,9 @@ st.sidebar.info("💡 Метаданные синхронизированы с �
 # --- ОТКАЗОУСТОЙЧИВАЯ ФУНКЦИЯ ЗАГРУЗКИ ТЕХКАРТ ---
 @st.cache_data(ttl=60)
 def load_tech_cards_database():
-    filename = "tech_requirements.json"
+
+   filename = "bha_tech_cards_db.json"
+
     if os.path.exists(filename):
         try:
             with open(filename, "r", encoding="utf-8") as f:
