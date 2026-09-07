@@ -743,6 +743,8 @@ st.markdown(" ")
 normalized_vzd_profile = f"{vendor_choice} ({kinematics_type})" if ('vendor_choice' in locals() and 'kinematics_type' in locals()) else "ВЗД"
 
 # 2. Формирование официального текстового документа (TXT) для печати
+import time
+report_timestamp = time.strftime("%d.%m.%Y %H:%M")
 report_text_content = (
     f"==================================================\n"
     f"               ООО ТРАЕКТОРИЯ-СЕРВИС              \n"
