@@ -717,39 +717,21 @@ normalized_well = str(well_number).strip() if 'well_number' in locals() else "С
 normalized_engineer = str(engineer_name).strip() if 'engineer_name' in locals() else "Иванов И.И."
 normalized_serial = str(serial_number).strip() if 'serial_number' in locals() else "№ 6677"
 
-# Формируем официальный штамп времени генерации документа
-report_timestamp = time.strftime("%d.%m.%Y %H:%M")
-
-with st.container(border=True):
-    # Логотип и официальная шапка документа
-    st.markdown("<h2 style='text-align: center; color: #1E3A8A; font-family: Arial, sans-serif; font-weight: bold;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>", unsafe_allow_html=True)
+is_sand_failure = sand_input_val > (sand_threshold if 'sand_threshold' in locals() else 0.5)
+is_acid_mud = "Кислотная" in normalized_mud
+if is_acid_mud:
+    final_report_status, status_bg, status_color = "🚨 КРИТИЧЕСКИЙ ОТКАЗ: ПРОКАЧКА КИСЛОТЫ! ДАЛЬНЕЙШЕЕ БУРЕНИЕ ЗАПРЕЩЕНО. ТРЕБУЕТСЯ СРОЧНЫЙ ПОДЪЕМ КНБК НА СПО ДЛЯ ЗАМЕНУ ВЗД (РЕГЛАМЕНТ СТО ИНТИ S.100.3).", "#FEE2E2", "#991B1B"
+elif is_sand_failure:
+    final_report_status, status_bg, status_color = "⚠ КРИТИЧЕСКОЕ НЕСООТВЕТСТВИЕ: ИНТЕНСИВНЫЙ АБРАЗИВНЫЙ ИЗНОС СТАТОРА ВЗД! ТРЕБУЕТСЯ СРОЧНАЯ ОСТАНОВКА БУРЕНИЯ И ОЧИСТКА СИТ!", "#FEF3C7", "#92400E"
+else:
+    final_report_status, status_bg, status_color = f"✔ Технологический статус в норме: Текущее содержание песка ({sand_input_val:.2f}%) находится в пределах допустимого порога.", "#D1FAE5", "#065F46"
+with st.container(border=True): st.markdown("<h2 style='text-align: center; color: #1E3A8A; font-family: Arial, sans-serif; font-weight: bold;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>", unsafe_allow_html=True)
     st.markdown("<h4 style='text-align: center; color: #4B5563; margin-top: -15px; letter-spacing: 1px;'>АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ И НАДЕЖНОСТИ ВЗД</h4>", unsafe_allow_html=True)
-    st.markdown("<hr style='border: 1px solid #E5E7EB;'>", unsafe_allow_html=True)
-    
-    # Сводные метаданные технологического рейса КНБК
-    st.markdown(f"**Заказчик:** {normalized_company} | **Месторождение:** {normalized_field} | **Скважина/Куст:** {normalized_well}")
-    st.markdown(f"**Тип раствора:** {normalized_mud} | **Фактический песок:** {sand_input_val:.2f}% (Лимит ТК: {sand_threshold if 'sand_threshold' in locals() else 0.5:.2f}%)")
-    st.divider()
-    
-    # Вывод трех ключевых предиктивных метрик силовой секции
-    col_kpi1, col_kpi2, col_kpi3 = st.columns(3)
-    with col_kpi1:
-        st.metric("Остаток ресурса ВЗД", f"{predicted_hours_to_failure:.1f} ч", help="Расчетное время безопасной работы до срыва статора")
-    with col_kpi2:
-        st.metric("Точность прогноза", f"{accuracy_pct:.1f} %", help="Статистическая точность ИИ-ядра для данного вендора и региона")
-    with col_kpi3:
-        st.metric("Погрешность расчета (MAE)", f"± {mae_hours:.1f} ч", help="Средняя абсолютная ошибка предиктивной модели")
-        
-    st.markdown("##### Экспертное технологическое заключение:")
-    
-    # Динамический блок официального решения для бурового мастера
-    st.markdown(
-        f'<div style="color: {status_color}; background-color: {status_bg}; padding: 15px; border-radius: 6px; font-weight: bold; border-left: 5px solid {status_color}; font-size: 14px; line-height: 1.5; font-family: monospace;">'
-        f'{final_report_status}</div>',
-        unsafe_allow_html=True
-    )
-    
-    st.markdown(f"<p style='text-align: right; color: #9CA3AF; font-size: 12px; margin-top: 10px;'>Сформировано инженером: {normalized_engineer} | Дата и время: {report_timestamp}</p>", unsafe_allow_html=True)
+    st.markdown(f"**Заказчик:** {normalized_company} | **Месторождение:** {normalized_field} | **Скважина/Куст:** {normalized_well} | **Тип раствора:** {normalized_mud} | **Фактический песок:** {sand_input_val:.2f}% (Лимит ТК: {sand_threshold if 'sand_threshold' in locals() else 0.5:.2f}%)")
+    st.markdown("---")
+    st.markdown(f"<div style='color: {status_color}; background-color: {status_bg}; padding: 15px; border-radius: 6px; font-weight: bold; border-left: 5px solid {status_color}; font-size: 14px;'>{final_report_status}</div>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align: right; color: #9CA3AF; font-size: 12px; margin-top: 10px;'>Инженер: {normalized_engineer} | {report_timestamp}</p>", unsafe_allow_html=True)
+
 # =========================================================================
 # БЛОК 5.3: СБОРКА И СКАЧИВАНИЕ ФАЙЛОВ ОТЧЕТНОСТИ (Шаг 5.3)
 # =========================================================================
