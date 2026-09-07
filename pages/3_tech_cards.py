@@ -265,17 +265,10 @@ else:
 # ==============================================================================
 st.markdown("### 💼 Ограничения Заказчиков и превентивные рекомендации")
 
-# Подтягиваем ограничения из текущей просканированной карты
+# Подтягиваем ограничения и настраиваем выборку клиентов (полный код доступен в)
 card_restrictions = current_card.get("restrictions", {})
+available_card_clients = st.session_state.get("global_available_clients") or ["Роснефть", "Газпром нефть", "ЛУКОЙЛ", "Прочие"]
 
-# Сквозная синхронизация: берем список компаний напрямую из сессионной памяти Матрицы ЛНД
-if "global_available_clients" in st.session_state and st.session_state["global_available_clients"]:
-    available_card_clients = st.session_state["global_available_clients"]
-else:
-    # Защитный бэкап на случай, если буровик зашел на страницу техкарт в обход Матрицы
-    available_card_clients = ["Роснефть", "Газпром нефть", "ЛУКОЙЛ", "Прочие"]
-
-# Интерактивный селектбокс выбора Заказчика
 selected_client = st.selectbox(
     "💼 Выберите компанию Заказчика для адаптации техкарты под ЛНД:",
     available_card_clients,
@@ -285,45 +278,41 @@ selected_client = st.selectbox(
 
 st.markdown("---")
 
-# Формируем красивое технологическое предупреждение без сырых названий файлов
+# Интеллектуальный адаптер для новых заказчиков (ООО СПД и др.)
+def get_internal_client_key(client_name):
+    name_upper = str(client_name).upper()
+    if "СПД" in name_upper or "САЛЫМ" in name_upper:
+        return "Газпром нефть"
+    elif "РОСНЕФТЬ" in name_upper or "РН" in name_upper:
+        return "Роснефть"
+    elif "ЛУКОЙЛ" in name_upper or "ЛК" in name_upper:
+        return "ЛУКОЙЛ"
+    else:
+        return "Прочие"
+
+internal_key = get_internal_client_key(selected_client)
+
 if card_restrictions and isinstance(card_restrictions, dict):
-    # Если под конкретное дочернее общество нет индивидуальной записи, берем общую инструкцию по умолчанию
-    client_res = card_restrictions.get(selected_client, card_restrictions.get("Прочие", "Выполнять работы согласно утвержденному плану бурения."))
-    
-    # Если в строке остался сырой английский ключ, подменяем его на понятное русское имя выбранной карты
-    if ".png" in client_res or "wellbore" in client_res:
-        client_res = f"Действия по регламенту компании выполняются строго в соответствии с технологической схемой: «{selected_incident}»."
-    
+    client_res = card_restrictions.get(internal_key, card_restrictions.get("Прочие", "Выполнять работы согласно утвержденному плану бурения."))
+    if selected_client == "ООО СПД":
+        client_res = "⚠️ Ограничение СПД-ННБ-2026: Обязательный контроль Dogleg Severity каждые 10 метров при зарезке бокового ствола."
     st.warning(f"⚠ **Специфическое ограничение компании {selected_client}:** {client_res}")
 else:
-    st.info(f"ℹ Для техкарты «{selected_incident}» специфических ограничений Заказчиков не зафиксировано.")
+    st.info(f"ℹ Для выбранной техкарты специфических ограничений не зафиксировано.")
 
-# Извлекаем и генерируем список общих превентивных рекомендаций
+# Вывод рекомендаций и графических блок-схем (подробности реализации в)
 recommendations = current_card.get("recommendations", [])
 if recommendations and isinstance(recommendations, list):
     st.markdown("#### 💡 Рекомендации по предотвращению повторения брака:")
     for rec in recommendations:
         st.info(f"• {rec}")
-# --- БЛОК ИНТЕГРАЦИИ ГРАФИЧЕСКИХ БЛОК-СХЕМ ПРОЦЕССОВ ИЗ РЕПОЗИТОРИЯ ---
-card_diagrams = current_card.get("diagrams", {})
 
+card_diagrams = current_card.get("diagrams", {})
 if card_diagrams and isinstance(card_diagrams, dict):
-    # Пытаемся получить путь к файлу блок-схемы для конкретного Заказчика
-    img_path = card_diagrams.get(selected_client)
-    if img_path:
+    img_path = card_diagrams.get(internal_key)
+    if img_path and os.path.exists(img_path):
         st.markdown(f"#### 🗺 Технологическая схема регламента под требования: {selected_client}")
-        
-        # Проверяем физическое наличие файла схемы в репозитории перед выводом
-        if os.path.exists(img_path):
-            st.image(
-                img_path,
-                caption=f"Официальный регламентный слайд / блок-схема ликвидации осложнения компании {selected_client}",
-                use_container_width=True
-            )
-        else:
-            st.info(f"ℹ Для просмотра графической схемы загрузите файл `{img_path}` в папку вашего репозитория GitHub.")
-            st.caption("При отсутствии файла на сервере система автоматически переключается на текстовый маршрут верификации ИНТИ выше.")
-st.markdown("### 📄 Отчетность и фиксация параметров")
+        st.image(img_path, caption=f"Регламентный слайд компании {selected_client}", use_container_width=True)
 
 # Интерактивная кнопка формирования рапорта верификации инцидента с базовыми метаданными (полный код формирования массива строк доступен в исходных материалах)
 if st.button("📝 Сформировать Рапорт ликвидации технологического брака"):
