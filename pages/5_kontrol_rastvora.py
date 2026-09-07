@@ -725,7 +725,8 @@ elif is_sand_failure:
     final_report_status, status_bg, status_color = "⚠ КРИТИЧЕСКОЕ НЕСООТВЕТСТВИЕ: ИНТЕНСИВНЫЙ АБРАЗИВНЫЙ ИЗНОС СТАТОРА ВЗД! ТРЕБУЕТСЯ СРОЧНАЯ ОСТАНОВКА БУРЕНИЯ И ОЧИСТКА СИТ!", "#FEF3C7", "#92400E"
 else:
     final_report_status, status_bg, status_color = f"✔ Технологический статус в норме: Текущее содержание песка ({sand_input_val:.2f}%) находится в пределах допустимого порога.", "#D1FAE5", "#065F46"
-with st.container(border=True): st.markdown("<h2 style='text-align: center; color: #1E3A8A; font-family: Arial, sans-serif; font-weight: bold;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>", unsafe_allow_html=True)
+with st.container(border=True):
+    st.markdown("<h2 style='text-align: center; color: #1E3A8A; font-family: Arial, sans-serif; font-weight: bold;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>", unsafe_allow_html=True)
     st.markdown("<h4 style='text-align: center; color: #4B5563; margin-top: -15px; letter-spacing: 1px;'>АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ И НАДЕЖНОСТИ ВЗД</h4>", unsafe_allow_html=True)
     st.markdown(f"**Заказчик:** {normalized_company} | **Месторождение:** {normalized_field} | **Скважина/Куст:** {normalized_well} | **Тип раствора:** {normalized_mud} | **Фактический песок:** {sand_input_val:.2f}% (Лимит ТК: {sand_threshold if 'sand_threshold' in locals() else 0.5:.2f}%)")
     st.markdown("---")
