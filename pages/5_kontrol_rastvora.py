@@ -501,6 +501,23 @@ st.markdown("### ⏳ Блок 4: Экспертная система расче�
 # Инициализация кинематики и параметров бурового раствора
 kinematics_type = st.session_state.get("kinematics_type", "5/6")
 mud_choice = st.selectbox("Тип применяемого бурового раствора / технологической пачки:", ["Полимерный / Биополимерный", "Гипсокалиевый", "Гелево-Эмульсионный", "MaxFlow", "Вязко-упругий состав (ВУС)", "Кислотная пачка", "Прочие"], key="b4_mud_choice")
+# === МОСТИК ДЛЯ ПЕРЕМЕННЫХ ИИ-ЯДРА ===
+# Задаем резервные значения, если переменные температуры или вязкости еще не объявлены выше по коду
+if 'current_temp_est' not in locals():
+    current_temp_est = 90.0  # Базовая температура по умолчанию
+
+if 'current_kin' not in locals():
+    current_kin = 25.0  # Базовая кинематическая вязкость по умолчанию
+
+# Рассчитываем коэффициент агрессивности раствора для модели машинного обучения
+if mud_choice == "Кислотная пачка":
+    current_mud_aggressiveness = 2.5
+elif mud_choice == "Полимерный / Биополимерный":
+    current_mud_aggressiveness = 1.0
+else:
+    current_mud_aggressiveness = 1.3
+# ======================================
+
 
 current_runtime = float(st.session_state.get("current_runtime", 48.0))
 region_choice = st.session_state.get("region_choice", "ХМАО / Мегион")
