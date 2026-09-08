@@ -547,7 +547,7 @@ def generate_official_excel_report():
                 cell = ws.cell(row=current_row, column=col_idx)
                 cell.font = f_cell
                 cell.border = thin_border
-                if col_idx in:
+               if col_idx in:
                     cell.alignment = align_center
                 else:
                     cell.alignment = align_left
