@@ -301,3 +301,5 @@ if st.button("✉ Подготовить письмо в почтовой про
     mailto_link = f"mailto:{email_recipient}?subject={subject_text}&body={body_text}"
     js_code = f'<script>window.open("{mailto_link}", "_blank");</script>'
     st.components.v1.html(js_code, height=0)
+
+st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px;'><b>Разработчик:</b> Старший инженер по качеству ОСМК Никонова-Морозова М.М. • СТО ИНТИ • ООО «Траектория-СЕРВИС» © 2026</div>", unsafe_allow_html=True)
