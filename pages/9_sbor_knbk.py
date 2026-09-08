@@ -407,12 +407,15 @@ with col_main_table:
 with col_main_viz:
     st.subheader("📐 Схема КНБК")
     st.caption("План / Факт бок о бок")
+    
     col_sub_plan, col_sub_fact = st.columns(2)
+    
     COLOR_MAP = {
         "Долото": "#3B82F6", "ВЗД (Двигатель)": "#10B981", "ТМС (Телесистема)": "#F59E0B",
         "NMDC (Немагнитная УБТ)": "#8B5CF6", "Осциллятор": "#EC4899", "Переливной клапан": "#EF4444",
         "Переводник": "#6B7280", "Трубы СБТ": "#1E293B"
     }
+
     def generate_bha_html(components_list, title_label):
         if not components_list:
             return "<div style='text-align:center; padding:20px; color:#94A3B8; font-family:sans-serif; border:1px dashed #E2E8F0; border-radius:6px; font-size:11px;'>Пусто</div>"
