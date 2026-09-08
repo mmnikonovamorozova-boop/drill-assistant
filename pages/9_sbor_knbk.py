@@ -4,6 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 import time
+import io
 st.html("<style>.main .block-container{max-width:100% !important;}</style>")
 # =========================================================================
 # БЛОК 1 — АВТЕНТИФИКАЦИЯ, КОНФИГУРАЦИЯ И СИНХРОНИЗАЦИЯ СЕССИИ
