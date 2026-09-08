@@ -63,13 +63,23 @@ with st.expander("➕ Регистрация кастомной модели к�
 # --- ШИНА ДАННЫХ (БЛОК 2) ---
 with st.sidebar:
     st.markdown("### 📋 Паспорт рейса")
-    well_number = st.text_input("Номер скважины / Куст:", value=st.session_state.get("well_name", "Скв. № 101, Куст 5"))
-    field_name = st.text_input("Месторождение:", value="Приобское")
-    knbk_number = st.text_input("Сборка КНБК №:", value="1")
+    
+    # Сквозной шлюз: забираем данные напрямую из общей сессии приложения
+    engineer = st.session_state.get("engineer_name", "Не указано")
+    well = st.session_state.get("well_number", "Не указано")
+    field = st.session_state.get("field_name", "Не указано")
+    bha = st.session_state.get("bha_number", "1")
+    
+    # Отображаем текущие параметры в режиме чтения (без дублирующих кнопок ввода)
+    st.markdown(f"**Месторождение:** `{field}`")
+    st.markdown(f"**Скважина/Куст:** `{well}`")
+    st.markdown(f"**Сборка КНБК №:** `{bha}`")
+    st.markdown(f"**Инженер ННБ:** `{engineer}`")
+    
     st.divider()
     st.caption(f"📍 Заказчик: {st.session_state.get('main_page_company', 'Роснефть')}")
+    st.markdown("### 🛠 Входные параметры крепления соединений")
 
-st.markdown("### 🛠 Входные параметры крепления соединений")
 tab_tongs, tab_pipe, tab_tribology = st.tabs(["🔧 Ключ УМК", "🛢 Параметры трубы и замка", "🧴 Смазка и Трибология"])
 
 with tab_tongs:
