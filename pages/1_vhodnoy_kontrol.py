@@ -4,11 +4,20 @@ from datetime import datetime
 
 import streamlit as st
 
-# ПРОВЕРКА: Если инженер не залогинился на главной странице — выкидываем его назад
-if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
-    st.error("🚨 Доступ заблокирован! Пожалуйста, перейдите на Главную страницу приложения и введите пароль.")
-    st.stop() # Полностью останавливаем выполнение кода этой страницы КНБК
+# 1. Проверяем, авторизован ли пользователь. Если нет — останавливаем выполнение модуля
+if not st.session_state.get("authenticated", False):
+    st.warning("🔒 Пожалуйста, авторизуйтесь на главной странице приложения.")
+    st.stop()
 
+# 2. Извлекаем метаданные рейса из сквозного шлюза сессии
+engineer = st.session_state.get("engineer_name", "Не указано")
+well = st.session_state.get("well_number", "Не указано")
+field = st.session_state.get("field_name", "Не указано")
+bha = st.session_state.get("bha_number", "1")
+
+# 3. (Опционально) Отображаем аккуратную плашку с метаданными вверху страницы модуля
+st.info(f"📋 **Рейс:** {field} | Скв/Куст: {well} | КНБК №{bha} | **Инженер:** {engineer}")
+st.divider()
 st.set_page_config(page_title="1. Входной контроль", page_icon="📋", layout="wide")
 
 st.title("📋 Рапорт входного контроля оборудования")
@@ -17,10 +26,6 @@ st.markdown("---")
 
 # Сдержанная техническая отметка о соответствии стандартам ИНТИ
 st.markdown("<div style='color: #4B5563; font-size: 13px; background-color: #F3F4F6; padding: 12px; border-radius: 6px; border-left: 4px solid #9CA3AF; margin-bottom: 20px;'><b>Верификация стандартов:</b> Данный модуль входного контроля и верификации разработан в строгом соответствии с требованиями отраслевых стандартов <b>СТО ИНТИ S.QS.7 (п. 7.4.1)</b> в части проведения поштучной приемки, визуально-инструментального контроля и проверки сопроводительных документов элементов КНБК, а также <b>СТО ИНТИ S.QS.8 (п. 5.1.2)</b> в части контроля исправности и метрологического подтверждения мерительного инструмента на буровой площадке.</div>", unsafe_allow_html=True)
-
-well_number = st.sidebar.text_input("Номер скважины / Куст:", value="Скв. № 101, Куст 5")
-engineer_name = st.sidebar.text_input("ФИО Инженера по ННБ:", value="Иванов И.И.")
-field_name = st.sidebar.text_input("Месторождение:", value="Приобское")
 
 current_time = datetime.now().strftime("%d.%m.%Y %H:%M")
 
