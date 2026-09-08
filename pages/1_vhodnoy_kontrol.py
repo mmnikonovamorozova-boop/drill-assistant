@@ -167,11 +167,18 @@ body_text = f"Приветствую! Акт входного контроля �
 # Создаем безопасную ссылку для открытия локальной почты
 mailto_link = f"mailto:{email_recipient}?subject={subject_text}&body={body_text}"
 
-# Красивая кнопка-ссылка, которая сработает на любом устройстве
-st.markdown(
-    f'<a href="{mailto_link}" target="_blank" style="text-decoration: none; color: #FFFFFF !important;"><div style="text-align: center; background-color: #1E3A8A; color: #FFFFFF !important; padding: 10px; border-radius: 5px; font-weight: bold;">✉ Подготовить письмо в почтовой программе</div></a>', 
-    unsafe_allow_html=True
-)
+# Создаем стандартную кнопку, текст на которой всегда будет идеально контрастным
+if st.button("✉ Подготовить письмо в почтовой программе", use_container_width=True):
+    # Готовим тему и текст
+    subject_text = f"Акт входного контроля КНБК — {field}, Скв. {well}".replace(" ", "%20")
+    body_text = f"Приветствую! Акт входного контроля для скважины {well} ({field}) успешно сформирован инженером {engineer}. Пожалуйста, скачайте прикрепленный к этому письму HTML-файл акта (скачайте его по кнопке выше в приложении).".replace(" ", "%20")
+    
+    # Собираем mailto ссылку
+    mailto_link = f"mailto:{email_recipient}?subject={subject_text}&body={body_text}"
+    
+    # Запускаем JavaScript код, который откроет почту в новой вкладке
+    js_code = f'<script>window.open("{mailto_link}", "_blank");</script>'
+    st.components.v1.html(js_code, height=0)
 
 st.info("💡 Сгенерированный Акт можно скачать локально на устройство или отправить на корпоративную почту.")
 
