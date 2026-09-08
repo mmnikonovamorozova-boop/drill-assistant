@@ -310,23 +310,28 @@ else:
     # получил ОДИН дополнительный отступ (Tab) вправо, так как он теперь находится внутри этого нового else!
 
 if linked_requirements:
-    client_specific_reqs = []
-    # Берем основы слов (первые 4-5 символов), чтобы игнорировать окончания (прихват, ясс, затяж)
-    card_keywords = [w.lower()[:5] for w in selected_incident.replace("/", " ").replace("-", " ").replace("(", " ").replace(")", " ").split() if len(w) > 3]
-    
-    for r in linked_requirements:
-        req_client = str(r.get("Заказчик", "")).strip().upper()
-        selected_client_upper = str(selected_client).strip().upper()
-        
-        if req_client == selected_client_upper:
-            req_op = str(r.get("Технологическая операция / Осложнение", "")).lower()
-            
-            # Если в Модуле 4 в поле Smart-поиска вбит ручной фильтр (например, "Прихват")
-            search_filter = str(st.session_state.get("matrix_search_input", "")).strip().lower()
-            
-            # Проверяем совпадение либо по основам слов из техкарты, либо по ключевому слову Smart-поиска
-            if any(word in req_op for word in card_keywords) or (search_filter and search_filter[:5] in req_op):
-                client_specific_reqs.append(r)
+     client_specific_reqs = []
+ # Извлекаем основы слов из названия техкарты
+ card_keywords = [w.lower()[:5] for w in selected_incident.replace("/", " ").replace("-", " ").replace("(", " ").replace(")", " ").split() if len(w) > 3]
+ 
+ for r in linked_requirements:
+     req_client = str(r.get("Заказчик", "")).strip().upper()
+     selected_client_upper = str(selected_client).strip().upper()
+     
+     if req_client == selected_client_upper:
+         req_op = str(r.get("Технологическая операция / Осложнение", "")).lower()
+         
+         # 1. Проверяем строгое текстовое совпадение
+         if any(word in req_op for word in card_keywords):
+             client_specific_reqs.append(r)
+ 
+ # 2. ФОЛБЭК: Если строгое совпадение по имени файла не сработало, 
+ # забираем все требования этого заказчика для операции, выбранной в Модуле 4
+ if not client_specific_reqs:
+     for r in linked_requirements:
+         req_client = str(r.get("Заказчик", "")).strip().upper()
+         if req_client == str(selected_client).strip().upper():
+             client_specific_reqs.append(r)
 
     for r in linked_requirements:
         req_client = str(r.get("Заказчик", "")).strip().upper()
