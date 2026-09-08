@@ -12,19 +12,28 @@ if "authenticated" not in st.session_state or not st.session_state["authenticate
 # --- 1. КОНФИГУРАЦИЯ СТРАНИЦЫ И СТИЛИ ---
 st.set_page_config(page_title="Калькулятор люфта ВЗД", layout="wide")
 
+# 1. Единая синяя информационная плашка
+st.info(f"📋 **Рейс:** {field} | Скв/Куст: {well} | КНБК №{bha} | **Инженер:** {engineer}")
+st.divider()
+
 st.title("📏 Комплексный расчет износа и люфтов шпинделя ВЗД")
 st.caption("МЕТОДИКА КОНТРОЛЯ ИЗНОСА ОПОР ШПИНДЕЛЯ ПО РЕГЛАМЕНТАМ ПОСТАВЩИКОВ И ЗАКАЗЧИКОВ")
 st.markdown("---")
 
-# Паспорт верификации СТО ИНТИ, скрытый под фирменный спойлер
-with st.expander("🔰 Паспорт верификации СТО ИНТИ (Опора шпинделя)"):
-    st.markdown(
-        "<div style='color: #1F2937; font-size: 14px; background-color: #F9FAFB; padding: 15px; border-radius: 6px; border-left: 4px solid #2563EB; line-height: 1.6; font-family: Arial, sans-serif; margin-bottom: 10px;'> "
-        "<b>1. СТО ИНТИ S.QS.7:</b> Обоснование верификации шпиндельной секции ВЗД, минимизация рисков разрушения опор и контроль нагрузок при ННБ.<br><br>"
-        "<b>2. СТО ИНТИ S.QS.8:</b> Метрологическое подтверждение точности линейных измерений, адаптация полевых замеров к нормативам изготовителей и заказчиков."
-        "</div>",
-        unsafe_allow_html=True
-    )
+# 2. Объединенный развернутый Паспорт верификации ИНТИ
+with st.expander("🔰 Паспорт верификации стандартов СТО ИНТИ", expanded=False):
+    st.markdown("### Требования отраслевых стандартов СТО ИНТИ S.QS.7 и S.QS.8 к забойным двигателям:")
+    st.markdown("""
+    * **Контроль износа:** Обязательное измерение осевого и радиального люфта опорного узла ВЗД перед каждым спуском в скважину.
+    * **Критерии отбраковки:** Превышение максимального паспортного зазора завода-изготовителя является критическим основанием для запрета спуска ДВС.
+    * **Метрология замеров:** Использование специализированных индикаторов часового типа (ИЧ), прошедших государственную поверку.
+    * **Регистрация отказов:** Внесение фактического люфта в журнал наработки оборудования для предотвращения полетов и оставления элементов КНБК на забое.
+    """)
+# Получение сквозных метаданных из сессии приложения
+engineer = st.session_state.get("engineer_name", "Не указано")
+well = st.session_state.get("well_number", "Не указано")
+field = st.session_state.get("field_name", "Не указано")
+bha = st.session_state.get("bha_number", "1")
 
 # =========================================================================
 # БЛОК 1: ИНИЦИАЛИЗАЦИЯ И РАЗВЕРНУТЫЙ СБОР ТЕХНОЛОГИЧЕСКИХ ПАРАМЕТРОВ ЗАМЕРА
@@ -262,20 +271,77 @@ st.markdown(f'<div style="{style} padding: 12px; border-radius: 4px; font-weight
 st.markdown("---")
 st.subheader("📥 Официальный бланк замера")
 
-# Формирование HTML-шаблона с использованием обновленных переменных (eff_max)
-html_vzd = f"""
-<div style='border: 2px solid #333; padding: 20px; font-family: Arial, sans-serif; border-radius: 4px;'>
-<h3 style='text-align: center;'>АКТ ТЕХНИЧЕСКОГО КОНТРОЛЯ ШПИНДЕЛЯ ВЗД</h3>
-<p><b>Дата контроля:</b> {datetime.now().strftime("%d.%m.%Y %H:%M")}</p>
-<p><b>Осевой люфт:</b> {calculated_axial_delta:.2f} мм (Лимит: {eff_max:.2f} мм)</p>
-<p><b>Радиальный зазор:</b> {radial_ich:.2f} мм (Лимит: 1.00 мм)</p>
-<hr>
-<div style='padding: 10px; border-radius: 4px; font-weight: bold; text-align: center;'>
-ЗАКЛЮЧЕНИЕ: {res}
-</div>
-</div>
-"""
-st.markdown(html_vzd, unsafe_allow_html=True)
+# Определение цветовой схемы и статуса допуска ВЗД на основе расчета
+if res == "ДОПУЩЕН":
+    border_color = "#1E3A8A"  # Синий
+    bg_color = "#FAFAFA"      # Светлый
+    title_text = "АКТ ТЕХНИЧЕСКОГО КОНТРОЛЯ ШПИНДЕЛЯ ВЗД"
+    status_html = "<span style='color:#16A34A;'><b>ПРИГОДЕН К ЭКСПЛУАТАЦИИ (В ДОПУСКЕ)</b></span>"
+else:
+    border_color = "#EF4444"  # Красный
+    bg_color = "#FEF2F2"      # Мягкий красный
+    title_text = "АКТ ОТБРАКОВКИ И ЗАПРЕЩЕНИЯ СПУСКА ВЗД"
+    status_html = "<span style='color:#DC2626;'><b>НЕ ДОПУЩЕН (ЛЮФТ ПРЕВЫШАЕТ НОРМУ)</b></span>"
+
+# Построение динамического HTML бланка
+html_vzd = f"<div style='border:3px solid {border_color}; padding:25px; border-radius:10px; background-color:{bg_color}; font-family:Arial, sans-serif; color:#333333;'>"
+html_vzd += "<h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>"
+html_vzd += f"<h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>{title_text}</h3>"
+html_vzd += f"<p><b>Месторождение:</b> {field} &nbsp;&nbsp;&nbsp;&nbsp; <b>Скважина / Куст:</b> {well}</p>"
+html_vzd += f"<p><b>Инженер ННБ:</b> {engineer} &nbsp;&nbsp;&nbsp;&nbsp; <b>Сборка КНБК №:</b> {bha}</p>"
+html_vzd += "<hr style='border:1px solid #CCCCCC; margin:15px 0;'>"
+html_vzd += f"<p><b>Осевой люфт:</b> {calculated_axial_delta:.2f} мм (Лимит: {eff_max:.2f} мм)</p>"
+html_vzd += f"<p><b>Радиальный зазор:</b> {radial_ich:.2f} мм (Лимит: 1.80 мм)</p>"
+html_vzd += f"<p><b>ЗАКЛЮЧЕНИЕ:</b> {status_html}</p>"
+html_vzd += "</div>"
+# Отображаем собранный документ в интерфейсе
+st.components.v1.html(html_vzd, height=350, scrolling=True)
+
+# Кнопка №1: Скачивание готового файла акта
+st.download_button(
+    label="💾 Скачать официальный Акт замера люфтов в формате HTML",
+    data=html_vzd,
+    file_name=f"Akt_Lyuft_VZD_Skv_{well}.html",
+    mime="text/html",
+    use_container_width=True
+)
+
+# Поле для ввода адреса почты
+email_recipient = st.text_input("Email получателя Акта:", placeholder="boss@yourcompany.ru")
+
+# Кнопка №2: Безопасная отправка почты через кнопку-триггер
+if st.button("✉ Подготовить письмо в почтовой программе", use_container_width=True):
+    subject_text = f"Акт контроля люфта ВЗД — {field}, Скв. {well}".replace(" ", "%20")
+    body_text = f"Приветствую! Сформирован официальный акт замера осевого и радиального люфта ВЗД для скважины {well} ({field}). Инженер: {engineer}.".replace(" ", "%20")
+    
+    mailto_link = f"mailto:{email_recipient}?subject={subject_text}&body={body_text}"
+    js_code = f'<script>window.open("{mailto_link}", "_blank");</script>'
+    st.components.v1.html(js_code, height=0)
+# ... здесь заканчивается сборка html_vzd += "</div>"
+
+# Отображаем собранный документ в интерфейсе
+st.components.v1.html(html_vzd, height=350, scrolling=True)
+
+# Кнопка №1: Скачивание готового файла акта
+st.download_button(
+    label="💾 Скачать официальный Акт замера люфтов в формате HTML",
+    data=html_vzd,
+    file_name=f"Akt_Lyuft_VZD_Skv_{well}.html",
+    mime="text/html",
+    use_container_width=True
+)
+
+# Поле для ввода адреса почты
+email_recipient = st.text_input("Email получателя Акта:", placeholder="boss@yourcompany.ru")
+
+# Кнопка №2: Безопасная отправка почты через кнопку-триггер
+if st.button("✉ Подготовить письмо в почтовой программе", use_container_width=True):
+    subject_text = f"Акт контроля люфта ВЗД — {field}, Скв. {well}".replace(" ", "%20")
+    body_text = f"Приветствую! Сформирован официальный акт замера осевого и радиального люфта ВЗД для скважины {well} ({field}). Инженер: {engineer}.".replace(" ", "%20")
+    
+    mailto_link = f"mailto:{email_recipient}?subject={subject_text}&body={body_text}"
+    js_code = f'<script>window.open("{mailto_link}", "_blank");</script>'
+    st.components.v1.html(js_code, height=0)
 
 # =========================================================================
 # БЛОК 6: СТАБИЛЬНЫЙ МОДУЛЬ ОНЛАЙН-ВАЛИДАЦИИ (ГЕОМЕТРИЯ + ННБ)
