@@ -67,16 +67,10 @@ st.markdown("---")
 # БЛОК 1: СИНХРОНИЗАЦИЯ С ГЛОБАЛЬНЫМ ПАСПОРТОМ РЕЙСА И РЕГЛАМЕНТЫ ТК
 # =========================================================================
 
-# Извлекаем глобальные данные из app.py (с подстраховкой на дефолт)
-well_number = st.session_state.get("well_number", "Скв. № 101, Куст 5")
-field_name = st.session_state.get("field_name", "Приобское")
-bha_number = st.session_state.get("bha_number", "1")
-
-# Вывод аккуратной информационной плашки паспорта в сайдбар
+# Вывод актуального номера КНБК в сайдбар
 with st.sidebar:
-    st.markdown(f"### 🌐 Текущий контекст КНБК №{bha_number}")
-    st.info(f"📍 **Месторождение:** {field_name}\n🎯 **Объект:** {well_number}")
-    
+    st.markdown(f"### 🌐 Контекст КНБК №{bha}")
+
     # Оставляем только уникальные поля для контроля раствора
     engineer_name = st.text_input("ФИО Инженера по растворам / ННБ:", value="Иванов И.И.", key="sol_eng_name")
     serial_number = st.text_input("Серийный номер ВЗД:", value="№ 6677", key="sol_vzd_sn")
@@ -721,57 +715,53 @@ elif is_sand_failure:
     final_report_status, status_bg, status_color = "⚠ КРИТИЧЕСКОЕ НЕСООТВЕТСТВИЕ: ИНТЕНСИВНЫЙ АБРАЗИВНЫЙ ИЗНОС СТАТОРА ВЗД! ТРЕБУЕТСЯ СРОЧНАЯ ОСТАНОВКА БУРЕНИЯ И ОЧИСТКА СИТ!", "#FEF3C7", "#92400E"
 else:
     final_report_status, status_bg, status_color = f"✔ Технологический статус в норме: Текущее содержание песка ({sand_input_val:.2f}%) находится в пределах допустимого порога.", "#D1FAE5", "#065F46"
-with st.container(border=True):
-    st.markdown("<h2 style='text-align: center; color: #1E3A8A; font-family: Arial, sans-serif; font-weight: bold;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>", unsafe_allow_html=True)
-    st.markdown("<h4 style='text-align: center; color: #4B5563; margin-top: -15px; letter-spacing: 1px;'>АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ И НАДЕЖНОСТИ ВЗД</h4>", unsafe_allow_html=True)
-    st.markdown(f"**Заказчик:** {normalized_company} | **Месторождение:** {normalized_field} | **Скважина/Куст:** {normalized_well} | **Тип раствора:** {normalized_mud} | **Фактический песок:** {sand_input_val:.2f}% (Лимит ТК: {sand_threshold if 'sand_threshold' in locals() else 0.5:.2f}%)")
-    st.markdown("---")
-    st.markdown(f"<div style='color: {status_color}; background-color: {status_bg}; padding: 15px; border-radius: 6px; font-weight: bold; border-left: 5px solid {status_color}; font-size: 14px;'>{final_report_status}</div>", unsafe_allow_html=True)
-    import time
-    st.markdown(f"<p style='text-align: right; color: #9CA3AF; font-size: 12px; margin-top: 10px;'>Инженер по ННБ: {normalized_engineer} | Дата и время: {time.strftime('%d.%m.%Y %H:%M')}</p>", unsafe_allow_html=True)
+# Определение цветовой схемы документа СМК в зависимости от аварийных триггеров
+if is_acid_mud or is_sand_failure:
+    border_color = "#EF4444"  # Строгий красный
+    bg_color = "#FEF2F2"      # Мягкий красный фон
+    title_text = "АКТ НЕСOОТВЕТСТВИЯ ПАРАМЕТРОВ БУРОВОГО РАСТВОРА"
+else:
+    border_color = "#10B981"  # Насыщенный зеленый
+    bg_color = "#F0FDF4"      # Светло-зеленый фон
+    title_text = "АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ ПАРАМЕТРОВ БР"
 
-# =========================================================================
-# БЛОК 5.3: СБОРКА И СКАЧИВАНИЕ ФАЙЛОВ ОТЧЕТНОСТИ (Шаг 5.3)
-# =========================================================================
-st.markdown(" ")
+# Начинаем сборку динамической HTML-формы
+html_rastvor = f"<div style='border:3px solid {border_color}; padding:25px; border-radius:10px; background-color:{bg_color}; font-family:Arial, sans-serif; color:#333333;'>"
+html_rastvor += "<h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>"
+html_rastvor += f"<h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>{title_text}</h3>"
+html_rastvor += f"<p><b>Месторождение:</b> {field} &nbsp;&nbsp;&nbsp;&nbsp; <b>Скважина / Куст:</b> {well}</p>"
+html_rastvor += f"<p><b>Инженер по растворам:</b> {normalized_engineer} &nbsp;&nbsp;&nbsp;&nbsp; <b>Серийный номер ВЗД:</b> {normalized_serial}</p>"
+html_rastvor += "<hr style='border:1px solid #CCCCCC; margin:15px 0;'>"
+html_rastvor += f"<p><b>Тип промывочной жидкости:</b> {normalized_mud} &nbsp;&nbsp;&nbsp;&nbsp; <b>Плотность:</b> {f_dens:.2f} г/см³</p>"
+html_rastvor += f"<p><b>Содержание песка (абразива):</b> {sand_input_val:.2f}% (Лимит Заказчика: {sand_threshold:.2f}%)</p>"
+html_rastvor += f"<p><b>ЗАКЛЮЧЕНИЕ СМК:</b> {final_report_status}</p>"
+html_rastvor += "</div>"
+# Отображаем собранный документ в интерфейсе приложения
+st.components.v1.html(html_rastvor, height=350, scrolling=True)
 
-# 1. Принудительное формирование полной строки технических характеристик ВЗД
-normalized_vzd_profile = f"{vendor_choice} ({kinematics_type})" if ('vendor_choice' in locals() and 'kinematics_type' in locals()) else "ВЗД"
+st.markdown("##### 💾 Экспорт официального документа контроля параметров БР:")
 
-# 2. Формирование официального текстового документа (TXT) для печати
-import time
-report_timestamp = time.strftime("%d.%m.%Y %H:%M")
-report_text_content = (
-    f"==================================================\n"
-    f"               ООО ТРАЕКТОРИЯ-СЕРВИС              \n"
-    f"       АКТ ТЕХНОЛОГИЧЕСКОГО КОНТРОЛЯ ИЗНОСА ВЗД    \n"
-    f"==================================================\n"
-    f" Дата и время:      {report_timestamp}\n"
-    f" Инженер по ННБ:    {normalized_engineer}\n"
-    f" Месторождение:     {normalized_field}\n"
-    f" Скважина / Куст:   {normalized_well}\n"
-    f" Заказчик:          {normalized_company}\n"
-    f"--------------------------------------------------\n"
-    f" ХАРАКТЕРИСТИКИ СИЛОВОЙ СЕКЦИИ:\n"
-    f" Двигатель:         {normalized_vzd_profile}\n"
-    f" Серийный номер:    {normalized_serial}\n"
-    f" Текущая наработка: {current_runtime:.1f} ч\n"
-    f"--------------------------------------------------\n"
-    f" ПАРАМЕТРЫ ПРОМЫВОЧНОЙ СРЕДЫ:\n"
-    f" Тип раствора:      {normalized_mud}\n"
-    f" Содержание песка:  {sand_input_val:.2f} %\n"
-    f" Плотность:         {f_dens:.2f} г/см³\n"
-    f" Температура забой: {current_temp_est:.1f} °C\n"
-    f"--------------------------------------------------\n"
-    f" РЕЗУЛЬТАТЫ ПРЕДИКТИВНОГО АНАЛИЗА ИНТИ S.100.3:\n"
-    f" Точность модели:   {accuracy_pct:.1f} %\n"
-    f" Погрешность (MAE):  ± {mae_hours:.1f} ч\n"
-    f" ОСТАТОК РЕСУРСА:   {predicted_hours_to_failure:.1f} ч\n"
-    f"--------------------------------------------------\n"
-    f" ОФИЦИАЛЬНОЕ ЗАКЛЮЧЕНИЕ:\n"
-    f" {final_report_status}\n"
-    f"==================================================\n"
+# Кнопка №1: Скачивание готового HTML файла акта
+st.download_button(
+    label="📥 Скачать официальный Акт технологического контроля БР в формате HTML",
+    data=html_rastvor,
+    file_name=f"Akt_Tech_Control_Mud_Well_{well}.html",
+    mime="text/html",
+    use_container_width=True
 )
+
+# Поле для ввода адреса почты
+email_recipient = st.text_input("Email получателя Акта контроля БР:", placeholder="boss@yourcompany.ru")
+
+# Кнопка №2: Безопасная отправка почты через кнопку-триггер
+if st.button("✉ Подготовить письмо в почтовой программе", use_container_width=True):
+    subject_text = f"Акт технологического контроля БР — {field}, Скв. {well}".replace(" ", "%20")
+    body_text = f"Приветствую! Сформирован официальный акт контроля параметров бурового раствора для скважины {well} ({field}). Инженер по растворам: {normalized_engineer}.".replace(" ", "%20")
+    
+    mailto_link = f"mailto:{email_recipient}?subject={subject_text}&body={body_text}"
+    js_code = f'<script>window.open("{mailto_link}", "_blank");</script>'
+    st.components.v1.html(js_code, height=0)
+
 
 # 3. Формирование таблицы данных (CSV) для ведения архива на сервере
 report_csv_content = (
@@ -783,25 +773,13 @@ report_csv_content = (
 
 # 4. Отрисовка кнопок выгрузки файлов в интерфейсе приложения
 st.markdown("##### 💾 Экспорт сформированных документов:")
-col_down1, col_down2 = st.columns(2)
-
-with col_down1:
-    st.download_button(
-        label="📥 Скачать официальный Акт (.txt)",
-        data=report_text_content,
-        file_name=f"Akt_Tech_Control_{normalized_well.replace(' ', '_')}.txt",
-        mime="text/plain",
-        use_container_width=True
-    )
-
-with col_down2:
-    st.download_button(
-        label="📊 Скачать строку базы замеров (.csv)",
-        data=report_csv_content,
-        file_name=f"Data_Row_{normalized_well.replace(' ', '_')}.csv",
-        mime="text/csv",
-        use_container_width=True
-    )
+st.download_button(
+    label="📊 Скачать строку базы замеров (.csv)",
+    data=report_csv_content,
+    file_name=f"Data_Row_{normalized_well.replace(' ', '_')}.csv",
+    mime="text/csv",
+    use_container_width=True
+)
 # =========================================================================
 # БЛОК 6: СТАБИЛЬНЫЙ ЦИФРОВОЙ ЖУРНАЛ ЗАМЕРОВ (УСТРАНЕНИЕ KEYERROR)
 # =========================================================================
