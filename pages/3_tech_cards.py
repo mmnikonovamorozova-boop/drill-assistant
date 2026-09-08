@@ -338,22 +338,18 @@ internal_key = get_internal_client_key(selected_client)
                         st.info(f"**{req_point}:** {req_text}")
             else:
                 st.write("ℹ️ В Матрице ЛНД для данного заказчика нет специфических пунктов по этой операции.")
-
-else:
-    card_restrictions = current_card.get("restrictions", {})
-    client_restrictions = card_restrictions.get(internal_key, [])
-    
-    if client_restrictions:
-        # Проверяем: если это просто строка, выводим её целиком
-        if isinstance(client_restrictions, str):
-            st.warning(f"• {client_restrictions}")
-        # Если это список (массив строк), перебираем элементы
-        elif isinstance(client_restrictions, list):
-            for restriction in client_restrictions:
-                st.warning(f"• {restriction}")
-    else:
-        st.write("ℹ️ Для данного заказчика не задано специфических ограничений в локальной техкарте.")
-
+        else:
+            card_restrictions = current_card.get("restrictions", {})
+            client_restrictions = card_restrictions.get(internal_key, [])
+            
+            if client_restrictions:
+                if isinstance(client_restrictions, str):
+                    st.warning(f"• {client_restrictions}")
+                elif isinstance(client_restrictions, list):
+                    for restriction in client_restrictions:
+                        st.warning(f"• {restriction}")
+            else:
+                st.write("ℹ️ Для данного заказчика не задано специфических ограничений в локальной техкарте.")
 
 # Вывод рекомендаций и графических блок-схем (подробности реализации в)
 recommendations = current_card.get("recommendations", [])
