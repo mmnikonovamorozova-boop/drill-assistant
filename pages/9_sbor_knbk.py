@@ -193,10 +193,6 @@ if uploaded_program is not None:
         st.error(f"🚨 Ошибка при анализе файла план-программы: {str(e)}")
 
 # =========================================================================
-# БЛОК 3 — ИНТЕРАКТИВНЫЙ КОНСТРУКТОР КНБК (ЧАСТЬ 2.1: ДОБАВЛЕНИЕ ЭЛЕМЕНТОВ)
-# =========================================================================
-
-# =========================================================================
 # БЛОК 3 — ИНТЕРАКТИВНЫЙ КОНСТРУКТОР КНБК (ПОЛНЫЙ ИСПРАВЛЕННЫЙ БЛОК ВВОДА)
 # =========================================================================
 
@@ -314,41 +310,125 @@ with c_btn2:
         st.rerun()
 
 # =========================================================================
-# БЛОК 4 — ОТОБРАЖЕНИЕ И ДИНАМИЧЕСКИЙ РЕДАКТОР СБОРКИ КНБК (ПЛАН/ФАКТ)
+# БЛОК 4 И 6 — ЕДИНАЯ РАБОЧАЯ ЗОНА: ВЕДОМОСТЬ + СХЕМА КНБК В ОДНУ СТРОКУ
 # =========================================================================
 
 st.markdown("---")
-st.subheader("📋 Сводная интерактивная ведомость элементов КНБК (ФАКТ)")
-st.caption("Вы можете редактировать длины, серийные номера и диаметры прямо в таблице. Изменения применятся мгновенно.")
 
-if st.session_state["bha_components"]:
-    # Преобразуем список компонентов в DataFrame для визуализации и редактирования
-    df_bha = pd.DataFrame(st.session_state["bha_components"])
+# Создаем глобальный контейнер из двух колонок: слева таблица, справа чертеж КНБК
+col_main_table, col_main_viz = st.columns([3, 2], gap="large")
+
+# --- ЛЕВАЯ КОЛОНКА: ИНТЕРАКТИВНАЯ ТАБЛИЦА-РЕДАКТОР ---
+with col_main_table:
+    st.subheader("📋 Сводная ведомость элементов (ФАКТ)")
+    st.caption("Редактируйте параметры прямо в ячейках таблицы. Данные обновятся мгновенно.")
     
-    # Запускаем интерактивный редактор данных в твоем фирменном стиле
-    edited_bha_df = st.data_editor(
-        df_bha,
-        column_config={
-            "Порядок": st.column_config.NumberColumn("№", width="small", disabled=True),
-            "Тип": st.column_config.TextColumn("Тип узла", width="medium", disabled=True),
-            "Наименование": st.column_config.TextColumn("Наименование оборудования", width="large"),
-            "СН": st.column_config.TextColumn("Серийный номер (Клеймо)", width="medium"),
-            "Длина, м": st.column_config.NumberColumn("Длина, м", width="small", min_value=0.01, max_value=50.0, step=0.01, format="%.2f"),
-            "OD, мм": st.column_config.NumberColumn("OD (Наруж.), мм", width="small", min_value=10.0, max_value=500.0, step=0.1, format="%.1f"),
-            "ID, мм": st.column_config.NumberColumn("ID (Внут.), мм", width="small", min_value=10.0, max_value=300.0, step=0.1, format="%.1f"),
-            "Резьба Низ": st.column_config.SelectboxColumn("Резьба Низ (Ниппель)", width="medium", options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
-            "Резьба Верх": st.column_config.SelectboxColumn("Резьба Верх (Муфта)", width="medium", options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
-            "Тип Ввода": st.column_config.TextColumn("Источник данных", width="small", disabled=True)
-        },
-        hide_index=True,
-        use_container_width=True,
-        key="bha_table_editor"
-    )
+    if st.session_state["bha_components"]:
+        df_bha = pd.DataFrame(st.session_state["bha_components"])
+        
+        # Запускаем интерактивный редактор данных с оптимизированной шириной столбцов
+        edited_bha_df = st.data_editor(
+            df_bha,
+            column_config={
+                "Порядок": st.column_config.NumberColumn("№", width="small", disabled=True),
+                "Тип": st.column_config.TextColumn("Тип", width="small", disabled=True),
+                "Наименование": st.column_config.TextColumn("Оборудование / Модель", width="medium"),
+                "СН": st.column_config.TextColumn("СН (Клеймо)", width="small"),
+                "Длина, м": st.column_config.NumberColumn("L, м", width="small", min_value=0.01, max_value=50.0, step=0.01, format="%.2f"),
+                "OD, мм": st.column_config.NumberColumn("OD, мм", width="small", min_value=10.0, max_value=500.0, step=0.1, format="%.1f"),
+                "ID, мм": st.column_config.NumberColumn("ID, мм", width="small", min_value=10.0, max_value=300.0, step=0.1, format="%.1f"),
+                "Резьба Низ": st.column_config.SelectboxColumn("Замок Низ", width="small", options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
+                "Резьба Верх": st.column_config.SelectboxColumn("Замок Верх", width="small", options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
+                "Тип Ввода": st.column_config.TextColumn("Источник", width="small", disabled=True)
+            },
+            hide_index=True,
+            use_container_width=True,
+            key="bha_table_editor"
+        )
+        
+        # Синхронизируем изменения обратно в глобальное состояние сессии
+        st.session_state["bha_components"] = edited_bha_df.to_dict(orient="records")
+    else:
+        st.info("ℹ️ Компоновка пуста. Подгрузите элементы из 1С или добавьте вручную.")
+
+# --- ПРАВАЯ КОЛОНКА: ДИНАМИЧЕСКИЙ ЧЕРТЕЖ КНБК ---
+with col_main_viz:
+    st.subheader("📐 Схема КНБК (План / Факт)")
+    st.caption("Пропорциональное графическое сопоставление КНБК в реальном масштабе.")
     
-    # Синхронизируем изменения из таблицы обратно в session_state приложения
-    st.session_state["bha_components"] = edited_bha_df.to_dict(orient="records")
-else:
-    st.info("ℹ Компоновка пуста. Подгрузите элементы из 1С или воспользуйтесь ручным вводом выше.")
+    # Внутренние колонки внутри правой зоны для выравнивания План и Факт бок о бок
+    col_sub_plan, col_sub_fact = st.columns(2)
+    
+    # Справочная карта цветов для элементов бурового снаряда
+    COLOR_MAP = {
+        "Долото": "#3B82F6", "ВЗД (Двигатель)": "#10B981", "ТМС (Телесистема)": "#F59E0B",
+        "NMDC (Немагнитная УБТ)": "#8B5CF6", "Осциллятор": "#EC4899", "Переливной клапан": "#EF4444",
+        "Переводник": "#6B7280", "Трубы СБТ": "#1E293B"
+    }
+
+    def generate_bha_html(components_list, title_label):
+        if not components_list:
+            return "<div style='text-align:center; padding:40px; color:#94A3B8; font-family:sans-serif; border:2px dashed #E2E8F0; border-radius:6px; margin-top:15px;'>Пусто</div>"
+        
+        # Снизили внутренние отступы, чтобы схема идеально вставала без лишних скроллов
+        html_out = f"""
+        <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 8px; text-align: center;">
+            <span style="font-size:11px; font-weight:bold; color:#475569; font-family:sans-serif;">{title_label}</span>
+            <div style="display: flex; flex-direction: column; align-items: center; margin-top: 10px; min-height: 320px; justify-content: flex-end;">
+        """
+        
+        for elem in reversed(components_list):
+            el_type = elem.get("Тип", "Трубы СБТ")
+            bg_color = COLOR_MAP.get(el_type, "#6B7280")
+            
+            raw_len = float(elem.get("Длина, м", 1.0))
+            # Масштабируем высоту элементов, чтобы они оставались компактными в окне
+            display_height = max(14, min(int(raw_len * 6), 90)) 
+            
+            raw_od = float(elem.get("OD, мм", 172.0))
+            display_width = max(24, min(int(raw_od * 0.4), 110))
+            
+            html_out += f"""
+            <div style="
+                background-color: {bg_color}; 
+                width: {display_width}px; 
+                height: {display_height}px; 
+                margin: 1px 0; 
+                border-radius: 3px; 
+                border: 1px solid rgba(0,0,0,0.15);
+                display: flex; 
+                align-items: center; 
+                justify-content: center; 
+                color: white; 
+                font-family: sans-serif; 
+                font-size: 9px; 
+                font-weight: bold;
+                overflow: hidden;"
+                title="Тип: {el_type} | СН: {elem.get('СН')} | L: {raw_len}м | OD: {raw_od}мм">
+                {elem.get('Порядок')}
+            </div>
+            """
+        
+        html_out += """
+            </div>
+        </div>
+        """
+        return html_out
+
+    with col_sub_plan:
+        plan_mock = [
+            {"Порядок": 1, "Тип": "Долото", "Длина, м": 0.35, "OD, мм": 215.9},
+            {"Порядок": 2, "Тип": "ВЗД (Двигатель)", "Длина, м": 9.15, "OD, мм": 172.0},
+            {"Порядок": 3, "Тип": "Переливной клапан", "Длина, м": 1.10, "OD, мм": 172.0},
+            {"Порядок": 4, "Тип": "NMDC (Немагнитная УБТ)", "Длина, м": 9.45, "OD, мм": 165.0},
+            {"Порядок": 5, "Тип": "ТМС (Телесистема)", "Длина, м": 4.50, "OD, мм": 172.0},
+            {"Порядок": 6, "Тип": "NMDC (Немагнитная УБТ)", "Длина, м": 9.45, "OD, мм": 165.0}
+        ]
+        st.components.v1.html(generate_bha_html(plan_mock, "📋 ПЛАН"), height=420, scrolling=False)
+
+    with col_sub_fact:
+        st.components.v1.html(generate_bha_html(st.session_state["bha_components"], "🔧 ФАКТ"), height=420, scrolling=False)
+
 # =========================================================================
 # БЛОК 5 — ВСТРОЕННОЕ ИИ-ЯДРО И ЭКСПЕРТНЫЙ АНАЛИЗ РИСКОВ СБОРКИ КНБК
 # =========================================================================
@@ -541,116 +621,6 @@ else:
     else:
         st.error("🚨 СБОРКА И СПУСК КНБК КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНЫ: В структуре компоновки обнаружены критические риски! Устраните нарушения технологического режима.")
         is_bha_disabled = True
-
-# =========================================================================
-# БЛОК 6 — МОДУЛЬ ДИНАМИЧЕСКОЙ ВИЗУАЛИЗАЦИИ КНБК (ПЛАН / ФАКТ)
-# =========================================================================
-
-st.markdown("---")
-st.subheader("📐 4. Интерактивная графическая схема КНБК (План / Факт)")
-st.caption("Визуальное сопоставление проектной компоновки и фактической сборки. Пропорции элементов зависят от их реальной длины и наружного диаметра (OD).")
-
-# Создаем две колонки для наглядного сравнения План и Факт
-col_viz_plan, col_viz_fact = st.columns(2)
-
-# --- Генератор CSS-стилей для отрисовки бурового железа ---
-# Каждый тип оборудования получит свой узнаваемый цвет
-COLOR_MAP = {
-    "Долото": "#3B82F6",             # Ярко-синий
-    "ВЗД (Двигатель)": "#10B981",    # Зеленый
-    "ТМС (Телесистема)": "#F59E0B",  # Оранжевый / Зонд
-    "NMDC (Немагнитная УБТ)": "#8B5CF6", # Фиолетовый (немагнитный)
-    "Осциллятор": "#EC4899",         # Розовый
-    "Переливной клапан": "#EF4444",  # Красный
-    "Переводник": "#6B7280",         # Серый переходник
-    "Трубы СБТ": "#1E293B"           # Темно-синий/стальной
-}
-
-def generate_bha_html(components_list, title_label):
-    """Функция генерирует чистый HTML/CSS код для вертикальной отрисовки колонны"""
-    if not components_list:
-        return "<div style='text-align:center; padding:20px; color:#6B7280; border:1px dashed #CBD5E1;'>Компоновка пуста</div>"
-    
-    html_out = f"""
-    <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 15px; text-align: center;">
-        <h5 style="margin-top:0; color:#1E293B; font-family:sans-serif;">{title_label}</h5>
-        <div style="display: flex; flex-direction: column; align-items: center; margin-top: 10px;">
-    """
-    
-    # Отрисовываем элементы КНБК сверху вниз (от бурильных труб к долоту)
-    # Для визуализации разворачиваем список, чтобы долото было в самом низу схемы
-    for elem in reversed(components_list):
-        el_type = elem.get("Тип", "Трубы СБТ")
-        bg_color = COLOR_MAP.get(el_type, "#6B7280")
-        
-        # Считаем относительные пропорции для отрисовки на экране
-        # Ограничиваем рамки, чтобы экстремальные длины не ломали верстку
-        raw_len = float(elem.get("Длина, м", 1.0))
-        display_height = max(18, min(int(raw_len * 8), 120)) 
-        
-        raw_od = float(elem.get("OD, мм", 172.0))
-        display_width = max(30, min(int(raw_od * 0.5), 150))
-        
-        html_out += f"""
-        <!-- Элемент: {elem.get('Наименование')} -->
-        <div style="
-            background-color: {bg_color}; 
-            width: {display_width}px; 
-            height: {display_height}px; 
-            margin: 1px 0; 
-            border-radius: 4px; 
-            border: 1px solid rgba(0,0,0,0.2);
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            color: white; 
-            font-family: sans-serif; 
-            font-size: 10px; 
-            font-weight: bold;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            transition: all 0.2s;"
-            title="Тип: {el_type} | СН: {elem.get('СН')} | L: {raw_len}м | OD: {raw_od}мм">
-            {elem.get('Порядок')}
-        </div>
-        """
-    
-    html_out += """
-        </div>
-        <div style="margin-top:15px; text-align:left; font-family:sans-serif; font-size:11px;">
-            <p style="margin:2px 0;"><strong>Легенда элементов:</strong></p>
-    """
-    
-    # Добавляем маленькую цветную легенду под схемой
-    used_types = set(el.get("Тип") for el in components_list)
-    for ut in used_types:
-        html_out += f'<span style="display:inline-block; margin-right:8px;"><span style="display:inline-block; width:10px; height:10px; background-color:{COLOR_MAP.get(ut, "#6B7280")}; margin-right:3px; border-radius:2px;"></span>{ut}</span>'
-        
-    html_out += """
-        </div>
-    </div>
-    """
-    return html_out
-
-# --- Отрисовка в левой колонке: План (Эталон из план-программы) ---
-with col_viz_plan:
-    # Используем дефолтный проектный шаблон в качестве эталона
-    plan_mock = [
-        {"Порядок": 1, "Тип": "Долото", "Наименование": "PDC 215.9 Matrix", "Длина, м": 0.35, "OD, мм": 215.9},
-        {"Порядок": 2, "Тип": "ВЗД (Двигатель)", "Наименование": "Радиус-Сервис ДЗ-172", "Длина, м": 9.15, "OD, мм": 172.0},
-        {"Порядок": 3, "Тип": "Переливной клапан", "Наименование": "ПВ-172", "Длина, м": 1.10, "OD, мм": 172.0},
-        {"Порядок": 4, "Тип": "NMDC (Немагнитная УБТ)", "Наименование": "УБТН-165", "Длина, м": 9.45, "OD, мм": 165.0},
-        {"Порядок": 5, "Тип": "ТМС (Телесистема)", "Наименование": "MWD-172", "Длина, м": 4.50, "OD, мм": 172.0},
-        {"Порядок": 6, "Тип": "NMDC (Немагнитная УБТ)", "Наименование": "УБТН-165", "Длина, м": 9.45, "OD, мм": 165.0}
-    ]
-    html_plan = generate_bha_html(plan_mock, "📋 ПРОЕКТНАЯ СХЕМА (ПЛАН)")
-    st.components.v1.html(html_plan, height=550, scrolling=True)
-
-# --- Отрисовка в правой колонке: Факт (То, что инженер собрал в таблице выше) ---
-with col_viz_fact:
-    html_fact = generate_bha_html(st.session_state["bha_components"], "🔧 ФАКТИЧЕСКАЯ СБОРКА (НА УСТЬЕ)")
-    st.components.v1.html(html_fact, height=550, scrolling=True)
 
 # Блок интеграционных барьеров, документа СМК и финала модуля «Сборка КНБК»
 st.markdown("---")
