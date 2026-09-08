@@ -271,10 +271,13 @@ linked_op_name = st.session_state.get("current_selected_op_name", "Не выбр
 
 if linked_requirements:
     st.info(f"🔗 Связь активна. Подтянуты актуальные требования из Модуля 4 по операции: **{linked_op_name}**")
-    available_card_clients = list(set(req["Заказчик"] for req in linked_requirements))
+    # Извлекаем уникальных заказчиков из Модуля 4 и добавляем дефолтный вариант в начало списка
+    raw_clients = list(set(str(req.get("Заказчик", "")).strip() for req in linked_requirements if req.get("Заказчик")))
+    available_card_clients = ["Без надстройки (базовый регламент)"] + sorted(raw_clients)
 else:
     st.warning("⚠️ Синхронизация с Модулем 4 ограничена. Откройте сначала Матрицу ЛНД (Модуль 4) для инициализации базы требований.")
-    available_card_clients = st.session_state.get("global_available_clients") or ["Роснефть", "Газпром нефть", "ЛУКОЙЛ", "Прочие"]
+    # Если связи нет, используем базовый список и тоже добавляем дефолтный вариант
+    available_card_clients = ["Без надстройки (базовый регламент)", "Роснефть", "Газпром нефть", "ЛУКОЙЛ", "Прочие"]
 
 selected_client = st.selectbox(
     "💼 Выберите компанию Заказчика для адаптации под ЛНД:",
@@ -296,6 +299,15 @@ def get_internal_client_key(client_name):
         return "Прочие"
 
 internal_key = get_internal_client_key(selected_client)
+
+if selected_client == "Без надстройки (базовый регламент)":
+    st.success("✅ Отображается базовый технологический регламент СТО ИНТИ без дополнительных ограничений Заказчиков.")
+else:
+    st.markdown(f"#### 📜 Требования компании **{selected_client}**:")
+    
+    # ТУТ ИДЕТ ВЕСЬ ВАШ ОСТАЛЬНОЙ КОД ВЫВОДА ТРЕБОВАНИЙ (if linked_requirements: и т.д.)
+    # Проверьте, чтобы весь последующий блок вывода требований (до самого else с локальной техкартой) 
+    # получил ОДИН дополнительный отступ (Tab) вправо, так как он теперь находится внутри этого нового else!
 
 st.markdown(f"#### 📜 Требования компании **{selected_client}**:")
 
