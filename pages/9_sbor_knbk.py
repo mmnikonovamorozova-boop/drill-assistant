@@ -418,40 +418,105 @@ else:
 # =========================================================================
 # БЛОК 6 — ОФИЦИАЛЬНЫЙ БЛАНК СМК И НАВИГАЦИЯ
 # =========================================================================
-st.markdown("---")
-st.subheader("🎯 Сквозные инженерные барьеры и бланк СМК")
+def generate_official_excel_report():
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "РАПОРТ по КНБК"
+    ws.views.sheetView.showGridLines = True
+    
+    # 📌 Путь 1: Автозаполнение метаданных из глобальных модулей приложения
+    field_val = st.session_state.get("field_select", "Верхнесалымское")
+    well_val = st.session_state.get("well_input", "49 / 25307ST1")
+    company_val = st.session_state.get("company_select", "Салым Петролеум Девелопмент")
+    bha_num = st.session_state.get("bha_number_input", "7")
+    
+    # Строим ячейки рапорта по предоставленной форме
+    ws.merge_cells("I1:S1")
+    ws["I1"] = "РАПОРТ по КНБК"
+    ws["I1"].font = openpyxl.styles.Font(name="Arial", size=14, bold=True)
+    ws["I1"].alignment = openpyxl.styles.Alignment(horizontal="center")
+    
+    # Заполнение паспортной части (Строка 4)
+    ws["I4"] = "Месторождение"
+    ws["K4"] = field_val
+    ws["M4"] = "Заказчик:"
+    ws["O4"] = company_val
+    
+    # Заполнение паспортной части (Строка 5)
+    ws["I5"] = "Куст / скважина"
+    ws["K5"] = well_val
+    ws["M5"] = "Номер КНБК"
+    ws["O5"] = bha_num
+    # 📌 Путь 2: Стилизация технической шапки таблицы (Строка 7)
+    f_header = openpyxl.styles.Font(name="Arial", size=9, bold=True)
+    f_cell = openpyxl.styles.Font(name="Arial", size=9)
+    align_center = openpyxl.styles.Alignment(horizontal="center", vertical="center", wrap_text=True)
+    
+    headers = [
+        "№ п/п", "Элемент", "Принадлежность", "Серийный номер", 
+        "Диаметр Наруж. Ø, мм", "Диаметр Внутр. Ø, мм", 
+        "Резьба снизу", "Резьба сверху", "Длина            (м)", "Сум. длина    (м)"
+    ]
+    
+    # Записываем шапку в строгом соответствии с колонками рапорта (начиная с I)
+    for col_idx, h_text in enumerate(headers, start=9):  # Колонка I — это 9-я колонка
+        cell = ws.cell(row=7, column=col_idx, value=h_text)
+        cell.font = f_header
+        cell.alignment = align_center
+        cell.fill = openpyxl.styles.PatternFill("solid", fgColor="E2E8F0")
 
-st.page_link("pages/2_raschet_umk.py", label="🔧 Контроль момента УМК", icon="📊", use_container_width=True)
-st.page_link("pages/8_lyuft_vzd.py", label="📏 Люфты шпинделя ВЗД", icon="📐", use_container_width=True)
+    # Перенос данных из st.session_state["bha_components"]
+    current_row = 9
+    cum_length = 0.0
+    
+    if "bha_components" in st.session_state and st.session_state["bha_components"]:
+        for idx, elem in enumerate(st.session_state["bha_components"], start=1):
+            length = float(elem.get("Длина, м", 0.0))
+            cum_length += length
+            
+            ws.cell(row=current_row, column=9, value=idx).font = f_cell               # № п/п
+            ws.cell(row=current_row, column=10, value=elem.get("Тип", "")).font = f_cell  # Элемент
+            ws.cell(row=current_row, column=11, value=elem.get("Тип Ввода", "ООО \"Траектория-Сервис\"")).font = f_cell # Принадлежность
+            ws.cell(row=current_row, column=12, value=elem.get("СН", "-")).font = f_cell    # Серийный номер
+            ws.cell(row=current_row, column=13, value=float(elem.get("OD, мм", 0.0))).font = f_cell # OD
+            ws.cell(row=current_row, column=14, value=float(elem.get("ID, мм", 0.0))).font = f_cell # ID
+            ws.cell(row=current_row, column=15, value=elem.get("Резьба Низ", "-")).font = f_cell # Резьба снизу
+            ws.cell(row=current_row, column=16, value=elem.get("Резьба Верх", "-")).font = f_cell # Резьба сверху
+            ws.cell(row=current_row, column=17, value=length).font = f_cell          # Длина
+            ws.cell(row=current_row, column=18, value=round(cum_length, 2)).font = f_cell # Сум. длина
+            
+            current_row += 1
 
-# Динамическое определение заголовка документа СМК
-if is_bha_disabled:
-    file_title = f"Akt_Zapreta_KNBK_Skv_{well}"
-    title_text = "АКТ О ЗАПРЕЩЕНИИ СПУСКА КОМПОНОВКИ"
-    border_color = "#EF4444"
-else:
-    file_title = f"Akt_Verifikacii_KNBK_Well_{well}"
-    title_text = "АКТ ТЕХНИЧЕСКОГО КОНТРОЛЯ ВЕРИФИКАЦИИ КНБК"
-    border_color = "#1E3A8A"
+    # 📌 Путь 3: Подвал СМК и зоны для подписей сторон (отступаем 2 строки от таблицы)
+    current_row += 2
+    ws.cell(row=current_row, column=9, value="Дата :").font = f_header
+    ws.cell(row=current_row, column=11, value=str(st.session_state.get("report_date", "2026-05-10"))).font = f_cell
+    
+    current_row += 1
+    ws.cell(row=current_row, column=9, value="Составил: Старший инженер по бурению ООО \"Траектория-Сервис\"").font = f_header
+    ws.cell(row=current_row, column=16, value=st.session_state.get("engineer_select", "Бадыков Р.А. / Лукин А.Е.")).font = f_cell
+    
+    current_row += 1
+    ws.cell(row=current_row, column=9, value="Буровой мастер НФ АО \"ССК\"").font = f_header
+    ws.cell(row=current_row, column=16, value="Ахметзянов Р.А. / Матвеев Е.Н.").font = f_cell
+    
+    current_row += 1
+    ws.cell(row=current_row, column=9, value="Супервайзер \"Салым Petroleum Development\"").font = f_header
+    ws.cell(row=current_row, column=16, value="Самадов Р.М. / Чупраков А.Н.").font = f_cell
 
-# Генерация печатной формы бланка СМК
-html_form_bha = f"""
-<div style='border:3px solid {border_color}; padding:20px; font-family:Arial, sans-serif; background-color: white; color: #1E293B;'>
-    <h2 style='color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>
-    <hr style='border:1px solid #CBD5E1;'>
-    <h3 style='text-align: center; color: {border_color};'>{title_text}</h3>
-    <p><strong>Месторождение:</strong> {field} | <strong>Скважина:</strong> {well}</p>
-    <p><strong>Инженер по бурению (ННБ):</strong> {engineer} | <strong>Заказчик:</strong> {company}</p>
-    <p><strong>Технический статус сборки:</strong> {'🚨 ОТКЛОНЕНО СМК' if is_bha_disabled else '🛡️ ОДОБРЕНО СМК'}</p>
-</div>
-"""
+    # Переводим готовую Excel-книгу в байтовый поток памяти без сохранения на диск сервера
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return buffer
 
-st.components.v1.html(html_form_bha, height=200)
-
-st.download_button(
-    label="💾 Скачать Официальный Акт СМК (HTML)",
-    data=html_form_bha,
-    file_name=f"{file_title}.html",
-    mime="text/html",
-    use_container_width=True
-)
+# 📌 Путь 4: Вывод кнопки скачивания официального печатного рапорта в веб-интерфейс
+if st.session_state.get("bha_components"):
+    excel_data = generate_official_excel_report()
+    st.download_button(
+        label="💾 Скачать Официальный Рапорт по КНБК (Excel)",
+        data=excel_data,
+        file_name=f"Report_KNBK_Well_{st.session_state.get('well_input', '49_25307ST1')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True
+    )
