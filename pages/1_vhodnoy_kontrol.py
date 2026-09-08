@@ -169,7 +169,7 @@ mailto_link = f"mailto:{email_recipient}?subject={subject_text}&body={body_text}
 
 # Красивая кнопка-ссылка, которая сработает на любом устройстве
 st.markdown(
-    f'<a href="{mailto_link}" target="_blank" style="text-decoration: none;"><div style="text-align: center; background-color: #1E3A8A; color: white; padding: 10px; border-radius: 5px; font-weight: bold;">✉ Подготовить письмо в почтовой программе</div></a>', 
+    f'<a href="{mailto_link}" target="_blank" style="text-decoration: none;"><div style="text-align: center; background-color: #1E3A8A; color: #FFFFFF; padding: 10px; border-radius: 5px; font-weight: bold;">✉ Подготовить письмо в почтовой программе</div></a>', 
     unsafe_allow_html=True
 )
 
