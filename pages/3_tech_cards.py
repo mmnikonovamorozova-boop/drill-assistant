@@ -295,10 +295,27 @@ def get_internal_client_key(client_name):
     else:
         return "Прочие"
 
+internal_key = get_internal_client_key(selected_client)
+
 st.markdown(f"#### 📜 Требования компании **{selected_client}**:")
 
 if linked_requirements:
-    client_specific_reqs = [r for r in linked_requirements if str(r.get("Заказчик", "")).strip().upper() == str(selected_client).strip().upper()]
+    
+# Фильтруем требования по совпадению Заказчика И по ключевым словам из названия техкарты
+
+client_specific_reqs = []
+card_keywords = [w.lower() for w in selected_card.replace("/", " ").replace("-", " ").split() if len(w) > 3]
+
+for r in linked_requirements:
+    req_client = str(r.get("Заказчик", "")).strip().upper()
+    selected_client_upper = str(selected_client).strip().upper()
+    
+    if req_client == selected_client_upper:
+        # Проверяем, относится ли требование к нашей операции (поиск по ключевым словам)
+        req_op = str(r.get("Технологическая операция / Осложнение", "")).lower()
+        if any(word in req_op for word in card_keywords) or not linked_requirements:
+            client_specific_reqs.append(r)
+
     
     if client_specific_reqs:
         for req in client_specific_reqs:
