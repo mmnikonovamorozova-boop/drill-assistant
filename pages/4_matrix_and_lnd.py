@@ -193,6 +193,9 @@ if items and isinstance(items, list):
     html_table += "</tbody></table>"
     st.markdown(html_table, unsafe_allow_html=True)
     
+    st.session_state["current_operation_requirements"] = table_rows
+    st.session_state["current_selected_op_name"] = selected_op
+
     # --- ИНТЕРАКТИВНЫЙ ЧЕК-ЛИСТ ВЕРИФИКАЦИИ ---
     st.markdown("---")
     st.markdown("### 📝 Полевой чек-лист верификации регламентов ЛНД")
