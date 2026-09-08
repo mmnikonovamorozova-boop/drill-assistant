@@ -303,20 +303,19 @@ if linked_requirements:
     
 # Фильтруем требования по совпадению Заказчика И по ключевым словам из названия техкарты
 
-client_specific_reqs = []
-card_keywords = [w.lower() for w in selected_card.replace("/", " ").replace("-", " ").split() if len(w) > 3]
+if linked_requirements:
+    client_specific_reqs = []
+    card_keywords = [w.lower() for w in selected_card.replace("/", " ").replace("-", " ").split() if len(w) > 3]
 
-for r in linked_requirements:
-    req_client = str(r.get("Заказчик", "")).strip().upper()
-    selected_client_upper = str(selected_client).strip().upper()
-    
-    if req_client == selected_client_upper:
-        # Проверяем, относится ли требование к нашей операции (поиск по ключевым словам)
-        req_op = str(r.get("Технологическая операция / Осложнение", "")).lower()
-        if any(word in req_op for word in card_keywords) or not linked_requirements:
-            client_specific_reqs.append(r)
+    for r in linked_requirements:
+        req_client = str(r.get("Заказчик", "")).strip().upper()
+        selected_client_upper = str(selected_client).strip().upper()
+        
+        if req_client == selected_client_upper:
+            req_op = str(r.get("Технологическая операция / Осложнение", "")).lower()
+            if any(word in req_op for word in card_keywords):
+                client_specific_reqs.append(r)
 
-    
     if client_specific_reqs:
         for req in client_specific_reqs:
             req_text = req.get("Технологическое требование", "")
