@@ -300,13 +300,10 @@ internal_key = get_internal_client_key(selected_client)
 st.markdown(f"#### 📜 Требования компании **{selected_client}**:")
 
 if linked_requirements:
-    
-# Фильтруем требования по совпадению Заказчика И по ключевым словам из названия техкарты
-
-if linked_requirements:
     client_specific_reqs = []
-    card_keywords = [w.lower() for w in selected_card.replace("/", " ").replace("-", " ").split() if len(w) > 3]
-
+    # Используем правильное имя переменной selected_incident
+    card_keywords = [w.lower() for w in selected_incident.replace("/", " ").replace("-", " ").split() if len(w) > 3]
+    
     for r in linked_requirements:
         req_client = str(r.get("Заказчик", "")).strip().upper()
         selected_client_upper = str(selected_client).strip().upper()
@@ -315,7 +312,7 @@ if linked_requirements:
             req_op = str(r.get("Технологическая операция / Осложнение", "")).lower()
             if any(word in req_op for word in card_keywords):
                 client_specific_reqs.append(r)
-
+                
     if client_specific_reqs:
         for req in client_specific_reqs:
             req_text = req.get("Технологическое требование", "")
@@ -330,6 +327,7 @@ if linked_requirements:
                 st.info(f"**{req_point}:** {req_text}")
     else:
         st.write("ℹ️ В Матрице ЛНД для данного заказчика нет специфических пунктов по этой операции.")
+
 else:
         card_restrictions = current_card.get("restrictions", {})
         internal_key = get_internal_client_key(selected_client)
