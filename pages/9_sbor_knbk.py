@@ -319,24 +319,34 @@ with c_btn2:
 st.markdown(
     """
     <style>
-    /* Нацеливаемся на внутренние ячейки таблицы Streamlit data_editor */
-    [data-testid="stDataEditor"] div [role="gridcell"] {
+    /* Нацеливаемся на текстовые контейнеры внутри ячеек таблицы Glide Data Grid */
+    [data-testid="stDataEditor"] [role="gridcell"] > div,
+    [data-testid="stDataEditor"] .glideDataGrid-canvas,
+    [data-testid="stDataEditor"] div[data-cell-type] {
         white-space: normal !important;
-        word-break: break-word !important;
-        line-height: 1.2 !important;
+        word-wrap: break-word !important;
+        word-break: break-all !important;
+        overflow-wrap: break-word !important;
+        line-height: 1.3 !important;
+    }
+    
+    /* Заставляем строки таблицы динамически адаптировать свою высоту под контент */
+    [data-testid="stDataEditor"] [role="row"] {
+        height: auto !important;
+        min-height: 45px !important;
+        padding-top: 4px !important;
+        padding-bottom: 4px !important;
+    }
+    
+    /* Обеспечиваем корректное вертикальное выравнивание текста внутри ячеек */
+    [data-testid="stDataEditor"] div[role="presentation"] {
         display: flex !important;
         align-items: center !important;
-    }
-    /* Увеличиваем стандартную высоту строк, чтобы умещался перенесенный текст */
-    [data-testid="stDataEditor"] div [role="row"] {
-        height: auto !important;
-        min-height: 35px !important;
     }
     </style>
     """,
     unsafe_allow_html=True
 )
-
 # Меняем пропорции: 4 части отдаем таблице, 1.5 части — суженному окну схемы
 col_main_table, col_main_viz = st.columns([4, 1.5], gap="medium")
 
