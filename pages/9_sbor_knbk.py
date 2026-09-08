@@ -310,10 +310,6 @@ with c_btn2:
         st.rerun()
 
 # =========================================================================
-# БЛОК 4 И 6 — ОПТИМИЗИРОВАННАЯ РАБОЧАЯ ЗОНА: МАКСИМАЛЬНАЯ ШИРИНА ТАБЛИЦЫ
-# =========================================================================
-
-# =========================================================================
 # ИНЪЕКЦИЯ СТИЛЕЙ ДЛЯ ПРИНУДИТЕЛЬНОГО ПЕРЕНОСА СЛОВ (WORD-WRAP) В ТАБЛИЦЕ
 # =========================================================================
 st.markdown(
@@ -355,54 +351,96 @@ col_main_table, col_main_viz = st.columns([4, 1.5], gap="medium")
 with col_main_table:
     st.subheader("📋 Сводная ведомость элементов (ФАКТ)")
     st.caption("Параметры выровнены под Full HD разрешение. Текст переносится автоматически.")
-    
-    if st.session_state["bha_components"]:
-        df_display = pd.DataFrame(st.session_state["bha_components"])
-        
-        def insert_br(text):
-            text = str(text)
-            if len(text) <= 15 or "<br>" in text:
-                return text
-            words = text.split(" ")
-            lines, current_line = [], ""
-            for word in words:
-                if len(current_line) + len(word) > 15:
-                    lines.append(current_line)
-                    current_line = word
-                else:
-                    current_line = f"{current_line} {word}".strip()
-            if current_line:
-                lines.append(current_line)
-            return "<br>".join(lines)
 
-        for col in ["Наименование", "Тип"]:
-            if col in df_display.columns:
-                df_display[col] = df_display[col].apply(insert_br)
+# Предварительно рассчитываем статус блокировки, чтобы избежать NameError внизу страницы
+has_bha_errors = False
+risk_reasons_list = []
 
-        edited_bha_df = st.data_editor(df_display, hide_index=True, use_container_width=True, key="bha_table_editor")
-        
-        df_save = edited_bha_df.copy()
-        for col in ["Наименование", "Тип"]:
-            if col in df_save.columns:
-                df_save[col] = df_save[col].astype(str).str.replace("<br>", " ", regex=False)
-            
-        st.session_state["bha_components"] = df_save.to_dict(orient="records")
+if "bha_components" in st.session_state and st.session_state["bha_components"]:
+    # 🔥 Очищаем старые застрявшие теги <br> из памяти сессии, если они там остались
+    for elem in st.session_state["bha_components"]:
+        if "Наименование" in elem:
+            elem["Наименование"] = str(elem["Наименование"]).replace("<br>", " ")
+        if "Тип" in elem:
+            elem["Тип"] = str(elem["Тип"]).replace("<br>", " ")
+
+    # Проводим быструю предварительную проверку на жесткие ошибки диаметров
+    components = st.session_state["bha_components"]
+    for i in range(len(components) - 1):
+        od_low = float(components[i].get("OD, мм", 0.0))
+        od_high = float(components[i + 1].get("OD, мм", 0.0))
+        if abs(od_low - od_high) > 40.0 and components[i]["Тип"] != "Переводник" and components[i + 1]["Тип"] != "Переводник":
+            has_bha_errors = True
+
+# Фиксируем статус безопасности для бланков СМК
+is_bha_disabled = has_bha_errors
+
+# Теперь безопасно разворачиваем сетку интерфейса
+col_main_table, col_main_viz = st.columns([4, 1.5], gap="medium")
+with col_main_table:
+    st.subheader("📋 Сводная ведомость элементов (ФАКТ)")
+    if st.session_state.get("bha_components"):
+        df_bha = pd.DataFrame(st.session_state["bha_components"])
+        edited_bha_df = st.data_editor(
+            df_bha,
+            column_config={
+                "Порядок": st.column_config.NumberColumn("№", width=40, disabled=True),
+                "Тип": st.column_config.TextColumn("Тип узла", width=110, disabled=True),
+                "Наименование": st.column_config.TextColumn("Оборудование / Модель", width=180),
+                "СН": st.column_config.TextColumn("СН (Клеймо)", width=100),
+                "Длина, м": st.column_config.NumberColumn("L, м", width=65, min_value=0.01, max_value=50.0, step=0.01, format="%.2f"),
+                "OD, мм": st.column_config.NumberColumn("OD, мм", width=70, min_value=10.0, max_value=500.0, step=0.1, format="%.1f"),
+                "ID, мм": st.column_config.NumberColumn("ID, мм", width=70, min_value=10.0, max_value=300.0, step=0.1, format="%.1f"),
+                "Резьба Низ": st.column_config.SelectboxColumn("Замок Низ", width=120, options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
+                "Резьба Верх": st.column_config.SelectboxColumn("Замок Верх", width=120, options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
+                "Тип Ввода": st.column_config.TextColumn("Источник", width=95, disabled=True)
+            },
+            hide_index=True,
+            use_container_width=True,
+            key="bha_table_editor"
+        )
+        st.session_state["bha_components"] = edited_bha_df.to_dict(orient="records")
     else:
         st.info("ℹ Компоновка пуста. Подгрузите элементы из 1С или добавьте вручную.")
-
 
 # --- ПРАВАЯ КОЛОНКА: СУЖЕННЫЙ И КОМПАКТНЫЙ ЧЕРТЕЖ КНБК ---
 with col_main_viz:
     st.subheader("📐 Схема КНБК")
     st.caption("План / Факт бок о бок")
-    
     col_sub_plan, col_sub_fact = st.columns(2)
-    
     COLOR_MAP = {
         "Долото": "#3B82F6", "ВЗД (Двигатель)": "#10B981", "ТМС (Телесистема)": "#F59E0B",
         "NMDC (Немагнитная УБТ)": "#8B5CF6", "Осциллятор": "#EC4899", "Переливной клапан": "#EF4444",
         "Переводник": "#6B7280", "Трубы СБТ": "#1E293B"
     }
+    def generate_bha_html(components_list, title_label):
+        if not components_list:
+            return "<div style='text-align:center; padding:20px; color:#94A3B8; font-family:sans-serif; border:1px dashed #E2E8F0; border-radius:6px; font-size:11px;'>Пусто</div>"
+        html_out = "HTML_START_" + title_label
+        for elem in reversed(components_list):
+            el_type = elem.get("Тип", "Трубы СБТ")
+            bg_color = COLOR_MAP.get(el_type, "#6B7280")
+            raw_len = float(elem.get("Длина, м", 1.0))
+            display_height = max(12, min(int(raw_len * 5), 70))
+            raw_od = float(elem.get("OD, мм", 172.0))
+            display_width = max(18, min(int(raw_od * 0.28), 75))
+            p_num = str(elem.get("Порядок", 1))
+            html_out += f"| {p_num}:{el_type}:{bg_color}:{display_width}x{display_height} "
+        return html_out
+
+    with col_sub_plan:
+        plan_mock = [
+            {"Порядок": 1, "Тип": "Долото", "Длина, м": 0.35, "OD, мм": 215.9},
+            {"Порядок": 2, "Тип": "ВЗД (Двигатель)", "Длина, м": 9.15, "OD, мм": 172.0},
+            {"Порядок": 3, "Тип": "Переливной клапан", "Длина, м": 1.10, "OD, мм": 172.0},
+            {"Порядок": 4, "Тип": "NMDC (Немагнитная УБТ)", "Длина, м": 9.45, "OD, мм": 165.0},
+            {"Порядок": 5, "Тип": "ТМС (Телесистема)", "Длина, м": 4.50, "OD, мм": 172.0},
+            {"Порядок": 6, "Тип": "NMDC (Немагнитная УБТ)", "Длина, м": 9.45, "OD, мм": 165.0}
+        ]
+        st.write(generate_bha_html(plan_mock, "📋 ПЛАН"))
+
+    with col_sub_fact:
+        st.write(generate_bha_html(st.session_state.get("bha_components", []), "🔧 ФАКТ"))
 
     def generate_bha_html(components_list, title_label):
         if not components_list:
