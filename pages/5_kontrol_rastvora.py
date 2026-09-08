@@ -763,89 +763,52 @@ if st.button("✉ Подготовить письмо в почтовой про
     js_code = f'<script>window.open("{mailto_link}", "_blank");</script>'
     st.components.v1.html(js_code, height=0)
 
+report_timestamp = time.strftime("%d.%m.%Y %H:%M")
 
-# 3. Формирование таблицы данных (CSV) для ведения архива на сервере
-report_csv_content = (
-    f"Timestamp,Engineer,Field,Well,Company,MudType,SandPct,VzdSN,Runtime,RemainingHours,Status\n"
-    f"{report_timestamp},{normalized_engineer},{normalized_field},{normalized_well},{normalized_company},"
-    f"{normalized_mud},{sand_input_val:.2f},{normalized_serial},{current_runtime:.1f},"
-    f"{predicted_hours_to_failure:.1f},{final_report_status.replace(',', ';')}"
-)
+report_csv_content = f"Timestamp,Engineer,Field,Well,Company,MudType,SandPct\n{report_timestamp},{normalized_engineer},{field},{well},{normalized_company},{normalized_mud},{sand_input_val:.2f}"
 
-# 4. Отрисовка кнопок выгрузки файлов в интерфейсе приложения
-st.markdown("##### 💾 Экспорт сформированных документов:")
-st.download_button(
-    label="📊 Скачать строку базы замеров (.csv)",
-    data=report_csv_content,
-    file_name=f"Data_Row_{normalized_well.replace(' ', '_')}.csv",
-    mime="text/csv",
-    use_container_width=True
-)
-# =========================================================================
-# БЛОК 6: СТАБИЛЬНЫЙ ЦИФРОВОЙ ЖУРНАЛ ЗАМЕРОВ (УСТРАНЕНИЕ KEYERROR)
-# =========================================================================
+st.markdown("##### 📊 Экспорт данных архива:")
+st.download_button(label="Скачать строку CSV", data=report_csv_content, file_name="data.csv", mime="text/csv", use_container_width=True)
 st.markdown("---")
-st.markdown("### 💾 Блок 6: Цифровой журнал и мониторинг трендов")
-st.caption("Накопление суточных замеров параметров промывки для архива КНБК")
+st.markdown("### 💾 Блок 6: Цифровой журнал замеров")
 
-# Инициализация хранилища истории в памяти приложения
 if "history_log" not in st.session_state:
     st.session_state.history_log = []
 
-# Кнопки управления логом
-col_log1, col_log2 = st.columns(2)
-with col_log1:
-    if st.button("➕ Зафиксировать текущую точку замера в лог", use_container_width=True):
+col_l1, col_l2 = st.columns(2)
+with col_l1:
+    if st.button("➕ Зафиксировать текущую точку", use_container_width=True):
         time_now = time.strftime("%H:%M:%S")
-        is_acid = "Кислотная" in normalized_mud
-        sand_val = sand_input_val if 'sand_input_val' in locals() else 0.5
-        
-        # Интеллектуальное присвоение статусов для таблицы замеров
-        if is_acid:
-            status = "🚨 АВАРИЯ / СПО"
-            info = "КРИТИЧЕСКАЯ АВАРИЯ: Прокачка кислоты! Требуется немедленный подъем КНБК."
-        elif sand_val > (sand_threshold if 'sand_threshold' in locals() else 0.5):
-            status = "🚨 НАРУШЕНИЕ ТК"
-            info = f"Превышен лимит песка! Износ ускорен. Ресурс: {predicted_hours_to_failure:.1f} ч."
+        if sand_input_val > sand_threshold:
+            status = "🚨 НАРУШЕНИЕ"
         else:
             status = "🟢 Норма"
-            info = f"Замер в норме. Прогноз ресурса ВЗД: {predicted_hours_to_failure:.1f} ч."
-
-        # Записываем строго фиксированные ключи (устраняем KeyError)
+        
         st.session_state.history_log.append({
-            "Время": time_now, 
+            "Время": time_now,
             "Тип раствора": normalized_mud,
-            "Песок (%)": round(sand_val, 2), 
-            "Остаток (ч)": round(predicted_hours_to_failure, 1),
-            "Статус": status,
-            "Заключение": info
+            "Песок (%)": round(sand_input_val, 2),
+            "Статус": status
         })
-        st.success(f"Точка успешно зафиксирована в {time_now}!")
-
-with col_log2:
-    if st.button("🗑 Очистить журнал замеров текущего рейса", use_container_width=True):
+        st.success(f"Точка зафиксирована в {time_now}!")
+with col_l2:
+    if st.button("🗑 Очистить журнал замеров", use_container_width=True):
         st.session_state.history_log = []
         st.rerun()
-
-# Отображение таблицы и генерация текстового файла выгрузки
 if st.session_state.history_log:
-    st.markdown("##### 📝 Хронология выполненного контроля параметров БР:")
+    st.markdown("##### 📝 Хронология контроля параметров БР:")
     df_display = pd.DataFrame(st.session_state.history_log)
-    
-    # Выводим чистую таблицу Streamlit
     st.dataframe(df_display, use_container_width=True, hide_index=True)
     
-    # Безопасная сборка текстового файла по совпадающим ключам
     log_text_output = "ПРОТОКОЛ ХРОНОЛОГИИ ЗАМЕРОВ РЕЙСА:\n" + "\n".join([
-        f"[{row['Время']}] {row['Тип раствора']} | Песок: {row['Песок (%)']}% | Ресурс: {row['Остаток (ч)']}ч | Статус: {row['Статус']}" 
+        f"[{row['Время']}] {row['Тип раствора']} | Песок: {row['Песок (%)']}% | Статус: {row['Статус']}"
         for row in st.session_state.history_log
     ])
     
-    # Кнопка скачивания лога
     st.download_button(
-        label="📥 Скачать накопленный журнал рейса (.txt)", 
-        data=log_text_output, 
-        file_name=f"Journal_Well_{normalized_well.replace(' ', '_')}.txt", 
+        label="📥 Скачать журнал (.txt)",
+        data=log_text_output,
+        file_name=f"Journal_Well_{well}.txt",
         use_container_width=True
     )
 else:
