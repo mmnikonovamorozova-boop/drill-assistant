@@ -261,24 +261,29 @@ if route_steps and isinstance(route_steps, list):
 else:
     st.info("ℹ Для выбранного инцидента маршрут верификации в базе данных не задан.")
 # ==============================================================================
-# БЛОК 4: СИНХРОНИЗАЦИЯ ЗАКАЗЧИКОВ И ПРЕВЕНТИВНЫЕ РЕКОМЕНДАЦИИ (СВЯЗЬ С МОДУЛЕМ 4)
+# БЛОК 4: ИНТЕГРАЦИЯ С МОДУЛЕМ 4 (АВТОПОДХВАТ ТРЕБОВАНИЙ ИЗ МАТРИЦЫ ЛНД)
 # ==============================================================================
-st.markdown("### 💼 Ограничения Заказчиков и превентивные рекомендации")
+st.markdown("### 💼 Ограничения Заказчиков и требования ЛНД")
 
-# Подтягиваем ограничения и настраиваем выборку клиентов (полный код доступен в)
-card_restrictions = current_card.get("restrictions", {})
-available_card_clients = st.session_state.get("global_available_clients") or ["Роснефть", "Газпром нефть", "ЛУКОЙЛ", "Прочие"]
+# Интеграция с Модулем 4 для автоподхвата требований и динамического выбора заказчиков
+linked_requirements = st.session_state.get("current_operation_requirements", [])
+linked_op_name = st.session_state.get("current_selected_op_name", "Не выбрана в Модуле 4")
+
+if linked_requirements:
+    st.info(f"🔗 Связь активна. Подтянуты актуальные требования из Модуля 4 по операции: **{linked_op_name}**")
+    available_card_clients = list(set(req["Заказчик"] for req in linked_requirements))
+else:
+    st.warning("⚠️ Синхронизация с Модулем 4 ограничена. Откройте сначала Матрицу ЛНД (Модуль 4) для инициализации базы требований.")
+    available_card_clients = st.session_state.get("global_available_clients") or ["Роснефть", "Газпром нефть", "ЛУКОЙЛ", "Прочие"]
 
 selected_client = st.selectbox(
-    "💼 Выберите компанию Заказчика для адаптации техкарты под ЛНД:",
+    "💼 Выберите компанию Заказчика для адаптации под ЛНД:",
     available_card_clients,
     index=0,
     key="client_selector_tech"
 )
 
 st.markdown("---")
-
-# Интеллектуальный адаптер для новых заказчиков (ООО СПД и др.)
 def get_internal_client_key(client_name):
     name_upper = str(client_name).upper()
     if "СПД" in name_upper or "САЛЫМ" in name_upper:
@@ -290,15 +295,35 @@ def get_internal_client_key(client_name):
     else:
         return "Прочие"
 
-internal_key = get_internal_client_key(selected_client)
+st.markdown(f"#### 📜 Требования компании **{selected_client}**:")
 
-if card_restrictions and isinstance(card_restrictions, dict):
-    client_res = card_restrictions.get(internal_key, card_restrictions.get("Прочие", "Выполнять работы согласно утвержденному плану бурения."))
-    if selected_client == "ООО СПД":
-        client_res = "⚠️ Ограничение СПД-ННБ-2026: Обязательный контроль Dogleg Severity каждые 10 метров при зарезке бокового ствола."
-    st.warning(f"⚠ **Специфическое ограничение компании {selected_client}:** {client_res}")
+if linked_requirements:
+    client_specific_reqs = [r for r in linked_requirements if str(r.get("Заказчик", "")).strip().upper() == str(selected_client).strip().upper()]
+    
+    if client_specific_reqs:
+        for req in client_specific_reqs:
+            req_text = req.get("Технологическое требование", "")
+            req_point = req.get("Пункт", "ЛНД")
+            req_nnb = str(req.get("Инженер ННБ", ""))
+            
+            if "🛑 ЗАПРЕЩЕНО" in req_text or "ЗАПРЕЩАЕТСЯ" in req_text.upper():
+                st.error(f"**{req_point} (Критическое ограничение):** {req_text}")
+            elif "исполнитель" in req_nnb.lower() or "ответственный" in req_nnb.lower():
+                st.success(f"**{req_point} (Обязанность ННБ):** {req_text}")
+            else:
+                st.info(f"**{req_point}:** {req_text}")
+    else:
+        st.write("ℹ️ В Матрице ЛНД для данного заказчика нет специфических пунктов по этой операции.")
 else:
-    st.info(f"ℹ Для выбранной техкарты специфических ограничений не зафиксировано.")
+        card_restrictions = current_card.get("restrictions", {})
+        internal_key = get_internal_client_key(selected_client)
+        client_restrictions = card_restrictions.get(internal_key, [])
+        
+        if client_restrictions:
+            for restriction in client_restrictions:
+                st.warning(f"• {restriction}")
+        else:
+            st.write("ℹ️ Для данного заказчика не задано специфических ограничений в локальной техкарте.")
 
 # Вывод рекомендаций и графических блок-схем (подробности реализации в)
 recommendations = current_card.get("recommendations", [])
