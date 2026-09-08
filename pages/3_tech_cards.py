@@ -217,49 +217,58 @@ st.caption("Пошаговый контроль технологических �
 
 # Извлекаем шаги верификации текущего инцидента из словаря базы данных
 route_steps = current_card.get("verification_route", [])
-verified_route_data = []
 
-# Проверяем корректность структуры данных перед запуском цикла
 if route_steps and isinstance(route_steps, list):
-    for i, step_item in enumerate(route_steps):
-        if not isinstance(step_item, dict):
-            continue
-            
-        step_title = step_item.get("step", f"Шаг № {i+1}")
-        step_role = step_item.get("role", "ИТР")
-        st.markdown(f"#### 🛑 Шаг {i+1}: {step_title}")
-        st.markdown(f"**Зона контроля:** `{step_role}`")
-
-        # Интерактивный выбор статуса прохождения шага на буровой
-        step_status = st.radio(
-            f"Технологический статус выполнения шага {i+1}:",
-            ["Штатно (Параметры верифицированы)", "Сбой (Выявлено отклонение от ЛНД)"],
-            key=f"status_step_{i}",
-            horizontal=True
-        )
-
-        # Дополнительное поле для фиксации фактических данных инженером
-        fact_comment = st.text_input(
-            f"Фактические параметры / Примечание к шагу {i+1}:",
-            value="",
-            key=f"comment_step_{i}",
-            placeholder="Например: Люфт устранен, манометр поверен, смазка нанесена..."
-        )
-        # Вывод предупреждения в случае фиксации технологического нарушения
-        if step_status == "Сбой (Выявлено отклонение от ЛНД)":
-            st.error(f"🚨 Внимание: Зафиксировано нарушение регламента на этапе контроля: '{step_role}'!")
-        st.markdown("---")
-
-        # Сохраняем агрегированные данные шага для последующей генерации рапорта
+    st.markdown("#### 📊 Интерактивный чек-лист контроля звеньев на устье:")
+    
+    # Формируем чистый датафрейм для таблицы
+    df_steps = pd.DataFrame([
+        {
+            "Шаг": i + 1,
+            "Операция контроля": step_item.get("step", ""),
+            "Зона контроля": step_item.get("role", "ИТР"),
+            "Статус выполнения": "Штатно ✅",
+            "Фактические параметры / Примечание": ""
+        }
+        for i, step_item in enumerate(route_steps)
+    ])
+    
+    # Отображаем компактную интерактивную таблицу
+    edited_df = st.data_editor(
+        df_steps,
+        column_config={
+            "Шаг": st.column_config.NumberColumn(width="small", disabled=True),
+            "Операция контроля": st.column_config.TextColumn(width="large", disabled=True),
+            "Зона контроля": st.column_config.TextColumn(width="medium", disabled=True),
+            "Статус выполнения": st.column_config.SelectboxColumn(
+                width="medium",
+                options=["Штатно ✅", "Отклонение от ЛНД 🚨"],
+                required=True
+            ),
+            "Фактические параметры / Примечание": st.column_config.TextColumn(width="large")
+        },
+        hide_index=True,
+        use_container_width=True,
+        key="verification_table_editor"
+    )
+    
+    # Пересохраняем данные для генерации финального рапорта (кнопка внизу страницы их подхватит)
+    verified_route_data = []
+    for _, row in edited_df.iterrows():
         verified_route_data.append({
-            "step_num": i + 1,
-            "title": step_title,
-            "role": step_role,
-            "status": step_status,
-            "comment": fact_comment if fact_comment else "Без комментариев"
+            "step_num": row["Шаг"],
+            "title": row["Операция контроля"],
+            "role": row["Зона контроля"],
+            "status": "Штатно (Параметры верифицированы)" if "Штатно" in row["Статус выполнения"] else "Сбой (Выявлено отклонение от ЛНД)",
+            "comment": row["Фактические параметры / Примечание"] if row["Фактические параметры / Примечание"] else "Без комментариев"
         })
+        
+        # Если инженер зафиксировал сбой, выводим одно аккуратное предупреждение на экран
+        if "Отклонение" in row["Статус выполнения"]:
+            st.error(f"🚨 Зафиксировано технологическое нарушение на этапе: **{row['Операция контроля']}** ({row['Зона контроля']})")
 else:
-    st.info("ℹ Для выбранного инцидента маршрут верификации в базе данных не задан.")
+    st.info("ℹ️ Для выбранного инцидента маршрут верификации в базе данных не задан.")
+
 # ==============================================================================
 # БЛОК 4: ИНТЕГРАЦИЯ С МОДУЛЕМ 4 (АВТОПОДХВАТ ТРЕБОВАНИЙ ИЗ МАТРИЦЫ ЛНД)
 # ==============================================================================
