@@ -285,6 +285,12 @@ k_rotary_current = float(active_calibration.get("k_rotary_base", 0.02))
 
 st.markdown("##### ⚙ Параметры калибровки боковой силы и анизотропии пласта:")
 col_f1, col_f2 = st.columns(2)
+with col_f1: formation_anisotropy = st.slider("Коэффициент анизотропии пласта (H_ani):", 0.0, 1.0, 0.05, 0.01)
+with col_f2: wob_force_kn = st.number_input("Теоретическая нагрузка на долото (кН):", value=150.0)
+
+# Физический расчет боковой отклоняющей силы
+side_force_calculated = wob_force_kn * (1.0 - formation_anisotropy) * k_slide_current * rheology_modifier
+
 st.markdown("##### 🔮 Параметры планирования прогнозного интервала:")
 col_p1, col_p2, col_p3 = st.columns(3)
 with col_p1: progno_step_meters = st.number_input("Длина прогнозного интервала (м):", min_value=10.0, max_value=300.0, value=30.0, step=10.0)
