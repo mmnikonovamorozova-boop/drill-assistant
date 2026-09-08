@@ -59,22 +59,37 @@ radial_wear_vzd = float(st.session_state.get("val_radial_ich", 0.20))
 st.sidebar.caption(f"💧 ДНС раствора: {yield_stress} дПа")
 st.sidebar.caption(f"🔧 Люфт шпинделя: {radial_wear_vzd} мм")
 st.sidebar.caption(f"🚢 Коэф. плавучести: {shared_buoyancy:.2f}")
+
 # --- 3.2. Центральная рабочая область (Адаптивные вкладки) ---
-# Полный исходный код для создания вкладок (Контракт, КНБК, Геология) адаптирован для интерфейса настройки интервала бурения.
 st.markdown("### 🛠 Настройки интервала бурения")
 tab_contract, tab_knbc, tab_geology = st.tabs(["📋 Контракт и Лимиты", "📐 Компоновка КНБК", "🌋 Геологический разрез"])
 
+# Фильтруем строки таблицы по холдингу для получения списка ДОРов
+if 'df_vink_db' in locals() and not df_vink_db.empty:
+    filtered_dors = df_vink_db[df_vink_db["Холдинг"] == selected_vink]
+    list_of_dors = filtered_dors["Заказчик (ДОР)"].unique().tolist() if not filtered_dors.empty else ["Стандартный договор"]
+else:
+    list_of_dors = ["Стандартный договор"]
+
+# Вкладка 1: Контрактные ограничения ДОРов
 with tab_contract:
-    st.selectbox("🏢 Выберите предприятие:", ["Стандартный договор"])
-    st.checkbox("⚠ Учитывать зоны ГНО / Опасность желобов", value=False)
-    st.number_input("Макс. допустимый DLS по договору, °/10м:", value=3.0, step=0.1)
-
-with tab_knbc:
-    st.selectbox("Конфигурация КНБК:", ["Стандартная", "Маятниковая", "Стабилизирующая"])
-    st.number_input("Текущий зенитный угол, °:", min_value=0.0, max_value=90.0, value=45.0)
-
-with tab_geology:
-    st.selectbox("Текущая проходимая свита / литология:", ["Переслаивание глин и песчаников (Средняя твердость)"])
+    c_c1, c_c2 = st.columns(2)
+    with c_c1:
+        selected_dor = st.selectbox(f"🏢 Выберите предприятие ({selected_vink}):", list_of_dors)
+    with c_c2:
+        gno_zone = st.checkbox("⚠ Учитывать зоны ГНО / Опасность желобов", value=False)
+        
+    if 'filtered_dors' in locals() and not filtered_dors.empty and selected_dor in list_of_dors:
+        dor_row = filtered_dors[filtered_dors["Заказчик (ДОР)"] == selected_dor].iloc[0]
+        contract_dls_limit = float(dor_row["Лимит_DLS"])
+        contract_gno_limit = float(dor_row["Лимит_ГНО"])
+    else:
+        contract_dls_limit, contract_gno_limit = 3.0, 1.2
+        
+    if gno_zone:
+        max_allowed_dls = st.number_input("Макс. допустимый DLS по договору (ГНО), °/10м:", value=contract_gno_limit, step=0.1)
+    else:
+        max_allowed_dls = st.number_input("Макс. допустимый DLS по договору, °/10м:", value=contract_dls_limit, step=0.1)
 
 # =========================================================================
 # БЛОК 2: УМНОЕ ИИ-ЯДРО: ИМПОРТ И СЕЛЕКЦИЯ КАЛИБРОВОК ПО ИМЕНИ СКВАЖИНЫ
