@@ -344,12 +344,13 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# Настройка сетки: 3.8 части отдаем под редактор, 1.7 — под ИИ-чертеж
+col_main_table, col_main_viz = st.columns([3.8, 1.7], gap="medium")
 
-with col_main_viz:
-    st.subheader("📐 Схема КНБК")
-    st.caption("Состав (сверху вниз):")
+with col_main_table:
+    st.subheader("📋 Сводная ведомость элементов (ФАКТ)")
     if st.session_state.get("bha_components"):
-        for elem in reversed(st.session_state["bha_components"]):
+        df_bha = pd.DataFrame(st.session_state["bha_components"])
             st.info(f"🟢 **[{elem['Порядок']}] {elem['Тип']}**\n\n*{elem['Наименование']}*\n\nOD: {elem['OD, мм']} мм | L: {elem['Длина, м']} м")
     else:
         st.info("ℹ Схема пуста.")
