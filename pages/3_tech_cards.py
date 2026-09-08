@@ -299,65 +299,45 @@ def get_internal_client_key(client_name):
         return "Прочие"
 
 internal_key = get_internal_client_key(selected_client)
-
-if selected_client == "Без надстройки (базовый регламент)":
-    st.success("✅ Отображается базовый технологический регламент СТО ИНТИ без дополнительных ограничений Заказчиков.")
-else:
-    st.markdown(f"#### 📜 Требования компании **{selected_client}**:")
-    
-    # ТУТ ИДЕТ ВЕСЬ ВАШ ОСТАЛЬНОЙ КОД ВЫВОДА ТРЕБОВАНИЙ (if linked_requirements: и т.д.)
-    # Проверьте, чтобы весь последующий блок вывода требований (до самого else с локальной техкартой) 
-    # получил ОДИН дополнительный отступ (Tab) вправо, так как он теперь находится внутри этого нового else!
-
-if linked_requirements:
-
-         client_specific_reqs = []
-        # Извлекаем основы слов из названия техкарты
-        card_keywords = [w.lower()[:5] for w in selected_incident.replace("/", " ").replace("-", " ").replace("(", " ").replace(")", " ").split() if len(w) > 3]
+    if selected_client == "Без надстройки (базовый регламент)":
+        st.success("✅ Отображается базовый технологический регламент СТО ИНТИ без дополнительных ограничений Заказчиков.")
+    else:
+        st.markdown(f"#### 📜 Требования компании **{selected_client}**:")
         
-        for r in linked_requirements:
-            req_client = str(r.get("Заказчик", "")).strip().upper()
-            selected_client_upper = str(selected_client).strip().upper()
+        if linked_requirements:
+            client_specific_reqs = []
+            card_keywords = [w.lower()[:5] for w in selected_incident.replace("/", " ").replace("-", " ").replace("(", " ").replace(")", " ").split() if len(w) > 3]
             
-            if req_client == selected_client_upper:
-                req_op = str(r.get("Технологическая операция / Осложнение", "")).lower()
-                
-                # 1. Проверяем строгое текстовое совпадение
-                if any(word in req_op for word in card_keywords):
-                    client_specific_reqs.append(r)
-        
-        # 2. ФОЛБЭК: Если строгое совпадение по имени файла не сработало, 
-        # забираем все требования этого заказчика для операции, выбранной в Модуле 4
-        if not client_specific_reqs:
             for r in linked_requirements:
                 req_client = str(r.get("Заказчик", "")).strip().upper()
-                if req_client == str(selected_client).strip().upper():
-                    client_specific_reqs.append(r)
-
-
-    for r in linked_requirements:
-        req_client = str(r.get("Заказчик", "")).strip().upper()
-        selected_client_upper = str(selected_client).strip().upper()
-        
-        if req_client == selected_client_upper:
-            req_op = str(r.get("Технологическая операция / Осложнение", "")).lower()
-            if any(word in req_op for word in card_keywords):
-                client_specific_reqs.append(r)
+                selected_client_upper = str(selected_client).strip().upper()
                 
-    if client_specific_reqs:
-        for req in client_specific_reqs:
-            req_text = req.get("Технологическое требование", "")
-            req_point = req.get("Пункт", "ЛНД")
-            req_nnb = str(req.get("Инженер ННБ", ""))
+                if req_client == selected_client_upper:
+                    req_op = str(r.get("Технологическая операция / Осложнение", "")).lower()
+                    if any(word in req_op for word in card_keywords):
+                        client_specific_reqs.append(r)
             
-            if "🛑 ЗАПРЕЩЕНО" in req_text or "ЗАПРЕЩАЕТСЯ" in req_text.upper():
-                st.error(f"**{req_point} (Критическое ограничение):** {req_text}")
-            elif "исполнитель" in req_nnb.lower() or "ответственный" in req_nnb.lower():
-                st.success(f"**{req_point} (Обязанность ННБ):** {req_text}")
+            # ФОЛБЭК: Если по ключевым словам из имени файла ничего не нашли, берем все требования для этой операции
+            if not client_specific_reqs:
+                for r in linked_requirements:
+                    req_client = str(r.get("Заказчик", "")).strip().upper()
+                    if req_client == str(selected_client).strip().upper():
+                        client_specific_reqs.append(r)
+            
+            if client_specific_reqs:
+                for req in client_specific_reqs:
+                    req_text = req.get("Технологическое требование", "")
+                    req_point = req.get("Пункт", "ЛНД")
+                    req_nnb = str(req.get("Инженер ННБ", ""))
+                    
+                    if "🛑 ЗАПРЕЩЕНО" in req_text or "ЗАПРЕЩАЕТСЯ" in req_text.upper():
+                        st.error(f"**{req_point} (Критическое ограничение):** {req_text}")
+                    elif "исполнитель" in req_nnb.lower() or "ответственный" in req_nnb.lower():
+                        st.success(f"**{req_point} (Обязанность ННБ):** {req_text}")
+                    else:
+                        st.info(f"**{req_point}:** {req_text}")
             else:
-                st.info(f"**{req_point}:** {req_text}")
-    else:
-        st.write("ℹ️ В Матрице ЛНД для данного заказчика нет специфических пунктов по этой операции.")
+                st.write("ℹ️ В Матрице ЛНД для данного заказчика нет специфических пунктов по этой операции.")
 
 else:
     card_restrictions = current_card.get("restrictions", {})
