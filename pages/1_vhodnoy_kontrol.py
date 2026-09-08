@@ -3,6 +3,9 @@ import pandas as pd
 from datetime import datetime
 
 import streamlit as st
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 # 1. Проверяем, авторизован ли пользователь. Если нет — останавливаем выполнение модуля
 if not st.session_state.get("authenticated", False):
@@ -147,7 +150,30 @@ st.subheader("📥 Официальный бланк Акта приемки:")
 st.markdown(html_form, unsafe_allow_html=True)
 
 st.markdown(" ")
-st.info("💡 **Как распечатать или сохранить в PDF:** Нажмите комбинацию клавиш **`Ctrl + P`** (или три точки браузера ➡️ Печать), выберите принтер «Сохранить как PDF» и заберите готовый документ!")
+st.download_button(
+    label="💾 Скачать Акт в формате HTML",
+    data=html_form,
+    file_name=f"Akt_VH_{well}.html",
+    mime="text/html",
+    use_container_width=True
+)
+# Поле для ввода адреса, куда слать отчет
+email_recipient = st.text_input("Email получателя отчета:", placeholder="boss@yourcompany.ru")
+
+# Готовим тему и краткий текст для письма (кодируем пробелы для ссылок)
+subject_text = f"Акт входного контроля КНБК — {field}, Скв. {well}".replace(" ", "%20")
+body_text = f"Приветствую! Акт входного контроля для скважины {well} ({field}) успешно сформирован инженером {engineer}. Пожалуйста, скачайте прикрепленный к этому письму HTML-файл акта (скачайте его по кнопке выше в приложении).".replace(" ", "%20")
+
+# Создаем безопасную ссылку для открытия локальной почты
+mailto_link = f"mailto:{email_recipient}?subject={subject_text}&body={body_text}"
+
+# Красивая кнопка-ссылка, которая сработает на любом устройстве
+st.markdown(
+    f'<a href="{mailto_link}" target="_blank" style="text-decoration: none;"><div style="text-align: center; background-color: #1E3A8A; color: white; padding: 10px; border-radius: 5px; font-weight: bold;">✉ Подготовить письмо в почтовой программе</div></a>', 
+    unsafe_allow_html=True
+)
+
+st.info("💡 Сгенерированный Акт можно скачать локально на устройство или отправить на корпоративную почту.")
 
 st.markdown("---")
 st.markdown("<div style='text-align: center; color: #9CA3AF; font-size: 11px; margin-top: 30px;'><b>Разработчик цифрового модуля:</b> Старший инженер по качеству ОСМК Никонова-Морозова М.М. • Верифицировано по стандартам СТО ИНТИ • Цифровая экосистема ООО «Траектория-Сервис» © 2026</div>", unsafe_allow_html=True)
