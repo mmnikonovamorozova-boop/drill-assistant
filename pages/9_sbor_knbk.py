@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 import time
-
+st.html("<style>.main .block-container{max-width:100% !important;}</style>")
 # =========================================================================
 # БЛОК 1 — АВТЕНТИФИКАЦИЯ, КОНФИГУРАЦИЯ И СИНХРОНИЗАЦИЯ СЕССИИ
 # =========================================================================
@@ -377,13 +377,25 @@ is_bha_disabled = has_bha_errors
 
 # Теперь безопасно разворачиваем сетку интерфейса
 col_main_table, col_main_viz = st.columns([4, 1.5], gap="medium")
+with col_main_viz:
+    st.subheader("📐 Схема КНБК")
+    st.caption("Фактический состав:")
+    if st.session_state.get("bha_components"):
+        for elem in st.session_state["bha_components"]:
+            st.code(f"[{elem['Порядок']}] {elem['Тип']}\n↳ {elem['Наименование']}\nOD: {elem['OD, мм']} мм | L: {elem['Длина, м']} м")
+    else:
+        st.info("Компоновка пуста")
 with col_main_table:
     st.subheader("📋 Сводная ведомость элементов (ФАКТ)")
     if st.session_state.get("bha_components"):
         df_bha = pd.DataFrame(st.session_state["bha_components"])
         edited_bha_df = st.data_editor(
             df_bha,
-            column_config={
+            hide_index=True,
+            use_container_width=True,
+            key="bha_table_editor"
+        )
+st.session_state["bha_components"] = edited_bha_df.to_dict(orient="records")
                 "Порядок": st.column_config.NumberColumn("№", width=40, disabled=True),
                 "Тип": st.column_config.TextColumn("Тип узла", width=110, disabled=True),
                 "Наименование": st.column_config.TextColumn("Оборудование / Модель", width=180),
