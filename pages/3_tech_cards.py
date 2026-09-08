@@ -5,7 +5,7 @@ import requests
 import pandas as pd
 import io
 from datetime import datetime
-
+ 
 # Инициализация сессионных переменных и проверка авторизации
 if "well_number" not in st.session_state:
     st.session_state["well_number"] = "Скв. № 102, Куст 12"
