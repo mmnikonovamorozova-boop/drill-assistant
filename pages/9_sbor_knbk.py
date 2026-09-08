@@ -254,25 +254,31 @@ if "🛒 Подгрузить спецификацию из КИС 1С" in input
     with c_1c6:
         eq_id = st.number_input("Внутренний диаметр промывочного канала (ID), мм:", min_value=5.0, max_value=200.0, value=eq_id_init, step=0.1, key="id_1c_field")
 
-# --- ВАРИАНТ 2: РУЧНОЙ ВВОД ЖЕЛЕЗА ИНЖЕНЕРОМ НА УСТЬЕ ---
+# --- ВАРИАНТ 2: РУЧНОЙ ВВОД ЖЕЛЕЗА ИНЖЕНЕРОМ НА УСТЬЕ (РАСШИРЕННЫЙ) ---
 else:
-    c_m1, c_m2, c_m3 = st.columns(3)
+    c_m1, c_m2, c_m3, c_m4 = st.columns(4)
     with c_m1:
         eq_type = st.selectbox("Тип элемента КНБК:", list(EQUIPMENT_1C_CATALOG.keys()), key="manual_type")
-        eq_model = st.text_input("Наименование / Описание оборудования:", value="УБТ Сбалансированная Кастом", key="manual_model_field")
+        eq_model = st.text_input("Наименование / Описание:", value="УБТ Сбалансированная", key="manual_model_field")
     with c_m2:
-        eq_sn = st.text_input("Серийный номер / Маркировка устья:", value="CH-РУЧ-01", key="manual_sn_field")
-        eq_length = st.number_input("Длина по замеру на мостках, м:", min_value=0.01, max_value=25.0, value=4.50, step=0.01, key="manual_len")
+        eq_sn = st.text_input("Серийный номер (Клеймо):", value="CH-РУЧ-01", key="manual_sn_field")
+        eq_length = st.number_input("Длина по замеру, м:", min_value=0.01, max_value=50.0, value=4.50, step=0.01, key="manual_len")
     with c_m3:
         eq_od = st.number_input("Наружный диаметр (OD), мм:", min_value=10.0, max_value=500.0, value=172.0, step=0.1, key="manual_od")
         eq_id = st.number_input("Внутренний диаметр (ID), мм:", min_value=5.0, max_value=200.0, value=71.4, step=0.1, key="manual_id")
-        
-    c_m4, c_m5 = st.columns(2)
-    thread_options = list(API_THREADS_DB.keys()) + ["Нет резьбы (Торцевая матрица)", "Специальная замковая резьба"]
     with c_m4:
-        eq_thread_low = st.selectbox("Тип нижнего соединения (Ниппель/Муфта):", thread_options, index=0, key="manual_th_low")
+        eq_weight_1m = st.number_input("Вес 1 п.м., кг:", min_value=0.0, value=45.0, step=0.1, key="manual_weight_1m")
+        eq_bsr = st.text_input("Показатель BSR:", value="2.15", key="manual_bsr")
+
+    c_m5, c_m6, c_m7 = st.columns(3)
+    thread_options = list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]
     with c_m5:
-        eq_thread_top = st.selectbox("Тип верхнего соединения (Муфта/Ниппель):", thread_options, index=0, key="manual_th_top")
+        eq_thread_low = st.selectbox("Тип нижнего соединения:", thread_options, index=0, key="manual_th_low")
+    with c_m6:
+        eq_thread_top = st.selectbox("Тип верхнего соединения:", thread_options, index=0, key="manual_th_top")
+    with c_m7:
+        eq_run_hours = st.number_input("Наработка факт., ч:", min_value=0.0, value=0.0, step=0.1, key="manual_run_hours")
+        eq_service_hours = st.number_input("Наработка до сервиса, ч:", min_value=0.0, value=300.0, step=1.0, key="manual_service_hours")
 
 
 # --- ОБЩИЕ КНОПКИ СОХРАНЕНИЯ (БЕЗОПАСНО КЛИКАЮТСЯ БЕЗ NAMEERROR) ---
@@ -288,18 +294,23 @@ with c_btn1:
         else:
             next_order = 1
             
-        new_component = {
-            "Порядок": next_order,
-            "Тип": eq_type,
-            "Наименование": eq_model,
-            "СН": eq_sn,
-            "Длина, м": round(eq_length, 2),
-            "OD, мм": round(eq_od, 1),
-            "ID, мм": round(eq_id, 1),
-            "Резьба Низ": eq_thread_low,
-            "Резьба Верх": eq_thread_top,
-            "Тип Ввода": "1С (Авто)" if "🛒 Подгрузить спецификацию из КИС 1С" in input_source else "Ручной ввод"
-        }
+                new_component = {
+                    "Порядок": next_order,
+                    "Тип": eq_type,
+                    "Наименование": eq_model,
+                    "Принадлежность": "ООО \"Траектория-Сервис\"" if "КИС 1С" in input_source else "Ручной ввод",
+                    "СН": eq_sn,
+                    "Длина, м": round(eq_length, 2),
+                    "OD, мм": round(eq_od, 1),
+                    "ID, мм": round(eq_id, 1),
+                    "Резьба Низ": eq_thread_low,
+                    "Резьба Верх": eq_thread_top,
+                    "Вес_1м": round(st.session_state.get("manual_weight_1m", 45.0), 1) if "Ручной" in input_source else 55.0,
+                    "Наработка_факт": st.session_state.get("manual_run_hours", 0.0) if "Ручной" in input_source else 0.0,
+                    "Наработка_сервис": st.session_state.get("manual_service_hours", 300.0) if "Ручной" in input_source else 300.0,
+                    "BSR": st.session_state.get("manual_bsr", "2.15") if "Ручной" in input_source else "1.82",
+                    "Тип Ввода": "1С (Авто)" if "КИС 1С" in input_source else "Ручной ввод"
+                }
         
         st.session_state["bha_components"].append(new_component)
         st.success(f"✔ Элемент '{eq_model}' успешно добавлен под №{next_order}!")
