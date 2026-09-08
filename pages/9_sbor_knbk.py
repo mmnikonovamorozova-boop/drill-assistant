@@ -343,235 +343,177 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-# Настройка пропорций для таблицы и схемы КНБК
-col_main_table, col_main_viz = st.columns([3.8, 1.7], gap="medium")
+# =========================================================================
+# БЛОК 4 — РАБОЧАЯ ЗОНА (ЧАСТЬ 4.1 — РАЗМЕТКА СЕТКИ ИНТЕРФЕЙСА)
+# =========================================================================
 
-# Левая колонка с таблицей элементов через st.dataframe
+# Разделяем рабочую область: 3.8 части для таблицы, 1.7 части для чертежа
+col_main_table, col_main_viz = st.columns([3.8, 1.7], gap="medium")
 with col_main_table:
     st.subheader("📋 Сводная ведомость элементов (ФАКТ)")
+    st.caption("Параметры выровнены под Full HD разрешение. Текст переносится автоматически.")
+    
     if st.session_state.get("bha_components"):
         df_bha = pd.DataFrame(st.session_state["bha_components"])
-        st.dataframe(df_bha, hide_index=True, use_container_width=True)
+        edited_bha_df = st.data_editor(
+            df_bha,
+            column_config={
+                "Порядок": st.column_config.NumberColumn("№", width=40, disabled=True),
+                "Тип": st.column_config.TextColumn("Тип узла", width=110, disabled=True),
+                "Наименование": st.column_config.TextColumn("Оборудование / Модель", width=180),
+                "СН": st.column_config.TextColumn("СН (Клеймо)", width=100),
+                "Длина, м": st.column_config.NumberColumn("L, м", width=65, min_value=0.01, max_value=50.0, step=0.01, format="%.2f"),
+                "OD, мм": st.column_config.NumberColumn("OD, мм", width=70),
+                "ID, мм": st.column_config.NumberColumn("ID, мм", width=70),
+                "Резьба Низ": st.column_config.SelectboxColumn("Замок Низ", width=120, options=["NC50 (4 1/2 IF)", "4 1/2 REG", "Нет резьбы"]),
+                "Резьба Верх": st.column_config.SelectboxColumn("Замок Верх", width=120, options=["NC50 (4 1/2 IF)", "4 1/2 REG", "Нет резьбы"]),
+                "Тип Ввода": st.column_config.TextColumn("Источник", width=95, disabled=True)
+            },
+            hide_index=True,
+            use_container_width=True,
+            key="bha_table_editor"
+        )
+        st.session_state["bha_components"] = edited_bha_df.to_dict(orient="records")
     else:
-        st.info("ℹ Компоновка пуста.")
+        st.info("ℹ Компоновка пуста. Подгрузите элементы из 1С или добавьте вручную.")
 
-# Правая колонка с восстановленной HTML-схемой План/Факт
 with col_main_viz:
     st.subheader("📐 Схема КНБК")
-    col_sub_plan, col_sub_fact = st.columns(2)
-    # Полный код отрисовки и генерации HTML доступен в исходном репозитории.
-    with col_sub_plan:
-        st.caption("ПЛАН")
-    with col_sub_fact:
-        st.caption("ФАКТ")
-       
-# =========================================================================
-# БЛОК 5 — ВСТРОЕННОЕ ИИ-ЯДРО И ЭКСПЕРТНЫЙ АНАЛИЗ РИСКОВ СБОРКИ КНБК
-# =========================================================================
-
+    st.caption("Состав (сверху вниз):")
+    if st.session_state.get("bha_components"):
+        for elem in reversed(st.session_state["bha_components"]):
+            st.info(f"🟢 **[{elem['Порядок']}] {elem['Тип']}**\n\n*{elem['Наименование']}*\n\nOD: {elem['OD, мм']} мм | L: {elem['Длина, м']} м")
+    else:
+        st.info("ℹ Схема пуста.")
 st.markdown("---")
 st.markdown("### 🧠 Блок 5: Предиктивный ИИ-анализ и оценка рисков сборки КНБК")
-st.caption("Математическое ядро непрерывно анализирует План/Факт, контролирует замковые соединения и подсвечивает «узкие горлышки»")
-
-# Инициализируем глобальные триггеры рисков и списки для финального акта
 has_bha_errors = False
 risk_reasons_list = []
-thread_torque_recommendations = []
-
-if len(st.session_state["bha_components"]) >= 2:
+if "bha_components" in st.session_state and len(st.session_state["bha_components"]) >= 2:
     st.markdown("#### 🔩 1. Результаты аудита резьбовых замковых соединений:")
-    
     components = st.session_state["bha_components"]
-    
-    # Последовательно перебираем стыки элементов КНБК (от долота к бурильным трубам)
     for i in range(len(components) - 1):
-        lower_elem = components[i]      # Нижний элемент (например, Долото)
-        upper_elem = components[i + 1]  # Элемент прямо над ним (например, ВЗД)
-        
-        thread_low_exit = lower_elem.get("Резьба Верх", "Нет резьбы")
-        thread_top_entry = upper_elem.get("Резьба Низ", "Нет резьбы")
-        
+        lower_elem = components[i]
+        upper_elem = components[i + 1]
+        th_low_exit = lower_elem.get("Резьба Верх", "Нет резьбы")
+        th_top_entry = upper_elem.get("Резьба Низ", "Нет резьбы")
         joint_name = f"Стык №{i+1}: [{lower_elem['Тип']}] ➔ [{upper_elem['Тип']}]"
         
-        # Проверяем геометрическую стыкуемость резьбовых соединений
-        if thread_low_exit == "Нет резьбы" or thread_top_entry == "Нет резьбы":
-            st.error(f"❌ {joint_name} | Критическая ошибка: Отсутствует резьбовое соединение на одной из смежных сторон узла!")
+        if th_low_exit == "Нет резьбы" or th_top_entry == "Нет резьбы":
+            st.error(f"❌ {joint_name} | Ошибка: Отсутствует резьбовое соединение!")
             has_bha_errors = True
-            risk_reasons_list.append(f"Отсутствие резьбового сопряжения на стыке №{i+1} ({lower_elem['Тип']} / {upper_elem['Тип']})")
-            
-        elif thread_low_exit != thread_top_entry:
-            # Если резьбы разные, проверяем, не переводник ли это (X-Over)
+        elif th_low_exit != th_top_entry:
             if lower_elem["Тип"] == "Переводник" or upper_elem["Тип"] == "Переводник":
-                st.warning(f"⚠ {joint_name} | Стыковка разнородных резьб ({thread_low_exit} ➔ {thread_top_entry}) выполнена через технологический переводник. Проверить износ витков.")
+                st.warning(f"⚠️ {joint_name} | Стыковка разнородных резьб выполнена через переводник.")
             else:
-                st.error(f"❌ {joint_name} | Критический риск аварии: Прямая стыковка разнородных резьб {thread_low_exit} и {thread_top_entry} технически невозможна и приведет к срыву/полету КНБК!")
+                st.error(f"❌ {joint_name} | Критический риск: Несовпадение резьб {th_low_exit} и {th_top_entry}!")
                 has_bha_errors = True
-                risk_reasons_list.append(f"Прямое несовпадение резьб на стыке №{i+1} ({thread_low_exit} / {thread_top_entry}) без переводника")
-        
         else:
-            # Если резьбы совпадают и они есть в базе API, вытаскиваем моменты свинчивания
-            if thread_low_exit in API_THREADS_DB:
-                t_data = API_THREADS_DB[thread_low_exit]
-                nominal_m = t_data["nominal_torque"]
-                min_m = t_data["min_torque"]
-                max_m = t_data["max_torque"]
-                
-                st.success(f"✔ {joint_name} | Соединение {thread_low_exit} согласовано. **Рекомендуемый момент затяжки: {nominal_m:.1f} кН·м** (Допуск: {min_m:.1f} - {max_m:.1f} кН·м).")
-                
-                # Сохраняем информацию для последующего экспорта в Модуль 2 (УМК)
-                thread_torque_recommendations.append({
-                    "joint": f"Стык {lower_elem['Тип']}-{upper_elem['Тип']}",
-                    "thread": thread_low_exit,
-                    "torque": nominal_m
-                })
+            if th_low_exit in API_THREADS_DB:
+                t_data = API_THREADS_DB[th_low_exit]
+                st.success(f"✔️ {joint_name} | Соединение {th_low_exit} согласовано. Момент затяжки: {t_data['nominal_torque']} кН·м")
             else:
-                st.warning(f"ℹ {joint_name} | Замковое соединение '{thread_low_exit}' является нестандартным. Момент затяжки установить по паспорту завода-изготовителя.")
-else:
-    st.info("ℹ Для запуска автоматического аудита замковых соединений добавьте в компоновку как минимум 2 элемента.")
-    # -------------------------------------------------------------------------
-    # ЧАСТЬ 3.2 — ФАКТ СТЫКОВКИ ЖЕЛЕЗА КНБК И ТЕЛЕСИСТЕМЫ (MWD / LWD)
-    # -------------------------------------------------------------------------
+                st.warning(f"ℹ️ {joint_name} | Замковое соединение '{th_low_exit}' является нестандартным.")
+    # 📡 2. Контроль размещения телеметрического комплекса (ТМС)
     st.markdown("#### 📡 2. Контроль размещения телеметрического комплекса (ТМС):")
-    
-    # Находим индексы всех элементов телеметрии в компоновке
-    mwd_indices = [idx for idx, elem in enumerate(components) if "ТМС" in elem["Тип"]]
+    mwd_indices = [idx for idx, elem in enumerate(components) if "ТМС" in elem.get("Тип", "")]
     
     if mwd_indices:
         for mwd_idx in mwd_indices:
             mwd_elem = components[mwd_idx]
-            mwd_name = f"Элемент №{mwd_idx + 1} [{mwd_elem['Наименование']}]"
-            
-            st.markdown(f"🔍 **Анализ окружения для {mwd_name}:**")
-            
-            # 1. Проверка нижнего немагнитного интервала (между ТМС и ВЗД/долотом)
-            has_lower_nmdc = False
-            lower_nmdc_length = 0.0
-            
-            # Сканируем элементы ниже ТМС до первого магнитного узла
+            mwd_name = f"Элемент №{mwd_idx + 1} [{mwd_elem.get('Наименование', 'MWD')}]"
+            lower_nmdc_len = 0.0
             for j in range(mwd_idx - 1, -1, -1):
-                if "NMDC" in components[j]["Тип"]:
-                    has_lower_nmdc = True
-                    lower_nmdc_length += components[j]["Длина, м"]
+                if "NMDC" in components[j].get("Тип", ""):
+                    lower_nmdc_len += float(components[j].get("Длина, м", 0.0))
                 else:
-                    # Если уперлись в магнитное железо (ВЗД, долото), прекращаем подсчет интервала
                     break
-                    
-            # 2. Проверка верхнего немагнитного интервала (между ТМС и СБТ)
-            has_upper_nmdc = False
-            upper_nmdc_length = 0.0
-            
-            # Сканируем элементы выше ТМС
+            upper_nmdc_len = 0.0
             for j in range(mwd_idx + 1, len(components)):
-                if "NMDC" in components[j]["Тип"]:
-                    has_upper_nmdc = True
-                    upper_nmdc_length += components[j]["Длина, м"]
+                if "NMDC" in components[j].get("Тип", ""):
+                    upper_nmdc_len += float(components[j].get("Длина, м", 0.0))
                 else:
                     break
-            
-            # --- ВЫВОД ИНЖЕНЕРНОГО ЗАКЛЮЧЕНИЯ ИИ-ЯДРА ПО ТМС ---
-            c_mwd1, c_mwd2 = st.columns(2)
-            
-            with c_mwd1:
-                if has_lower_nmdc:
-                    st.success(f"🟢 Нижний немагнитный интервал: **{lower_nmdc_length:.2f} м**.")
-                else:
-                    st.error("❌ КРИТИЧЕСКИЙ РИСК: Телесистема состыкована напрямую с магнитным железом снизу! Риск искажения геомагнитного азимута.")
-                    has_bha_errors = True
-                    risk_reasons_list.append(f"Отсутствие нижнего немагнитного интервала для {mwd_name}")
-                    
-            with c_mwd2:
-                if has_upper_nmdc:
-                    st.success(f"🟢 Верхний немагнитный интервал: **{upper_nmdc_length:.2f} м**.")
-                else:
-                    st.error("❌ КРИТИЧЕСКИЙ РИСК: Выше телесистемы отсутствует немагнитная УБТ! Бурильные трубы (СБТ) вызовут наводки на датчики.")
-                    has_bha_errors = True
-                    risk_reasons_list.append(f"Отсутствие верхнего немагнитного интервала для {mwd_name}")
-                    
-            # Экспертный сквозной анализ суммарной длины интервала по API
-            total_nmdc_len = lower_nmdc_length + upper_nmdc_length
-            if total_nmdc_len > 0 and total_nmdc_len < 8.0:
-                st.warning(f"⚠️ Суммарный немагнитный интервал составляет всего {total_nmdc_len:.2f} м. По требованиям API для наклонных скважин рекомендуется не менее 9-18 м в зависимости от азимута направления бурения.")
-    else:
-        st.warning("⚠️ Телеметрический комплекс (ТМС) не обнаружен в текущем составе КНБК. Проверка пространственной навигации приостановлена.")
-# -------------------------------------------------------------------------
-    # ЧАСТЬ 3.3 — АВТОМАТИЧЕСКАЯ ПОДСВЕТКА «УЗКИХ ГОРЛЫШЕК» И СКВОЗНОЙ ЭКСПОРТ
-    # -------------------------------------------------------------------------
+            if lower_nmdc_len > 0:
+                st.success(f"🟢 {mwd_name} | Нижний немагнитный интервал: {lower_nmdc_len:.2f} м")
+            else:
+                st.error(f"❌ {mwd_name} | Критический риск: Нет немагнитного интервала снизу! Риск наводок на азимут.")
+                has_bha_errors = True
+            if upper_nmdc_len > 0:
+                st.success(f"🟢 {mwd_name} | Верхний немагнитный интервал: {upper_nmdc_len:.2f} м")
+            else:
+                st.error(f"❌ {mwd_name} | Критический риск: Нет немагнитного интервала сверху! Риск магнитных наводок.")
+                has_bha_errors = True
+    # 📐 3. Экспертный аудит геометрических перепадов («Узкие горлышки»)
     st.markdown("#### 📐 3. Экспертный аудит геометрических перепадов («Узкие горлышки»):")
-    
-    # Сканируем компоновку на предмет резких изменений наружного диаметра (OD)
     for i in range(len(components) - 1):
         elem_low = components[i]
         elem_high = components[i + 1]
-        
-        od_low = elem_low.get("OD, мм", 0.0)
-        od_high = elem_high.get("OD, мм", 0.0)
-        
-        # Расчет абсолютного перепада диаметров на стыке элементов
+        od_low = float(elem_low.get("OD, мм", 0.0))
+        od_high = float(elem_high.get("OD, мм", 0.0))
         od_delta = abs(od_low - od_high)
-        node_name = f"Переход №{i+1}: [{elem_low['Тип']}] (OD {od_low} мм) ➔ [{elem_high['Тип']}] (OD {od_high} мм)"
-        
+        node_name = f"Переход №{i+1}: [{elem_low['Тип']}] ➔ [{elem_high['Тип']}]"
         if od_delta > 40.0:
-            # Если перепад критический, проверяем, не сглажен ли он переводником
             if elem_low["Тип"] == "Переводник" or elem_high["Тип"] == "Переводник":
-                st.warning(f"⚠️ {node_name} | Зафиксирован резкий перепад диаметров на **{od_delta:.1f} мм**. Ступень сглажена переводником, однако узел находится под повышенной изгибающей нагрузкой.")
+                st.warning(f"⚠️ {node_name} | Перепад диаметров {od_delta:.1f} мм сглажен переводником.")
             else:
-                st.error(f"❌ {node_name} | КРИТИЧЕСКИЙ РИСК СЛОМА: Перепад диаметров смежных элементов превышает допустимые по API 40 мм (Фактический: **{od_delta:.1f} мм**) без использования конического переводника! Высокий риск усталостного излома резьбы.")
+                st.error(f"❌ {node_name} | Критический перепад диаметров {od_delta:.1f} мм превышает 40 мм по API!")
                 has_bha_errors = True
-                risk_reasons_list.append(f"Критический перепад диаметров OD на переходе №{i+1} ({od_delta:.1f} мм) без переводника")
         else:
-            if od_delta > 15.0:
-                st.info(f"ℹ️ {node_name} | Перепад диаметров в пределах нормы ({od_delta:.1f} мм). Изменение жесткости плавное.")
-            else:
-                st.success(f"🟢 {node_name} | Идеальное геометрическое сопряжение диаметров узлов (Перепад: {od_delta:.1f} мм).")
-
-    # --- ШЛЮЗ СКВОЗНОЙ ИНТЕГРАЦИИ С МОДУЛЕМ ЛЮФТОВ ВЗД (МОДУЛЬ 8) ---
-    # Автоматически ищем ВЗД в текущей фактической сборке для экспорта параметров
-    vzd_in_bha = next((elem for elem in components if "ВЗД" in elem["Тип"]), None)
-    
+            st.success(f"🟢 {node_name} | Геометрическое сопряжение в норме (Перепад: {od_delta:.1f} мм)")
+    # 🔗 Синхронизация с модулем люфтов ВЗД и расчет итогового вердикта
+    vzd_in_bha = next((el for el in components if "ВЗД" in el.get("Тип", "")), None)
     if vzd_in_bha:
-        # Экспортируем производителя/бренд в session_state для Модуля 8
-        if "Радиус-Сервис" in vzd_in_bha["Наименование"]:
+        st.session_state["sol_vzd_sn"] = vzd_in_bha.get("СН", "CH-01")
+        if "Радиус-Сервис" in vzd_in_bha.get("Наименование", ""):
             st.session_state["b4_brand_select"] = "Радиус-Сервис"
-            # Определяем габарит для унифицированного селектора
-            if "172" in vzd_in_bha["Наименование"]:
-                st.session_state["b4_unified_selector"] = "172 мм"
-            elif "240" in vzd_in_bha["Наименование"]:
-                st.session_state["b4_unified_selector"] = "240 мм"
-        elif "ВНИИБТ" in vzd_in_bha["Наименование"]:
-            st.session_state["b4_brand_select"] = "ВНИИБТ"
-            if "172" in vzd_in_bha["Наименование"]:
-                st.session_state["b4_unified_selector"] = "Д-172"
-            elif "240" in vzd_in_bha["Наименование"]:
-                st.session_state["b4_unified_selector"] = "ДГР-240М"
-        
-        # Сохраняем серийный номер для сквозного отображения в рапортах
-        st.session_state["sol_vzd_sn"] = vzd_in_bha["СН"]
-        
-        st.toast(f"🔗 Сквозная шина: параметры ВЗД ({vzd_in_bha['Наименование']}) синхронизированы с Калькулятором люфтов (Модуль 8).", icon="🔄")
+            st.session_state["b4_unified_selector"] = "172 мм"
 
-    # --- ИТОГОВЫЙ ЭКСПЕРТНЫЙ ВЕРДИКТ ИИ-ЯДРА ПО СБОРКЕ КНБК ---
     st.markdown("---")
     if not has_bha_errors:
-        st.success("🛡️ ВЕРИФИКАЦИЯ ПРОЙДЕНА: Фактическая сборка КНБК признана безопасной, критических рисков несоответствия API/СТО ИНТИ не обнаружено.")
+        st.success("🛡️ ВЕРИФИКАЦИЯ ПРОЙДЕНА: Критических рисков несоответствия API/СТО ИНТИ не обнаружено.")
         is_bha_disabled = False
     else:
-        st.error("🚨 СБОРКА И СПУСК КНБК КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНЫ: В структуре компоновки обнаружены критические риски! Устраните нарушения технологического режима.")
+        st.error("🚨 СПУСК КНБК ЗАПРЕЩЕН: Обнаружены нарушения технологического режима!")
         is_bha_disabled = True
-
-# Блок интеграционных барьеров, документа СМК и финала модуля «Сборка КНБК»
+else:
+    st.info("ℹ️ Добавьте в компоновку как минимум 2 элемента для автоматического аудита.")
+    is_bha_disabled = False
+# =========================================================================
+# БЛОК 6 — НАВИГАЦИОННЫЕ МОСТЫ И ФОРМИРОВАНИЕ ДОКУМЕНТОВ СМК
+# =========================================================================
 st.markdown("---")
 st.subheader("🎯 Сквозные инженерные барьеры и бланк СМК")
+
 st.page_link("pages/2_raschet_umk.py", label="🔧 Контроль момента УМК", icon="📊", use_container_width=True)
 st.page_link("pages/8_lyuft_vzd.py", label="📏 Люфты шпинделя ВЗД", icon="📐", use_container_width=True)
 
-# Генерация HTML-акта и кнопки скачивания
+# Определение типа документа на основании результатов ИИ-аудита
 if is_bha_disabled:
-    file_title, border_color = f"Akt_Zapreta_KNBK_Skv_{well}", "#EF4444"
+    file_title = f"Akt_Zapreta_KNBK_Skv_{well}"
     title_text = "АКТ О ЗАПРЕЩЕНИИ СПУСКА"
+    border_color = "#EF4444"
 else:
-    file_title, border_color = f"Akt_Verifikacii_KNBK_Well_{well}", "#1E3A8A"
+    file_title = f"Akt_Verifikacii_KNBK_Well_{well}"
     title_text = "АКТ ТЕХНИЧЕСКОГО КОНТРОЛЯ"
+    border_color = "#1E3A8A"
 
-html_form_bha = f"<div style='border:3px solid {border_color}; padding:20px;'><h2>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2><h3>{title_text}</h3></div>"
-st.download_button(label="💾 Скачать Акт верификации (HTML)", data=html_form_bha, file_name=f"{file_title}.html", mime="text/html")
+# Динамическая генерация печатной формы бланка СМК
+html_form_bha = f"""
+<div style='border:3px solid {border_color}; padding:20px; font-family:Arial, sans-serif;'>
+    <h2 style='color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>
+    <hr style='border:1px solid #CBD5E1;'>
+    <h3>{title_text} ВЕРИФИКАЦИИ КНБК</h3>
+    <p><strong>Месторождение:</strong> {field} | <strong>Скважина:</strong> {well}</p>
+    <p><strong>Инженер по бурению:</strong> {engineer} | <strong>Заказчик:</strong> {company}</p>
+    <p><strong>Статус сборки:</strong> {'🚨 ОТКЛОНЕНО' if is_bha_disabled else '🛡️ ОДОБРЕНО'}</p>
+</div>
+"""
 
+st.download_button(
+    label="💾 Скачать Официальный Акт СМК (HTML)",
+    data=html_form_bha,
+    file_name=f"{file_title}.html",
+    mime="text/html",
+    use_container_width=True
+)
