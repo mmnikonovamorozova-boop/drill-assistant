@@ -46,7 +46,7 @@ def load_local_nomenclature():
 # Загрузка номенклатуры
 nomenclature_df = load_local_nomenclature()
 
-st.subheader("🔍 Локальная номенклатура КНБК (Синхронизация через GitHub)")
+st.subheader("🔍 Локальная номенклатура КНБК")
 
 col_id1, col_id2 = st.columns(2)
 
