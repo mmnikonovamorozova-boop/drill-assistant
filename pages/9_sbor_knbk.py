@@ -343,39 +343,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-# =========================================================================
-# БЛОК 4 — РАБОЧАЯ ЗОНА (ЧАСТЬ 4.1 — РАЗМЕТКА СЕТКИ ИНТЕРФЕЙСА)
-# =========================================================================
 
-# Разделяем рабочую область: 3.8 части для таблицы, 1.7 части для чертежа
-col_main_table, col_main_viz = st.columns([3.8, 1.7], gap="medium")
-with col_main_table:
-    st.subheader("📋 Сводная ведомость элементов (ФАКТ)")
-    st.caption("Параметры выровнены под Full HD разрешение. Текст переносится автоматически.")
-    
-    if st.session_state.get("bha_components"):
-        df_bha = pd.DataFrame(st.session_state["bha_components"])
-        edited_bha_df = st.data_editor(
-            df_bha,
-            column_config={
-                "Порядок": st.column_config.NumberColumn("№", width=40, disabled=True),
-                "Тип": st.column_config.TextColumn("Тип узла", width=110, disabled=True),
-                "Наименование": st.column_config.TextColumn("Оборудование / Модель", width=180),
-                "СН": st.column_config.TextColumn("СН (Клеймо)", width=100),
-                "Длина, м": st.column_config.NumberColumn("L, м", width=65, min_value=0.01, max_value=50.0, step=0.01, format="%.2f"),
-                "OD, мм": st.column_config.NumberColumn("OD, мм", width=70),
-                "ID, мм": st.column_config.NumberColumn("ID, мм", width=70),
-                "Резьба Низ": st.column_config.SelectboxColumn("Замок Низ", width=120, options=["NC50 (4 1/2 IF)", "4 1/2 REG", "Нет резьбы"]),
-                "Резьба Верх": st.column_config.SelectboxColumn("Замок Верх", width=120, options=["NC50 (4 1/2 IF)", "4 1/2 REG", "Нет резьбы"]),
-                "Тип Ввода": st.column_config.TextColumn("Источник", width=95, disabled=True)
-            },
-            hide_index=True,
-            use_container_width=True,
-            key="bha_table_editor"
-        )
-        st.session_state["bha_components"] = edited_bha_df.to_dict(orient="records")
-    else:
-        st.info("ℹ Компоновка пуста. Подгрузите элементы из 1С или добавьте вручную.")
 
 with col_main_viz:
     st.subheader("📐 Схема КНБК")
