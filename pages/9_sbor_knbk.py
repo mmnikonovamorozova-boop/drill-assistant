@@ -361,6 +361,18 @@ with col_main_table:
         df_bha = pd.DataFrame(st.session_state["bha_components"])
         edited_bha_df = st.data_editor(
             df_bha,
+            column_config={
+                "Порядок": st.column_config.NumberColumn("№", width=40, disabled=True),
+                "Тип": st.column_config.TextColumn("Тип узла", width=110, disabled=True),
+                "Наименование": st.column_config.TextColumn("Оборудование / Модель", width=180),
+                "СН": st.column_config.TextColumn("СН (Клеймо)", width=100),
+                "Длина, м": st.column_config.NumberColumn("L, м", width=65, min_value=0.01, max_value=50.0, step=0.01, format="%.2f"),
+                "OD, мм": st.column_config.NumberColumn("OD, мм", width=70, min_value=10.0, max_value=500.0, step=0.1, format="%.1f"),
+                "ID, мм": st.column_config.NumberColumn("ID, мм", width=70, min_value=10.0, max_value=300.0, step=0.1, format="%.1f"),
+                "Резьба Низ": st.column_config.SelectboxColumn("Замок Низ", width=120, options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
+                "Резьба Верх": st.column_config.SelectboxColumn("Замок Верх", width=120, options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
+                "Тип Ввода": st.column_config.TextColumn("Источник", width=95, disabled=True)
+            },
             hide_index=True,
             use_container_width=True,
             key="bha_table_editor"
