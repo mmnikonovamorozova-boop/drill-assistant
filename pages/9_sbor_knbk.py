@@ -318,31 +318,31 @@ st.markdown("---")
 # Меняем пропорции: 4 части отдаем таблице, 1.5 части — суженному окну схемы
 col_main_table, col_main_viz = st.columns([4, 1.5], gap="medium")
 
-# --- ЛЕВАЯ КОЛОНКА: ШИРОКАЯ ИНТЕРАКТИВНАЯ ТАБЛИЦА (БЕЗ СКРОЛЛА) ---
+# --- ЛЕВАЯ КОЛОНКА: ИНТЕРАКТИВНАЯ ТАБЛИЦА С ЖЕСТКИМ ПИКСЕЛЬНЫМ ТАРИРОВАНИЕМ СТОЛБЦОВ ---
 with col_main_table:
     st.subheader("📋 Сводная ведомость элементов (ФАКТ)")
-    st.caption("Редактируйте параметры в ячейках. Текст переносится автоматически, скроллинг отключен.")
+    st.caption("Параметры выровнены под Full HD разрешение. Горизонтальный скролл отключен.")
     
     if st.session_state["bha_components"]:
         df_bha = pd.DataFrame(st.session_state["bha_components"])
         
-        # Запускаем интерактивный редактор с жестко оптимизированными весами колонок под Full HD экран
+        # Точная настройка ширины столбцов (в пикселях) для исключения скролла
         edited_bha_df = st.data_editor(
             df_bha,
             column_config={
-                "Порядок": st.column_config.NumberColumn("№", width="small", disabled=True),
-                "Тип": st.column_config.TextColumn("Тип", width="medium", disabled=True),
-                "Наименование": st.column_config.TextColumn("Оборудование / Модель", width="large"),
-                "СН": st.column_config.TextColumn("СН (Клеймо)", width="small"),
-                "Длина, м": st.column_config.NumberColumn("L, м", width="small", min_value=0.01, max_value=50.0, step=0.01, format="%.2f"),
-                "OD, мм": st.column_config.NumberColumn("OD, мм", width="small", min_value=10.0, max_value=500.0, step=0.1, format="%.1f"),
-                "ID, мм": st.column_config.NumberColumn("ID, мм", width="small", min_value=10.0, max_value=300.0, step=0.1, format="%.1f"),
-                "Резьба Низ": st.column_config.SelectboxColumn("Замок Низ", width="medium", options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
-                "Резьба Верх": st.column_config.SelectboxColumn("Замок Верх", width="medium", options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
-                "Тип Ввода": st.column_config.TextColumn("Источник", width="small", disabled=True)
+                "Порядок": st.column_config.NumberColumn("№", width=40, disabled=True),
+                "Тип": st.column_config.TextColumn("Тип узла", width=110, disabled=True),
+                "Наименование": st.column_config.TextColumn("Оборудование / Модель", width=180),
+                "СН": st.column_config.TextColumn("СН (Клеймо)", width=100),
+                "Длина, м": st.column_config.NumberColumn("L, м", width=65, min_value=0.01, max_value=50.0, step=0.01, format="%.2f"),
+                "OD, мм": st.column_config.NumberColumn("OD, мм", width=70, min_value=10.0, max_value=500.0, step=0.1, format="%.1f"),
+                "ID, мм": st.column_config.NumberColumn("ID, мм", width=70, min_value=10.0, max_value=300.0, step=0.1, format="%.1f"),
+                "Резьба Низ": st.column_config.SelectboxColumn("Замок Низ", width=120, options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
+                "Резьба Верх": st.column_config.SelectboxColumn("Замок Верх", width=120, options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
+                "Тип Ввода": st.column_config.TextColumn("Источник", width=95, disabled=True)
             },
             hide_index=True,
-            use_container_width=True,  # Растягиваем таблицу ровно по выделенной левой зоне
+            use_container_width=True, # Растягиваемся ровно по отведенной левой зоне страницы
             key="bha_table_editor"
         )
         
@@ -350,6 +350,7 @@ with col_main_table:
         st.session_state["bha_components"] = edited_bha_df.to_dict(orient="records")
     else:
         st.info("ℹ️ Компоновка пуста. Подгрузите элементы из 1С или добавьте вручную.")
+
 
 # --- ПРАВАЯ КОЛОНКА: СУЖЕННЫЙ И КОМПАКТНЫЙ ЧЕРТЕЖ КНБК ---
 with col_main_viz:
