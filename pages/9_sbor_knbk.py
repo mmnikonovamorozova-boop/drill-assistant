@@ -343,40 +343,9 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-# Меняем пропорции: 4 части отдаем таблице, 1.5 части — суженному окну схемы
+# Меняем пропорции: 4 части отдаем таблице, 1.5 части — окну схемы
 col_main_table, col_main_viz = st.columns([4, 1.5], gap="medium")
 
-# --- ЛЕВАЯ КОЛОНКА: ИНТЕРАКТИВНАЯ ТАБЛИЦА С ЖЕСТКИМ ПИКСЕЛЬНЫМ ТАРИРОВАНИЕМ СТОЛБЦОВ ---
-# --- ЛЕВАЯ КОЛОНКА: ИНТЕРАКТИВНАЯ ТАБЛИЦА ---
-with col_main_table:
-    st.subheader("📋 Сводная ведомость элементов (ФАКТ)")
-    st.caption("Параметры выровнены под Full HD разрешение. Текст переносится автоматически.")
-
-# Предварительно рассчитываем статус блокировки, чтобы избежать NameError внизу страницы
-has_bha_errors = False
-risk_reasons_list = []
-
-if "bha_components" in st.session_state and st.session_state["bha_components"]:
-    # 🔥 Очищаем старые застрявшие теги <br> из памяти сессии, если они там остались
-    for elem in st.session_state["bha_components"]:
-        if "Наименование" in elem:
-            elem["Наименование"] = str(elem["Наименование"]).replace("<br>", " ")
-        if "Тип" in elem:
-            elem["Тип"] = str(elem["Тип"]).replace("<br>", " ")
-
-    # Проводим быструю предварительную проверку на жесткие ошибки диаметров
-    components = st.session_state["bha_components"]
-    for i in range(len(components) - 1):
-        od_low = float(components[i].get("OD, мм", 0.0))
-        od_high = float(components[i + 1].get("OD, мм", 0.0))
-        if abs(od_low - od_high) > 40.0 and components[i]["Тип"] != "Переводник" and components[i + 1]["Тип"] != "Переводник":
-            has_bha_errors = True
-
-# Фиксируем статус безопасности для бланков СМК
-is_bha_disabled = has_bha_errors
-
-# Теперь безопасно разворачиваем сетку интерфейса
-col_main_table, col_main_viz = st.columns([4, 1.5], gap="medium")
 with col_main_viz:
     st.subheader("📐 Схема КНБК")
     st.caption("Фактический состав:")
@@ -385,6 +354,7 @@ with col_main_viz:
             st.code(f"[{elem['Порядок']}] {elem['Тип']}\n↳ {elem['Наименование']}\nOD: {elem['OD, мм']} мм | L: {elem['Длина, м']} м")
     else:
         st.info("Компоновка пуста")
+
 with col_main_table:
     st.subheader("📋 Сводная ведомость элементов (ФАКТ)")
     if st.session_state.get("bha_components"):
@@ -395,129 +365,9 @@ with col_main_table:
             use_container_width=True,
             key="bha_table_editor"
         )
-st.session_state["bha_components"] = edited_bha_df.to_dict(orient="records")
-                "Порядок": st.column_config.NumberColumn("№", width=40, disabled=True),
-                "Тип": st.column_config.TextColumn("Тип узла", width=110, disabled=True),
-                "Наименование": st.column_config.TextColumn("Оборудование / Модель", width=180),
-                "СН": st.column_config.TextColumn("СН (Клеймо)", width=100),
-                "Длина, м": st.column_config.NumberColumn("L, м", width=65, min_value=0.01, max_value=50.0, step=0.01, format="%.2f"),
-                "OD, мм": st.column_config.NumberColumn("OD, мм", width=70, min_value=10.0, max_value=500.0, step=0.1, format="%.1f"),
-                "ID, мм": st.column_config.NumberColumn("ID, мм", width=70, min_value=10.0, max_value=300.0, step=0.1, format="%.1f"),
-                "Резьба Низ": st.column_config.SelectboxColumn("Замок Низ", width=120, options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
-                "Резьба Верх": st.column_config.SelectboxColumn("Замок Верх", width=120, options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
-                "Тип Ввода": st.column_config.TextColumn("Источник", width=95, disabled=True)
-            },
-            hide_index=True,
-            use_container_width=True,
-            key="bha_table_editor"
-        )
         st.session_state["bha_components"] = edited_bha_df.to_dict(orient="records")
     else:
         st.info("ℹ Компоновка пуста. Подгрузите элементы из 1С или добавьте вручную.")
-
-# --- ПРАВАЯ КОЛОНКА: СУЖЕННЫЙ И КОМПАКТНЫЙ ЧЕРТЕЖ КНБК ---
-with col_main_viz:
-    st.subheader("📐 Схема КНБК")
-    st.caption("План / Факт бок о бок")
-    
-    col_sub_plan, col_sub_fact = st.columns(2)
-    
-    COLOR_MAP = {
-        "Долото": "#3B82F6", "ВЗД (Двигатель)": "#10B981", "ТМС (Телесистема)": "#F59E0B",
-        "NMDC (Немагнитная УБТ)": "#8B5CF6", "Осциллятор": "#EC4899", "Переливной клапан": "#EF4444",
-        "Переводник": "#6B7280", "Трубы СБТ": "#1E293B"
-    }
-
-    def generate_bha_html(components_list, title_label):
-        if not components_list:
-            return "<div style='text-align:center; padding:20px; color:#94A3B8; font-family:sans-serif; border:1px dashed #E2E8F0; border-radius:6px; font-size:11px;'>Пусто</div>"
-        html_out = "HTML_START_" + title_label
-        for elem in reversed(components_list):
-            el_type = elem.get("Тип", "Трубы СБТ")
-            bg_color = COLOR_MAP.get(el_type, "#6B7280")
-            raw_len = float(elem.get("Длина, м", 1.0))
-            display_height = max(12, min(int(raw_len * 5), 70))
-            raw_od = float(elem.get("OD, мм", 172.0))
-            display_width = max(18, min(int(raw_od * 0.28), 75))
-            p_num = str(elem.get("Порядок", 1))
-            html_out += f"| {p_num}:{el_type}:{bg_color}:{display_width}x{display_height} "
-        return html_out
-
-    with col_sub_plan:
-        plan_mock = [
-            {"Порядок": 1, "Тип": "Долото", "Длина, м": 0.35, "OD, мм": 215.9},
-            {"Порядок": 2, "Тип": "ВЗД (Двигатель)", "Длина, м": 9.15, "OD, мм": 172.0},
-            {"Порядок": 3, "Тип": "Переливной клапан", "Длина, м": 1.10, "OD, мм": 172.0},
-            {"Порядок": 4, "Тип": "NMDC (Немагнитная УБТ)", "Длина, м": 9.45, "OD, мм": 165.0},
-            {"Порядок": 5, "Тип": "ТМС (Телесистема)", "Длина, м": 4.50, "OD, мм": 172.0},
-            {"Порядок": 6, "Тип": "NMDC (Немагнитная УБТ)", "Длина, м": 9.45, "OD, мм": 165.0}
-        ]
-        st.write(generate_bha_html(plan_mock, "📋 ПЛАН"))
-
-    with col_sub_fact:
-        st.write(generate_bha_html(st.session_state.get("bha_components", []), "🔧 ФАКТ"))
-
-    def generate_bha_html(components_list, title_label):
-        if not components_list:
-            return "<div style='text-align:center; padding:20px; color:#94A3B8; font-family:sans-serif; border:1px dashed #E2E8F0; border-radius:6px; font-size:11px;'>Пусто</div>"
-        
-        html_out = f"""
-        <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 6px; text-align: center;">
-            <span style="font-size:10px; font-weight:bold; color:#475569; font-family:sans-serif;">{title_label}</span>
-            <div style="display: flex; flex-direction: column; align-items: center; margin-top: 8px; min-height: 280px; justify-content: flex-end;">
-        """
-        
-        for elem in reversed(components_list):
-            el_type = elem.get("Тип", "Трубы СБТ")
-            bg_color = COLOR_MAP.get(el_type, "#6B7280")
-            
-            raw_len = float(elem.get("Длина, м", 1.0))
-            display_height = max(12, min(int(raw_len * 5), 70)) 
-            
-            # Уменьшили коэффициент ширины с 0.4 до 0.28, чтобы схема стала изящнее и уже
-            raw_od = float(elem.get("OD, мм", 172.0))
-            display_width = max(18, min(int(raw_od * 0.28), 75))
-            
-            html_out += f"""
-            <div style="
-                background-color: {bg_color}; 
-                width: {display_width}px; 
-                height: {display_height}px; 
-                margin: 1px 0; 
-                border-radius: 2px; 
-                border: 1px solid rgba(0,0,0,0.15);
-                display: flex; 
-                align-items: center; 
-                justify-content: center; 
-                color: white; 
-                font-family: sans-serif; 
-                font-size: 8px; 
-                font-weight: bold;
-                overflow: hidden;"
-                title="Тип: {el_type} | СН: {elem.get('СН')} | L: {raw_len}м | OD: {raw_od}мм">
-                {elem.get('Порядок')}
-            </div>
-            """
-        
-        html_out += """
-            </div>
-        </div>
-        """
-        return html_out
-
-    with col_sub_plan:
-        plan_mock = [
-            {"Порядок": 1, "Тип": "Долото", "Длина, м": 0.35, "OD, мм": 215.9},
-            {"Порядок": 2, "Тип": "ВЗД (Двигатель)", "Длина, м": 9.15, "OD, мм": 172.0},
-            {"Порядок": 3, "Тип": "Переливной клапан", "Длина, м": 1.10, "OD, мм": 172.0},
-            {"Порядок": 4, "Тип": "NMDC (Немагнитная УБТ)", "Длина, м": 9.45, "OD, мм": 165.0},
-            {"Порядок": 5, "Тип": "ТМС (Телесистема)", "Длина, м": 4.50, "OD, мм": 172.0},
-            {"Порядок": 6, "Тип": "NMDC (Немагнитная УБТ)", "Длина, м": 9.45, "OD, мм": 165.0}
-        ]
-        st.components.v1.html(generate_bha_html(plan_mock, "📋 ПЛАН"), height=360, scrolling=False)
-
-    with col_sub_fact:
-        st.components.v1.html(generate_bha_html(st.session_state["bha_components"], "🔧 ФАКТ"), height=360, scrolling=False)
         
 # =========================================================================
 # БЛОК 5 — ВСТРОЕННОЕ ИИ-ЯДРО И ЭКСПЕРТНЫЙ АНАЛИЗ РИСКОВ СБОРКИ КНБК
