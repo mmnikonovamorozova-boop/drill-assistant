@@ -313,7 +313,29 @@ with c_btn2:
 # БЛОК 4 И 6 — ОПТИМИЗИРОВАННАЯ РАБОЧАЯ ЗОНА: МАКСИМАЛЬНАЯ ШИРИНА ТАБЛИЦЫ
 # =========================================================================
 
-st.markdown("---")
+# =========================================================================
+# ИНЪЕКЦИЯ СТИЛЕЙ ДЛЯ ПРИНУДИТЕЛЬНОГО ПЕРЕНОСА СЛОВ (WORD-WRAP) В ТАБЛИЦЕ
+# =========================================================================
+st.markdown(
+    """
+    <style>
+    /* Нацеливаемся на внутренние ячейки таблицы Streamlit data_editor */
+    [data-testid="stDataEditor"] div [role="gridcell"] {
+        white-space: normal !important;
+        word-break: break-word !important;
+        line-height: 1.2 !important;
+        display: flex !important;
+        align-items: center !important;
+    }
+    /* Увеличиваем стандартную высоту строк, чтобы умещался перенесенный текст */
+    [data-testid="stDataEditor"] div [role="row"] {
+        height: auto !important;
+        min-height: 35px !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # Меняем пропорции: 4 части отдаем таблице, 1.5 части — суженному окну схемы
 col_main_table, col_main_viz = st.columns([4, 1.5], gap="medium")
