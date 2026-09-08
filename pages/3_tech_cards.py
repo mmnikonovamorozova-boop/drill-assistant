@@ -265,7 +265,7 @@ if route_steps and isinstance(route_steps, list):
         df_steps,
         column_config={
             "Шаг": st.column_config.NumberColumn(width="small", disabled=True),
-            "Операция контроля": st.column_config.TextColumn(width="large", disabled=True),
+            "Операция контроля": st.column_config.MarkdownColumn(width="large", disabled=True),
             "Зона контроля": st.column_config.TextColumn(width="medium", disabled=True),
             "Статус выполнения": st.column_config.SelectboxColumn(
                 width="medium",
