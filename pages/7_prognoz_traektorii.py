@@ -320,57 +320,47 @@ if df_inc_raw is not None:
 # Требования легитимности: СТО ИНТИ S.100.3 / API RP 7G
 # =========================================================================
 
-st.markdown("### 🛠️ Блок 5: Пространственная интенсивность и увод")
+st.markdown("### 🛠 Блок 5: Пространственная интенсивность и увод")
 
-# Извлекаем сквозные реологические параметры из сессии (зашиты в Блоке 5_kontrol_rastvora)
-f_dens = float(st.session_state.get("shared_buoyancy_factor", 1.0)) # Фактор плавучести инструмента
-f_yp_corrected = float(st.session_state.get("shared_yield_stress", 12.0)) # Динамическое напряжение сдвига (ДНС), дПа
-n_hb = float(st.session_state.get("shared_flow_index", 0.65)) # Индекс течения Гершеля-Балкли
+# Извлекаем сквозные реологические параметры из сессии
+f_dens = float(st.session_state.get("shared_buoyancy_factor", 1.0))
+f_yp_corrected = float(st.session_state.get("shared_yield_stress", 12.0))
+n_hb = float(st.session_state.get("shared_flow_index", 0.65))
 
-# --- ШАГ 5.1.1: СТРОГИЙ РАСЧЕТ ГИДРОДИНАМИЧЕСКОГО СОПРОТИВЛЕНИЯ РАСТВОРА ---
-# Физически корректная модель: рост ДНС (f_yp_corrected) увеличивает сопротивление КНБК в затрубе
+# Строгий расчет гидродинамического сопротивления раствора
 rheology_modifier = (1.0 / f_dens) * (1.0 + (f_yp_corrected * 0.025) * (2.0 - n_hb))
 
 # Извлекаем калибровочные веса КНБК из ИИ-паспорта (Блок 2)
 k_slide_current = float(active_calibration.get("k_slide_base", 0.38))
 k_rotary_current = float(active_calibration.get("k_rotary_base", 0.02))
 
-# Ввод параметров геомеханики пласта и конструкции КНБК инженером ННБ
-st.markdown("##### ⚙️ Параметры калибровки боковой силы и анизотропии пласта:")
+# --- НОВАЯ ФУНКЦИЯ ОЦБ: РАСЧЕТ ИНДЕКСА СЛОЖНОСТИ СТВОЛА (DDI) ---
+forecast_dls_val = st.session_state.get("forecast_dls_deg10m", 0.0)
+if forecast_dls_val > 0:
+    calculated_ddi = math.log10(forecast_md) * (1.0 + (forecast_dls_val / max_allowed_dls))
+else:
+    calculated_ddi = math.log10(forecast_md)
+
+st.markdown("##### 📐 Оценка профиля по стандарту СТО ИНТИ S.QS.8:")
+col_ddi1, col_ddi2 = st.columns(2)
+with col_ddi1:
+    st.metric("Индекс сложности ствола (DDI)", f"{calculated_ddi:.2f} ед.")
+with col_ddi2:
+    if calculated_ddi < 4.0:
+        st.success("🟢 Профиль простой (Низкие риски затяжек)")
+    elif calculated_ddi < 6.0:
+        st.warning("⚠ Профиль средней сложности (Контролировать торк)")
+    else:
+        st.error("🚨 Высокая извилистость! Риск недохождения обсадной колонны")
+
+st.markdown("##### ⚙ Параметры калибровки боковой силы и анизотропии пласта:")
 col_f1, col_f2 = st.columns(2)
-with col_f1:
-    formation_anisotropy = st.slider("Коэффициент анизотропии горной породы (h):", 
-                                     min_value=0.50, max_value=1.50, value=0.95, step=0.01,
-                                     help="Физическая способность пласта уводить долото по или против падения пласта")
-with col_f2:
-    wob_force_kn = st.number_input("Осевая нагрузка на долото WOB (кН):", 
-                                   min_value=10.0, max_value=250.0, value=120.0, step=5.0)
-
-# --- ШАГ 5.1.2: ФИЗИЧЕСКИЙ РАСЧЕТ СИЛЫ БОКОВОГО ОТКЛОНЕНИЯ ---
-# Боковое уводящее усилие долота зависит от геометрии, нагрузки и реологии промывочной среды
-side_force_calculated = wob_force_kn * (1.0 - formation_anisotropy) * k_slide_current * rheology_modifier
-
-# =========================================================================
-# БЛОК 5.2 — ИНТЕЛЛЕКТУАЛЬНЫЙ РАСЧЕТ ПРОГНОЗНОЙ ТРАЕКТОРИИ (СТО ИНТИ S.100.3)
-# =========================================================================
-
 st.markdown("##### 🔮 Параметры планирования прогнозного интервала:")
 col_p1, col_p2, col_p3 = st.columns(3)
-
-with col_p1:
-    progno_step_meters = st.number_input("Длина прогнозного интервала (м):", 
-                                         min_value=10.0, max_value=300.0, value=30.0, step=10.0)
-with col_p2:
-    planned_slide_pct = st.slider("Доля слайдирования на интервале (%):", 
-                                  min_value=0.0, max_value=100.0, value=30.0, step=5.0)
-with col_p3:
-    tool_face_angle = st.slider("Угол установки отклонителя (Tool Face, °):", 
-                                min_value=0.0, max_value=360.0, value=45.0, step=5.0)
-
-# Перевод процента слайда в долевой коэффициент
+with col_p1: progno_step_meters = st.number_input("Длина прогнозного интервала (м):", min_value=10.0, max_value=300.0, value=30.0, step=10.0)
+with col_p2: planned_slide_pct = st.slider("Доля слайдирования на интервале (%):", min_value=0.0, max_value=100.0, value=30.0, step=5.0)
+with col_p3: tool_face_angle = st.slider("Угол установки отклонителя (Tool Face, °):", min_value=0.0, max_value=360.0, value=45.0, step=5.0)
 slide_fraction = planned_slide_pct / 100.0
-
-# 1. Извлечение последних фактических маркшейдерских точек траектории
 if df_trajectory_calculated is not None and not df_trajectory_calculated.empty:
     last_row = df_trajectory_calculated.iloc[-1]
     current_md = float(last_row["ГЛУБИНА_MD"])
@@ -380,181 +370,100 @@ if df_trajectory_calculated is not None and not df_trajectory_calculated.empty:
     current_north = float(last_row["NORTH"])
     current_east = float(last_row["EAST"])
 else:
-    # Безопасные стартовые значения по умолчанию (если файл ГГИ не загружен)
-    current_md = 1500.0
-    current_inc = 25.0
-    current_azi = 120.0
-    current_tvd = 1420.0
-    current_north = 150.0
-    current_east = 320.0
+    current_md, current_inc, current_azi = 1500.0, 25.0, 120.0
+    current_tvd, current_north, current_east = 1420.0, 150.0, 320.0
+# Расчет изменения углов ствола
+shag_sl = 0.45 * k_slide_current * math.cos(math.radians(tool_face_angle))
+shag_rot = 0.02 * k_rotary_current + (side_force_calculated * 0.001)
+itogo_shag_zenit = (shag_sl * slide_fraction) + (shag_rot * (1.0 - slide_fraction))
 
-# --- ШАГ 5.2.1: РАСЧЕТ ЕСТЕСТВЕННОГО И ПРИНУДИТЕЛЬНОГО ИСКРИВЛЕНИЯ КНБК ---
-# Интенсивность изменения зенитного угла под влиянием слайда и боковой силы (град/10м)
-# Учитываем физический увод долота side_force_calculated из Блока 5.1
-build_rate_slide = 0.45 * k_slide_current * math.cos(math.radians(tool_face_angle))
-build_rate_rotary = 0.02 * k_rotary_current + (side_force_calculated * 0.001)
+povorot_sl = 0.45 * k_slide_current * math.sin(math.radians(tool_face_angle))
+povorot_rot = -0.015 * (1.0 - formation_anisotropy)
+itogo_shag_azimut = (povorot_sl * slide_fraction) + (povorot_rot * (1.0 - slide_fraction))
 
-# Итоговая интенсивность изменения зенитного угла (град/10м)
-total_build_rate = (build_rate_slide * slide_fraction) + (build_rate_rotary * (1.0 - slide_fraction))
-
-# Интенсивность изменения азимута (град/10м) с учетом естественного увода породы
-turn_rate_slide = 0.45 * k_slide_current * math.sin(math.radians(tool_face_angle))
-turn_rate_rotary = -0.015 * (1.0 - formation_anisotropy) # Естественный увод вправо/влево по породе
-
-# Итоговый темп изменения азимута (град/10м)
-total_turn_rate = (turn_rate_slide * slide_fraction) + (turn_rate_rotary * (1.0 - slide_fraction))
-
-# --- ШАГ 5.2.2: ИНТЕГРАЛЬНЫЙ ПРОГНОЗ ПОЛОЖЕНИЯ СТВОЛА ---
+# Новые углы на конце интервала
 forecast_md = current_md + progno_step_meters
-# Вычисление приращений углов на длину прогнозной проходки
-delta_inc = (total_build_rate / 10.0) * progno_step_meters
-delta_azi = (total_turn_rate / 10.0) * progno_step_meters
+delta_inc = (itogo_shag_zenit / 10.0) * progno_step_meters
+delta_azi = (itogo_shag_azimut / 10.0) * progno_step_meters
 
 forecast_inc = max(0.0, min(90.0, current_inc + delta_inc))
 forecast_azi = (current_azi + delta_azi) % 360.0
-
-# Усредненные углы интервала для тригонометрического шага по API RP 7G
-avg_inc_rad = math.radians((current_inc + forecast_inc) / 2.0)
-avg_azi_rad = math.radians((current_azi + forecast_azi) / 2.0)
-
-# Приращения пространственных координат (метод сбалансированных тангенсов)
-forecast_tvd = current_tvd + progno_step_meters * math.cos(avg_inc_rad)
-forecast_north = current_north + progno_step_meters * math.sin(avg_inc_rad) * math.cos(avg_azi_rad)
-forecast_east = current_east + progno_step_meters * math.sin(avg_inc_rad) * math.sin(avg_azi_rad)
-
-# Расчет пространственной интенсивности (DLS) на прогнозном интервале
-cos_dl = math.cos(math.radians(current_inc)) * math.cos(math.radians(forecast_inc)) + \
-         math.sin(math.radians(current_inc)) * math.sin(math.radians(forecast_inc)) * math.cos(math.radians(forecast_azi - current_azi))
-cos_dl = max(-1.0, min(1.0, cos_dl))
-forecast_dls = (math.acos(cos_dl) * 10.0) / max(0.001, progno_step_meters)
-
-# Сохранение результатов прогнозирования в сессию Streamlit
-st.session_state["forecast_md"] = forecast_md
-st.session_state["forecast_inc"] = forecast_inc
-st.session_state["forecast_azi"] = forecast_azi
-st.session_state["forecast_dls_deg10m"] = np.degrees(forecast_dls)
-
-# --- ШАГ 5.2.3: ВЫВОД ПРЕДИКТИВНЫХ РЕЗУЛЬТАТОВ НА ЭКРАН ---
+st.session_state["forecast_dls_deg10m"] = abs(itogo_shag_zenit)
 st.markdown("##### 📊 Прогноз пространственного положения КНБК на забое:")
 col_r1, col_r2, col_r3 = st.columns(3)
 col_r1.metric("Прогнозная глубина MD", f"{forecast_md:.1f} м", f"+{progno_step_meters:.1f} м")
-col_r2.metric("Прогнозный зенитный угол", f"{forecast_inc:.2f}°", f"{delta_inc:+.2f}°")
-col_r3.metric("Прогнозный азимут ствола", f"{forecast_azi:.2f}°", f"{delta_azi:+.2f}°")
+col_r2.metric("Прогнозный зенитный угол", f"{forecast_inc:.2f} °", f"{delta_inc:+.2f} °")
+col_r3.metric("Прогнозный азимут ствола", f"{forecast_azi:.2f} °", f"{delta_azi:+.2f} °")
 
 # =========================================================================
 # БЛОК 6 — ТЕХНОЛОГИЧЕСКИЙ КАЛЬКУЛЯТОР И КОНТРОЛЬ ШТРАФНЫХ САНКЦИЙ ЗАКАЗЧИКА
 # Требования легитимности: СТО ИНТИ S.QS.8 / Коммерческие ТК Договора
 # =========================================================================
-
 st.markdown("---")
 st.markdown("### 🎯 Блок 6: Оптимизация слайдирования и аудит штрафных рисков")
 st.caption("Расчет интервалов проходки с контролем правила 3 последовательных нарушений по ТК договора")
 
-# --- ШАГ 6.1: ИНТЕРАКТИВНЫЙ ВВОД ШТРАФНЫХ ЛИМИТОВ ТЕКУЩЕГО ДОГОВОРА ---
 st.markdown("##### 📜 Настройка лимитов интенсивности по Договору Заказчика:")
 col_tk1, col_tk2, col_tk3 = st.columns(3)
-
-with col_tk1:
-    tk_dls_max = st.number_input(
-        "Макс. допустимая интенсивность (°/10м):", 
-        min_value=0.5, max_value=3.0, value=1.2, step=0.1, key="tk_dls_max",
-        help="Верхний предел пространственной интенсивности (DLS) по ТК Договора"
-    )
-with col_tk2:
-    tk_dls_min = st.number_input(
-        "Мин. необходимый набор угла (°/10м):", 
-        min_value=0.0, max_value=1.5, value=0.15, step=0.05, key="tk_dls_min",
-        help="Минимальный темп изменения угла для исключения падения траектории"
-    )
-with col_tk3:
-    st.metric("Триггер коммерческого штрафа", "3 точки подряд", help="Согласно условиям договора, 3 последовательных нарушения ведут к финансовым санкциям")
-
-# --- ШАГ 6.2: АВТОМАТИЧЕСКИЙ ПОИСК ЦЕЛЕВЫХ УСТАВОК ИЗ МАРКШЕЙДЕРСКОГО ПЛАНА ---
+with col_tk1: tk_dls_max = st.number_input("Макс. допустимая интенсивность (°/10м):", min_value=0.5, max_value=3.0, value=1.2, step=0.1, key="tk_dls_max")
+with col_tk2: tk_dls_min = st.number_input("Мин. необходимый набор угла (°/10м):", min_value=0.0, max_value=1.5, value=0.15, step=0.05, key="tk_dls_min")
+with col_tk3: st.metric("Триггер коммерческого штрафа", "3 точки подряд")
 if uploaded_ggi is not None and df_trajectory_calculated is not None:
     try:
         target_inc = float(df_trajectory_calculated.iloc[-1]["ЗЕНИТ_ГРАД"])
         target_azi = float(df_trajectory_calculated.iloc[-1]["АЗИМУТ_ГРАД"])
-        st.info(f"🎯 Проектные уставки автоматически считаны из ГГИ: Зенит {target_inc:.2f}°, Азимут {target_azi:.2f}°")
+        st.info(f"🎯 Проектные уставки автоматически считаны из ГГИ: Зенит {target_inc:.2f} °, Азимут {target_azi:.2f} °")
     except Exception:
-        target_inc = 26.50
-        target_azi = 118.20
+        target_inc, target_azi = 26.50, 118.20
 else:
     col_t1, col_t2 = st.columns(2)
     with col_t1: target_inc = st.number_input("Целевой проектный зенитный угол (°):", value=26.50, key="b6_target_inc")
     with col_t2: target_azi = st.number_input("Целевой проектный азимут ствола (°):", value=118.20, key="b6_target_azi")
-
-# --- ШАГ 6.3: МАТЕМАТИЧЕСКИЙ ПОДБОР ПРОХОДКИ СЛАЙДОМ ---
-needed_delta_inc = target_inc - current_inc
-available_build_rate_10m = build_rate_slide
-
-if abs(available_build_rate_10m) > 0.001:
-    required_slide_meters = (needed_delta_inc / (available_build_rate_10m / 10.0))
-    required_slide_meters = max(0.0, min(progno_step_meters, required_slide_meters))
+raznica_zenita = target_inc - current_inc
+if abs(shag_sl) > 0.001:
+    metry_слайд = (raznica_zenita / (shag_sl / 10.0))
+    metry_слайд = max(0.0, min(progno_step_meters, metry_слайд))
 else:
-    required_slide_meters = 0.0
+    metry_слайд = 0.0
 
-required_rotary_meters = max(0.0, progno_step_meters - required_slide_meters)
-recommended_slide_pct = (required_slide_meters / max(1.0, progno_step_meters)) * 100.0
-
-# Извлекаем расчетное DLS прогнозного шага из Блока 5.2
-forecast_dls_val = st.session_state.get("forecast_dls_deg10m", 0.0)
-
-# --- ШАГ 6.4: АЛГОРИТМ СКОЛЬЗЯЩЕГО ОКНА КОНТРОЛЯ ШТРАФОВ (3 ТОЧКИ) ---
-# Анализируем историю последних замеров из загруженного файла ГГИ
-consecutive_violations = 0
-violation_history_text = []
+metry_ротор = max(0.0, progno_step_meters - metry_слайд)
+procent_слайда = (metry_слайд / max(1.0, progno_step_meters)) * 100.0
+sch_narusheniy = 0
+istoriya_tekst = []
 
 if df_trajectory_calculated is not None and "DLS_10M" in df_trajectory_calculated.columns:
-    # Берем последние 2 фактические точки
-    last_actual_dls = df_trajectory_calculated["DLS_10M"].tail(2).values
-    # Создаем цепочку: 2 прошлые точки + 1 наша прогнозная
-    combined_dls_chain = list(last_actual_dls) + [forecast_dls_val]
+    proshlye_tocki = df_trajectory_calculated["DLS_10M"].tail(2).values
+    cepochka_dls = list(proshlye_tocki) + [forecast_dls_val]
     
-    # Проверяем цепочку на превышение или недобор
-    for idx, dls_point in enumerate(combined_dls_chain):
-        point_name = f"Замер №{idx+1}" if idx < 2 else "Текущий Прогноз"
-        if dls_point > tk_dls_max:
-            consecutive_violations += 1
-            violation_history_text.append(f"❌ {point_name}: Превышение лимита ({dls_point:.2f} > {tk_dls_max}°/10м)")
-        elif dls_point < tk_dls_min:
-            consecutive_violations += 1
-            violation_history_text.append(f"❌ {point_name}: Недобор интенсивности ({dls_point:.2f} < {tk_dls_min}°/10м)")
+    for nomer, dls_tocka in enumerate(cepochka_dls):
+        imya = f"Замер №{nomer+1}" if nomer < 2 else "Текущий Прогноз"
+        if dls_tocka > tk_dls_max:
+            sch_narusheniy += 1
+            istoriya_tekst.append(f"❌ {imya}: Превышение лимита ({dls_tocka:.2f} > {tk_dls_max} °/10м)")
+        elif dls_tocka < tk_dls_min:
+            sch_narusheniy += 1
+            istoriya_tekst.append(f"❌ {imya}: Недобор интенсивности ({dls_tocka:.2f} < {tk_dls_min} °/10м)")
         else:
-            # Прерываем серию последовательных нарушений, если замер в норме
-            if consecutive_violations < 3:
-                consecutive_violations = 0
-
-# --- ШАГ 6.5: ВЫВОД ДИРЕКТИВЫ И КОММЕРЧЕСКОГО РИСК-МЕНЕДЖМЕНТА ---
+            if sch_narusheniy < 3:
+                sch_narusheniy = 0
 with st.container(border=True):
     st.markdown("##### 📝 Директивное технологическое указание для инженера ННБ:")
-    
     col_out1, col_out2, col_out3 = st.columns(3)
-    col_out1.metric("Необходимый СЛАЙД", f"{required_slide_meters:.1f} м", "Режим ориентирования")
-    col_out2.metric("Необходимый РОТОР", f"{required_rotary_meters:.1f} м", "Режим вращения")
-    col_out3.metric("Доля слайда в рейсе", f"{recommended_slide_pct:.0f} %")
+    col_out1.metric("Необходимый СЛАЙД", f"{metry_слайд:.1f} м", "Режим ориентирования")
+    col_out2.metric("Необходимый РОТОР", f"{metry_ротор:.1f} м", "Режим вращения")
+    col_out3.metric("Доля слайда в рейсе", f"{procent_слайда:.0f} %")
     
-    st.markdown("##### ⚖️ Аудит выполнения Технических Критериев договора:")
-    
-    # Выводим статус на основе скользящего окна
-    if consecutive_violations >= 3:
-        st.error(
-            f"🚨 **КРИТИЧЕСКИЙ ФИНАНСОВЫЙ РИСК: ВЫСТАВЛЕНИЕ ШТРАФА!**\n"
-            f"Зафиксировано 3 последовательных нарушения уставных лимитов ТК Договора подряд (включая прогнозный интервал).\n"
-            f"Срочно измените параметры слайдирования для выравнивания траектории!"
-        )
+    st.markdown("##### ⚖ Аудит выполнения Технических Критериев договора:")
+    if sch_narusheniy >= 3:
+        st.error(f"🚨 **КРИТИЧЕСКИЙ ФИНАНСОВЫЙ РИСК: ВЫСТАВЛЕНИЕ ШТРАФА!**\nЗафиксировано 3 последовательных нарушения уставных лимитов ТК Договора подряд (включая прогнозный интервал).\nСрочно измените параметры слайдирования для выравнивания траектории!")
         with st.expander("Посмотреть хронологию нарушений цепочки"):
-            for tx in violation_history_text: st.write(tx)
-            
-    elif consecutive_violations > 0 and consecutive_violations < 3:
-        st.warning(
-            f"⚠️ **ВНИМАНИЕ: Нарушение лимитов ТК (Серия: {consecutive_violations} из 3).**\n"
-            f"Текущий тренд ведет к коммерческому штрафу. Ситуация на усмотрении супервайзера Заказчика. "
-            f"Рекомендуется скорректировать угол Tool Face для возврата в коридор."
-        )
+            for tx in istoriya_tekst: st.write(tx)
+    elif sch_narusheniy > 0 and sch_narusheniy < 3:
+        st.warning(f"⚠ **ВНИМАНИЕ: Нарушение лимитов ТК (Серия: {sch_narusheniy} из 3).**\nТекущий тренд ведет к коммерческому штрафу. Ситуация на усмотрении супервайзера Заказчика. Рекомендуется скорректировать угол Tool Face для возврата в коридор.")
         with st.expander("Посмотреть хронологию нарушений цепочки"):
-            for tx in violation_history_text: st.write(tx)
+            for tx in istoriya_tekst: st.write(tx)
     else:
-        st.success("✔️ Профиль КНБК полностью соответствует критериям договора. Риски коммерческих штрафов отсутствуют.")
+        st.success("✔ Профиль КНБК полностью соответствует критериям договора. Риски коммерческих штрафов отсутствуют.")
 
 # =========================================================================
 # БЛОК 7 — ИИ-ЯДРО САМООБУЧЕНИЯ И СИНХРОНИЗАЦИИ С GITHUB API
@@ -639,6 +548,48 @@ if st.button("🚀 Запустить адаптивное ИИ-самообуч
     # Вывод инженеру легитимного статуса без ложных сетевых предупреждений
     st.success(f"✔️ ИИ-паспорт скважины {well_name} успешно адаптирован! Новые калибровочные веса зафиксированы в облаке.")
     st.cache_data.clear() # Сброс кэша Streamlit для мгновенного обновления интерфейса
+
+st.markdown("---")
+with st.expander("🏢 Пульт оперативного контроля ОЦБ (Коррекция скважины из города)", expanded=False):
+    st.markdown("##### Экспертное внесение поправок в траекторию КНБК:")
+    
+    col_ocb1, col_ocb2 = st.columns(2)
+    with col_ocb1:
+        expert_k_slide = st.number_input("Экспертный Slide Factor (увод в слайде):", 
+                                          min_value=0.10, max_value=1.50, 
+                                          value=k_slide_current, step=0.01, key="ocb_k_slide")
+    with col_ocb2:
+        expert_k_rotary = st.number_input("Экспертный Rotary Factor (увод в роторе):", 
+                                           min_value=0.001, max_value=0.200, 
+                                           value=k_rotary_current, step=0.005, key="ocb_k_rotary")
+    st.markdown("##### 🗺️ Корректировка планового профиля ГГИ:")
+    st.caption("ОЦБ может добавлять новые точки, менять глубину, зенит и азимут. Изменения сразу улетят на буровую.")
+    
+    # Создаем пустую заготовку таблицы, если профиль еще не загружен
+    if df_inc_raw is not None:
+        база_точек = df_inc_raw.copy()
+    else:
+        база_точек = pd.DataFrame({"ГЛУБИНА_MD": [1500.0], "ЗЕНИТ_ГРАД": [25.0], "АЗИМУТ_ГРАД": [120.0]})
+        
+    # Интерактивный безопасный редактор таблицы на экране
+    редактор_профиля = st.data_editor(
+        база_точек, 
+        num_rows="dynamic", 
+        use_container_width=True, 
+        key="ocb_data_editor"
+    )
+    
+    # Кнопка отправки утвержденных поправок на буровую
+    if st.button("💾 Утвердить и отправить поправку ОЦБ на буровую", use_container_width=True):
+        # Запускаем твою готовую API функцию для сохранения коэффициентов
+        успех = push_calibration_to_github_api(well_name, expert_k_slide, expert_k_rotary)
+        
+        if успех:
+            st.success(f"✔ Актуальные поправки ОЦБ для скважины {well_name} успешно утверждены и отправлены сквозным шлюзом!")
+            st.cache_data.clear()
+            st.rerun()
+        else:
+            st.error("🚨 Ошибка отправки данных. Проверьте статус сетевого соединения с облаком.")
 
 # =========================================================================
 # БЛОК 8 — ТЕХНОЛОГИЧЕСКИЙ ЖУРНАЛ КОРРЕКЦИИ ТРАЕКТОРИИ (С ЗАЩИТОЙ ПО LOCALSTORAGE)
