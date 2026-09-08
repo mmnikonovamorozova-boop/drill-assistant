@@ -552,7 +552,6 @@ def generate_official_excel_report():
                 else:
                     cell.alignment = align_left
             current_row += 1
-
     # 6. Официальные зоны подписей в подвале документа СМК (Строго слева)
     current_row += 3
     ws.cell(row=current_row, column=1, value="Дата:").font = f_bold
