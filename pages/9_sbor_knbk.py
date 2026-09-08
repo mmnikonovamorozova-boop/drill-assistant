@@ -294,24 +294,24 @@ with c_btn1:
         else:
             next_order = 1
             
-                new_component = {
-                    "Порядок": next_order,
-                    "Тип": eq_type,
-                    "Наименование": eq_model,
-                    "Принадлежность": "ООО \"Траектория-Сервис\"" if "КИС 1С" in input_source else "Ручной ввод",
-                    "СН": eq_sn,
-                    "Длина, м": round(eq_length, 2),
-                    "OD, мм": round(eq_od, 1),
-                    "ID, мм": round(eq_id, 1),
-                    "Резьба Низ": eq_thread_low,
-                    "Резьба Верх": eq_thread_top,
-                    "Вес_1м": round(st.session_state.get("manual_weight_1m", 45.0), 1) if "Ручной" in input_source else 55.0,
-                    "Наработка_факт": st.session_state.get("manual_run_hours", 0.0) if "Ручной" in input_source else 0.0,
-                    "Наработка_сервис": st.session_state.get("manual_service_hours", 300.0) if "Ручной" in input_source else 300.0,
-                    "BSR": st.session_state.get("manual_bsr", "2.15") if "Ручной" in input_source else "1.82",
-                    "Тип Ввода": "1С (Авто)" if "КИС 1С" in input_source else "Ручной ввод"
-                }
-        
+            new_component = {
+                "Порядок": next_order,
+                "Тип": eq_type,
+                "Наименование": eq_model,
+                "Принадлежность": "ООО \"Траектория-Сервис\"" if "КИС 1С" in input_source else "Ручной ввод",
+                "СН": eq_sn,
+                "Длина, м": round(eq_length, 2),
+                "OD, мм": round(eq_od, 1),
+                "ID, мм": round(eq_id, 1),
+                "Резьба Низ": eq_thread_low,
+                "Резьба Верх": eq_thread_top,
+                "Вес_1м": round(st.session_state.get("manual_weight_1m", 45.0), 1) if "Ручной" in input_source else 55.0,
+                "Наработка_факт": st.session_state.get("manual_run_hours", 0.0) if "Ручной" in input_source else 0.0,
+                "Наработка_сервис": st.session_state.get("manual_service_hours", 300.0) if "Ручной" in input_source else 300.0,
+                "BSR": st.session_state.get("manual_bsr", "2.15") if "Ручной" in input_source else "1.82",
+                "Тип Ввода": "1С (Авто)" if "КИС 1С" in input_source else "Ручной ввод"
+            }
+            
         st.session_state["bha_components"].append(new_component)
         st.success(f"✔ Элемент '{eq_model}' успешно добавлен под №{next_order}!")
         st.rerun()
@@ -434,102 +434,154 @@ else:
 def generate_official_excel_report():
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "РАПОРТ по КНБК"
+    ws.title = "Рапорт КНБК"
     ws.views.sheetView[0].showGridLines = True
     
-    # 📌 Путь 1: Автозаполнение метаданных из глобальных модулей приложения
-    field_val = st.session_state.get("field_select", "Верхнесалымское")
-    well_val = st.session_state.get("well_input", "49 / 25307ST1")
-    company_val = st.session_state.get("company_select", "Салым Петролеум Девелопмент")
-    bha_num = st.session_state.get("bha_number_input", "7")
-    
-    # Строим ячейки рапорта по предоставленной форме
-    ws.merge_cells("I1:S1")
-    ws["I1"] = "РАПОРТ по КНБК"
-    ws["I1"].font = openpyxl.styles.Font(name="Arial", size=14, bold=True)
-    ws["I1"].alignment = openpyxl.styles.Alignment(horizontal="center")
-    
-    # Заполнение паспортной части (Строка 4)
-    ws["I4"] = "Месторождение"
-    ws["K4"] = field_val
-    ws["M4"] = "Заказчик:"
-    ws["O4"] = company_val
-    
-    # Заполнение паспортной части (Строка 5)
-    ws["I5"] = "Куст / скважина"
-    ws["K5"] = well_val
-    ws["M5"] = "Номер КНБК"
-    ws["O5"] = bha_num
-    # 📌 Путь 2: Стилизация технической шапки таблицы (Строка 7)
-    f_header = openpyxl.styles.Font(name="Arial", size=9, bold=True)
-    f_cell = openpyxl.styles.Font(name="Arial", size=9)
+    # 📌 1. Новая точная ширина для всех 17 колонок по вашему оригиналу
+    col_widths = {
+        'A': 5, 'B': 26, 'C': 16, 'D': 14, 'E': 10, 'F': 10, 'G': 12, 'H': 12,
+        'I': 8, 'J': 10, 'K': 12, 'L': 12, 'M': 14, 'N': 11, 'O': 12, 'P': 8, 'Q': 14
+    }
+    for col, width in col_widths.items():
+        ws.column_dimensions[col].width = width
+
+    # Стилизация шрифтов, выравнивания и границ
+    f_title = openpyxl.styles.Font(name="Arial", size=13, bold=True)
+    f_bold = openpyxl.styles.Font(name="Arial", size=8, bold=True)
+    f_cell = openpyxl.styles.Font(name="Arial", size=8)
     align_center = openpyxl.styles.Alignment(horizontal="center", vertical="center", wrap_text=True)
+    align_left = openpyxl.styles.Alignment(horizontal="left", vertical="center")
     
+    thin_border = openpyxl.styles.Border(
+        left=openpyxl.styles.Side(style='thin', color='666666'),
+        right=openpyxl.styles.Side(style='thin', color='666666'),
+        top=openpyxl.styles.Side(style='thin', color='666666'),
+        bottom=openpyxl.styles.Side(style='thin', color='666666')
+    )
+
+    # 2. Главный заголовок (Прижатие по форме)
+    ws.merge_cells("A1:Q1")
+    ws["A1"] = "РАПОРТ по КНБК"
+    ws["A1"].font = f_title
+    ws["A1"].alignment = align_center
+
+    # 3. Динамический Паспорт проекта (Строки 4-5) строго по вашим ячейкам
+    ws["A4"] = "Месторождение"
+    ws["A4"].font = f_bold
+    ws["B4"] = st.session_state.get("field_select", "Верхнесалымское")
+    ws["B4"].font = f_cell
+    
+    ws["D4"] = "Заказчик:"
+    ws["D4"].font = f_bold
+    ws["E4"] = st.session_state.get("company_select", "Салым Петролеум Девелопмент")
+    ws["E4"].font = f_cell
+
+    ws["A5"] = "Куст / скважина"
+    ws["A5"].font = f_bold
+    ws["B5"] = st.session_state.get("well_input", "49 / 25307ST1")
+    ws["B5"].font = f_cell
+    
+    ws["D5"] = "Номер КНБК"
+    ws["D5"].font = f_bold
+    ws["E5"] = st.session_state.get("bha_number_input", "7")
+    ws["E5"].font = f_cell
+
+    # 4. Формирование новой расширенной технической шапки (Строка 7)
     headers = [
         "№ п/п", "Элемент", "Принадлежность", "Серийный номер", 
-        "Диаметр Наруж. Ø, мм", "Диаметр Внутр. Ø, мм", 
-        "Резьба снизу", "Резьба сверху", "Длина            (м)", "Сум. длина    (м)"
+        "Диаметр Наруж. Ø, мм", "Диаметр Внутр. Ø, мм", "Резьба снизу", "Резьба сверху", 
+        "Длина (м)", "Сум. длина (м)", "ВЕС: общ/1п.м.(кг)", "Сум. вес (кг)", 
+        "Момент свинчивания кН*м", "Наработка факт. (часов)", 
+        "Наработка до сервисного обслуживания (часов)", "BSR", "Запасной комплект"
     ]
     
-    # Записываем шапку в строгом соответствии с колонками рапорта (начиная с I)
-    for col_idx, h_text in enumerate(headers, start=9):  # Колонка I — это 9-я колонка
-        cell = ws.cell(row=7, column=col_idx, value=h_text)
-        cell.font = f_header
+    for c_idx, h_text in enumerate(headers, start=1):
+        cell = ws.cell(row=7, column=c_idx, value=h_text)
+        cell.font = f_bold
         cell.alignment = align_center
-        cell.fill = openpyxl.styles.PatternFill("solid", fgColor="E2E8F0")
-
-    # Перенос данных из st.session_state["bha_components"]
-    current_row = 9
+        cell.border = thin_border
+        cell.fill = openpyxl.styles.PatternFill("solid", fgColor="EFEFEF")
+    # 5. Цикл переноса данных и автоматического обсчета весов (Строка 8+)
+    current_row = 8
     cum_length = 0.0
+    cum_weight = 0.0
     
     if "bha_components" in st.session_state and st.session_state["bha_components"]:
         for idx, elem in enumerate(st.session_state["bha_components"], start=1):
             length = float(elem.get("Длина, м", 0.0))
+            weight_1m = float(elem.get("Вес_1м", 45.0))
+            total_elem_weight = length * weight_1m
+            
             cum_length += length
+            cum_weight += total_elem_weight
             
-            ws.cell(row=current_row, column=9, value=idx).font = f_cell               # № п/п
-            ws.cell(row=current_row, column=10, value=elem.get("Тип", "")).font = f_cell  # Элемент
-            ws.cell(row=current_row, column=11, value=elem.get("Тип Ввода", "ООО \"Траектория-Сервис\"")).font = f_cell # Принадлежность
-            ws.cell(row=current_row, column=12, value=elem.get("СН", "-")).font = f_cell    # Серийный номер
-            ws.cell(row=current_row, column=13, value=float(elem.get("OD, мм", 0.0))).font = f_cell # OD
-            ws.cell(row=current_row, column=14, value=float(elem.get("ID, мм", 0.0))).font = f_cell # ID
-            ws.cell(row=current_row, column=15, value=elem.get("Резьба Низ", "-")).font = f_cell # Резьба снизу
-            ws.cell(row=current_row, column=16, value=elem.get("Резьба Верх", "-")).font = f_cell # Резьба сверху
-            ws.cell(row=current_row, column=17, value=length).font = f_cell          # Длина
-            ws.cell(row=current_row, column=18, value=round(cum_length, 2)).font = f_cell # Сум. длина
+            # Подбор моментов свинчивания по нашей базе для вывода диапазона
+            th_top = elem.get("Резьба Верх", "Нет резьбы")
+            if th_top in API_THREADS_DB:
+                t_data = API_THREADS_DB[th_top]
+                torque_str = f"{t_data['min_torque']}-{t_data['max_torque']}"
+            else:
+                torque_str = "12-15" # Дефолтный инженерный диапазон
+                
+            # Запись 17 параметров в строгом соответствии с формой
+            ws.cell(row=current_row, column=1, value=idx)                                       # № п/п
+            ws.cell(row=current_row, column=2, value=elem.get("Тип", ""))                       # Элемент
+            ws.cell(row=current_row, column=3, value=elem.get("Принадлежность", ""))            # Принадлежность
+            ws.cell(row=current_row, column=4, value=elem.get("СН", "-"))                       # Серийный номер
+            ws.cell(row=current_row, column=5, value=float(elem.get("OD, мм", 0.0)))            # OD
+            ws.cell(row=current_row, column=6, value=float(elem.get("ID, мм", 0.0)))            # ID
+            ws.cell(row=current_row, column=7, value=elem.get("Резьба Низ", "-"))               # Резьба снизу
+            ws.cell(row=current_row, column=8, value=th_top)                                    # Резьба сверху
+            ws.cell(row=current_row, column=9, value=length)                                    # Длина (м)
+            ws.cell(row=current_row, column=10, value=round(cum_length, 2))                     # Сум. длина (м)
+            ws.cell(row=current_row, column=11, value=weight_1m)                                # ВЕС: 1п.м.
+            ws.cell(row=current_row, column=12, value=round(total_elem_weight, 1))              # Сум. вес эл.
+            ws.cell(row=current_row, column=13, value=torque_str)                               # Момент свинчивания
+            ws.cell(row=current_row, column=14, value=elem.get("Наработка_факт", 0.0))          # Наработка факт
+            ws.cell(row=current_row, column=15, value=elem.get("Наработка_сервис", 300.0))      # Наработка сервис
+            ws.cell(row=current_row, column=16, value=elem.get("BSR", "2.15"))                  # BSR
+            ws.cell(row=current_row, column=17, value="-")                                      # Запасной комплект
             
+            # Накладываем сетку границ и шрифты на всю строку бурового оборудования
+            for col_idx in range(1, 18):
+                cell = ws.cell(row=current_row, column=col_idx)
+                cell.font = f_cell
+                cell.border = thin_border
+                if col_idx in:
+                    cell.alignment = align_center
+                else:
+                    cell.alignment = align_left
             current_row += 1
 
-    # 📌 Путь 3: Подвал СМК и зоны для подписей сторон (отступаем 2 строки от таблицы)
-    current_row += 2
-    ws.cell(row=current_row, column=9, value="Дата :").font = f_header
-    ws.cell(row=current_row, column=11, value=str(st.session_state.get("report_date", "2026-05-10"))).font = f_cell
+    # 6. Официальные зоны подписей в подвале документа СМК (Строго слева)
+    current_row += 3
+    ws.cell(row=current_row, column=1, value="Дата:").font = f_bold
+    ws.cell(row=current_row, column=2, value=str(st.session_state.get("report_date", "2026-05-10"))).font = f_cell
     
     current_row += 1
-    ws.cell(row=current_row, column=9, value="Составил: Старший инженер по бурению ООО \"Траектория-Сервис\"").font = f_header
-    ws.cell(row=current_row, column=16, value=st.session_state.get("engineer_select", "Бадыков Р.А. / Лукин А.Е.")).font = f_cell
+    ws.cell(row=current_row, column=1, value="Составил: Старший инженер по бурению ООО \"Траектория-Сервис\"").font = f_bold
+    ws.cell(row=current_row, column=6, value=st.session_state.get("engineer_name", "Бадыков Р.А. / Лукин А.Е.")).font = f_cell
     
     current_row += 1
-    ws.cell(row=current_row, column=9, value="Буровой мастер НФ АО \"ССК\"").font = f_header
-    ws.cell(row=current_row, column=16, value="Ахметзянов Р.А. / Матвеев Е.Н.").font = f_cell
+    ws.cell(row=current_row, column=1, value="Буровой мастер НФ АО \"ССК\"").font = f_bold
+    ws.cell(row=current_row, column=6, value="Ахметзянов Р.А. / Матвеев Е.Н.").font = f_cell
     
     current_row += 1
-    ws.cell(row=current_row, column=9, value="Супервайзер \"Салым Petroleum Development\"").font = f_header
-    ws.cell(row=current_row, column=16, value="Самадов Р.М. / Чупраков А.Н.").font = f_cell
+    ws.cell(row=current_row, column=1, value="Супервайзер \"Салым Petroleum Development\"").font = f_bold
+    ws.cell(row=current_row, column=6, value="Самадов Р.М. / Чупраков А.Н.").font = f_cell
 
-    # Переводим готовую Excel-книгу в байтовый поток памяти без сохранения на диск сервера
     buffer = io.BytesIO()
     wb.save(buffer)
     buffer.seek(0)
     return buffer
 
-# 📌 Путь 4: Вывод кнопки скачивания официального печатного рапорта в веб-интерфейс
+# 7. Интеграция кнопки выгрузки готового Excel-рапорта в веб-интерфейс
 if st.session_state.get("bha_components"):
     excel_data = generate_official_excel_report()
     st.download_button(
         label="💾 Скачать Официальный Рапорт по КНБК (Excel)",
         data=excel_data,
-        file_name=f"Report_KNBK_Well_{st.session_state.get('well_input', '49_25307ST1')}.xlsx",
+        file_name=f"Report_KNBK_Well_{st.session_state.get('well_number', '49_25307ST1')}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True
     )
