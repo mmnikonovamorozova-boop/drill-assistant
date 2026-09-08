@@ -310,7 +310,8 @@ else:
     # получил ОДИН дополнительный отступ (Tab) вправо, так как он теперь находится внутри этого нового else!
 
 if linked_requirements:
-        client_specific_reqs = []
+
+         client_specific_reqs = []
         # Извлекаем основы слов из названия техкарты
         card_keywords = [w.lower()[:5] for w in selected_incident.replace("/", " ").replace("-", " ").replace("(", " ").replace(")", " ").split() if len(w) > 3]
         
@@ -332,6 +333,7 @@ if linked_requirements:
                 req_client = str(r.get("Заказчик", "")).strip().upper()
                 if req_client == str(selected_client).strip().upper():
                     client_specific_reqs.append(r)
+
 
     for r in linked_requirements:
         req_client = str(r.get("Заказчик", "")).strip().upper()
