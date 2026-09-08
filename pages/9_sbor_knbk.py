@@ -309,69 +309,7 @@ with c_btn2:
         st.warning("⚠ Ведомость КНБК полностью очищена.")
         st.rerun()
 
-# =========================================================================
-# ИНЪЕКЦИЯ СТИЛЕЙ ДЛЯ ПРИНУДИТЕЛЬНОГО ПЕРЕНОСА СЛОВ (WORD-WRAP) В ТАБЛИЦЕ
-# =========================================================================
-st.markdown(
-    """
-    <style>
-    /* Нацеливаемся на текстовые контейнеры внутри ячеек таблицы Glide Data Grid */
-    [data-testid="stDataEditor"] [role="gridcell"] > div,
-    [data-testid="stDataEditor"] .glideDataGrid-canvas,
-    [data-testid="stDataEditor"] div[data-cell-type] {
-        white-space: normal !important;
-        word-wrap: break-word !important;
-        word-break: break-all !important;
-        overflow-wrap: break-word !important;
-        line-height: 1.3 !important;
-    }
-    
-    /* Заставляем строки таблицы динамически адаптировать свою высоту под контент */
-    [data-testid="stDataEditor"] [role="row"] {
-        height: auto !important;
-        min-height: 45px !important;
-        padding-top: 4px !important;
-        padding-bottom: 4px !important;
-    }
-    
-    /* Обеспечиваем корректное вертикальное выравнивание текста внутри ячеек */
-    [data-testid="stDataEditor"] div[role="presentation"] {
-        display: flex !important;
-        align-items: center !important;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
 
-# Настройка сетки: 3.8 части отдаем под редактор, 1.7 — под ИИ-чертеж
-col_main_table, col_main_viz = st.columns([3.8, 1.7], gap="medium")
-
-with col_main_table:
-    st.subheader("📋 Сводная ведомость элементов (ФАКТ)")
-    if st.session_state.get("bha_components"):
-        df_bha = pd.DataFrame(st.session_state["bha_components"])
-        edited_bha_df = st.data_editor(
-            df_bha,
-            column_config={
-                "Порядок": st.column_config.NumberColumn("№", width=40, disabled=True),
-                "Тип": st.column_config.TextColumn("Тип узла", width=110, disabled=True),
-                "Наименование": st.column_config.TextColumn("Оборудование / Модель", width=180),
-                "СН": st.column_config.TextColumn("СН (Клеймо)", width=100),
-                "Длина, м": st.column_config.NumberColumn("L, м", width=65, min_value=0.01, format="%.2f"),
-                "OD, мм": st.column_config.NumberColumn("OD, мм", width=70, format="%.1f"),
-                "ID, мм": st.column_config.NumberColumn("ID, мм", width=70, format="%.1f"),
-                "Резьба Низ": st.column_config.SelectboxColumn("Замок Низ", width=120, options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
-                "Резьба Верх": st.column_config.SelectboxColumn("Замок Верх", width=120, options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
-                "Тип Ввода": st.column_config.TextColumn("Источник", width=95, disabled=True)
-            },
-            hide_index=True,
-            use_container_width=True,
-            key="bha_table_editor"
-        )
-        st.session_state["bha_components"] = edited_bha_df.to_dict(orient="records")
-    else:
-        st.info("ℹ Компоновка пуста.")
 # Инициализация флагов для итоговой блокировки
 has_bha_errors = False
 risk_reasons_list = []
