@@ -262,18 +262,18 @@ if route_steps and isinstance(route_steps, list):
     
     # Отображаем компактную интерактивную таблицу
     edited_df = st.data_editor(
-        df_steps,
-        column_config={
-            "Шаг": st.column_config.NumberColumn(width="small", disabled=True),
-            "Операция контроля": st.column_config.MarkdownColumn(width="large", disabled=True),
-            "Зона контроля": st.column_config.TextColumn(width="medium", disabled=True),
-            "Статус выполнения": st.column_config.SelectboxColumn(
-                width="medium",
-                options=["Штатно ✅", "Отклонение от ЛНД 🚨"],
-                required=True
-            ),
-            "Фактические параметры / Примечание": st.column_config.TextColumn(width="large")
-        },
+        # Формируем датафрейм, очищая текст от лишних пробелов для корректного Markdown-отображения
+        df_steps = pd.DataFrame([
+            {
+                "Шаг": i + 1,
+                "Операция контроля": str(step_item.get("step", "")).strip(),
+                "Зона контроля": step_item.get("role", "ИТР"),
+                "Статус выполнения": "Штатно ✅",
+                "Фактические параметры / Примечание": ""
+            }
+            for i, step_item in enumerate(route_steps)
+        ])
+
         hide_index=True,
         use_container_width=True,
         key="verification_table_editor"
