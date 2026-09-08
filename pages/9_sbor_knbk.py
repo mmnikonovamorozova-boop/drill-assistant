@@ -183,128 +183,95 @@ if uploaded_program is not None:
 # БЛОК 3 — ИНТЕРАКТИВНЫЙ КОНСТРУКТОР КНБК (ЧАСТЬ 2.1: ДОБАВЛЕНИЕ ЭЛЕМЕНТОВ)
 # =========================================================================
 
+# =========================================================================
+# БЛОК 3 — ИНТЕРАКТИВНЫЙ КОНСТРУКТОР КНБК (ПОЛНЫЙ ИСПРАВЛЕННЫЙ БЛОК ВВОДА)
+# =========================================================================
+
 st.markdown("---")
-st.subheader("🛠 Конструктор фактической сборки КНБК")
-st.caption("Используйте интеграцию с КИС 1С или заносите нестандартное железо вручную при отсутствии связи")
+st.subheader("➕ Панель добавления элементов в компоновку")
 
-# Создаем две вкладки для разделения логики подгрузки данных
-tab_1c, tab_manual = st.tabs(["📦 Подгрузка номенклатуры из 1С:ЕРП", "✍ Ручной ввод параметров элемента"])
+# Выбор источника данных для текущей единицы оборудования
+input_source = st.radio(
+    "Выберите метод занесения оборудования:",
+    ["🛒 Подгрузить спецификацию из КИС 1С", "✍ Ручной ввод нестандартного оборудования (Полевой аудит)"],
+    horizontal=True,
+    key="bha_input_source_selector"
+)
 
-with tab_1c:
-    st.markdown("##### Выберите оборудование со склада по электронной накладной БПО:")
-    col_1c1, col_1c2, col_1c3 = st.columns(3)
-    
-    with col_1c1:
-        # Выбор категории оборудования из справочника 1С
-        selected_category = st.selectbox(
-            "Категория узла КНБК:", 
-            list(EQUIPMENT_1C_CATALOG.keys()), 
-            key="sb_1c_category"
-        )
-    
-    with col_1c2:
-        # Динамическое формирование списка моделей на основе выбранной категории
+# 🔥 ГАРАНТИЯ ОТ ОШИБОК: Базовая инициализация переменных на верхнем уровне видимости скрипта
+eq_type = "Долото"
+eq_model = ""
+eq_sn = ""
+eq_length = 1.0
+eq_od = 172.0
+eq_id = 71.4
+eq_thread_low = "NC50 (4 1/2 IF)"
+eq_thread_top = "NC50 (4 1/2 IF)"
+
+# --- ВАРИАНТ 1: ЗАГРУЗКА ИЗ ИМИТАЦИОННОЙ БАЗЫ 1С ---
+if "🛒 Подгрузить спецификацию из КИС 1С" in input_source:
+    c_1c1, c_1c2, c_1c3 = st.columns(3)
+    with c_1c1:
+        selected_category = st.selectbox("Категория ТМЦ (1С):", list(EQUIPMENT_1C_CATALOG.keys()), key="cat_1c_sel")
+    with c_1c2:
         available_models = [item["model"] for item in EQUIPMENT_1C_CATALOG[selected_category]]
-        selected_model_name = st.selectbox(
-            "Номенклатурная позиция (Модель):", 
-            available_models, 
-            key="sb_1c_model"
-        )
-    
-    with col_1c3:
-        # Ввод серийного номера (обязательное требование СТО ИНТИ по учету наработки)
-        serial_1c = st.text_input(
-            "Заводской / Серийный номер (СН):", 
-            value="СН-101", 
-            key="ti_1c_serial"
-        ).strip().upper()
-        
-    col_1c4, col_1c5 = st.columns(2)
-    with col_1c4:
-        length_1c = st.number_input(
-            "Фактическая длина элемента (Lфакт), м:", 
-            min_value=0.01, 
-            max_value=25.00, 
-            value=9.45, 
-            step=0.01, 
-            key="ni_1c_length"
-        )
-    with col_1c5:
-        st.markdown("<p style='margin-bottom: 32px;'></p>", unsafe_allow_html=True)
-        btn_add_1c = st.button("📥 Добавить элемент из 1С в компоновку", use_container_width=True)
+        selected_model_name = st.selectbox("Номенклатурный номер / Модель:", available_models, key="mod_1c_sel")
+        v_data = next(item for item in EQUIPMENT_1C_CATALOG[selected_category] if item["model"] == selected_model_name)
+    with c_1c3:
+        eq_sn = st.text_input("Заводской/Серийный номер (Клеймо):", value="СН-10023", key="sn_1c_field")
 
-with tab_manual:
-    st.markdown("##### Ручное заполнение технических характеристик узла:")
-    col_m1, col_m2, col_m3 = st.columns(3)
+    # Перезаписываем параметры данными из каталога 1С
+    eq_type = selected_category
+    eq_model = selected_model_name
+    eq_od_init = float(v_data["od"])
+    eq_id_init = float(v_data["id"])
+    eq_thread_top = v_data["top_thread"]
     
-    with col_m1:
-        manual_type = st.selectbox(
-            "Укажите тип узла КНБК:", 
-            list(EQUIPMENT_1C_CATALOG.keys()), 
-            key="sb_manual_type"
-        )
-        manual_name = st.text_input(
-            "Текстовое наименование / Маркировка:", 
-            value="УБТ Сбалансированная Кастом", 
-            key="ti_manual_name"
-        )
-    
-    with col_m2:
-        manual_serial = st.text_input(
-            "Серийный номер (Ручной ввод):", 
-            value="СН-РУЧ-01", 
-            key="ti_manual_serial"
-        ).strip().upper()
-        manual_length = st.number_input(
-            "Длина элемента, м:", 
-            min_value=0.01, 
-            max_value=25.00, 
-            value=4.50, 
-            step=0.01, 
-            key="ni_manual_length"
-        )
+    # Инженерное правило назначения нижних замков по умолчанию
+    if eq_type == "Долото":
+        eq_thread_low = "Нет резьбы (Торцевая матрица)"
+    elif eq_type == "ВЗД (Двигатель)":
+        eq_thread_low = "4 1/2 REG"
+    else:
+        eq_thread_low = eq_thread_top
+
+    c_1c4, c_1c5, c_1c6 = st.columns(3)
+    with c_1c4:
+        eq_length = st.number_input("Фактическая длина элемента по тарировочной рулетке, м:", min_value=0.01, max_value=25.0, value=9.45, step=0.01, key="len_1c_field")
+    with c_1c5:
+        eq_od = st.number_input("Наружный диаметр замковой части (OD), мм:", min_value=10.0, max_value=500.0, value=eq_od_init, step=0.1, key="od_1c_field")
+    with c_1c6:
+        eq_id = st.number_input("Внутренний диаметр промывочного канала (ID), мм:", min_value=5.0, max_value=200.0, value=eq_id_init, step=0.1, key="id_1c_field")
+
+# --- ВАРИАНТ 2: РУЧНОЙ ВВОД ЖЕЛЕЗА ИНЖЕНЕРОМ НА УСТЬЕ ---
+else:
+    c_m1, c_m2, c_m3 = st.columns(3)
+    with c_m1:
+        eq_type = st.selectbox("Тип элемента КНБК:", list(EQUIPMENT_1C_CATALOG.keys()), key="manual_type")
+        eq_model = st.text_input("Наименование / Описание оборудования:", value="УБТ Сбалансированная Кастом", key="manual_model_field")
+    with c_m2:
+        eq_sn = st.text_input("Серийный номер / Маркировка устья:", value="CH-РУЧ-01", key="manual_sn_field")
+        eq_length = st.number_input("Длина по замеру на мостках, м:", min_value=0.01, max_value=25.0, value=4.50, step=0.01, key="manual_len")
+    with c_m3:
+        eq_od = st.number_input("Наружный диаметр (OD), мм:", min_value=10.0, max_value=500.0, value=172.0, step=0.1, key="manual_od")
+        eq_id = st.number_input("Внутренний диаметр (ID), мм:", min_value=5.0, max_value=200.0, value=71.4, step=0.1, key="manual_id")
         
-    with col_m3:
-        manual_od = st.number_input(
-            "Наружный диаметр (OD), мм:", 
-            min_value=10.0, 
-            max_value=500.0, 
-            value=172.0, 
-            step=0.1, 
-            key="ni_manual_od"
-        )
-        manual_id = st.number_input(
-            "Внутренний диаметр (ID), мм:", 
-            min_value=5.0, 
-            max_value=200.0, 
-            value=71.4, 
-            step=0.1, 
-            key="ni_manual_id"
-        )
-        
-    col_m4, col_m5 = st.columns(2)
-    with col_m4:
-        manual_th_down = st.selectbox(
-            "Тип резьбы НИЗ (Муфта/Ниппель):", 
-            ["Нет резьбы"] + list(API_THREADS_DB.keys()), 
-            index=0, 
-            key="sb_manual_th_down"
-        )
-    with col_m5:
-        manual_th_up = st.selectbox(
-            "Тип резьбы ВЕРХ (Муфта/Ниппель):", 
-            ["Нет резьбы"] + list(API_THREADS_DB.keys()), 
-            index=3, 
-            key="sb_manual_th_up"
-        )
-        
-    btn_add_manual = st.button("✍ Добавить кастомный элемент вручную", use_container_width=True)
-# --- КНОПКИ УПРАВЛЕНИЯ И СОХРАНЕНИЯ В ТАБЛИЦУ ---
+    c_m4, c_m5 = st.columns(2)
+    thread_options = list(API_THREADS_DB.keys()) + ["Нет резьбы (Торцевая матрица)", "Специальная замковая резьба"]
+    with c_m4:
+        eq_thread_low = st.selectbox("Тип нижнего соединения (Ниппель/Муфта):", thread_options, index=0, key="manual_th_low")
+    with c_m5:
+        eq_thread_top = st.selectbox("Тип верхнего соединения (Муфта/Ниппель):", thread_options, index=0, key="manual_th_top")
+
+
+# --- ОБЩИЕ КНОПКИ СОХРАНЕНИЯ (БЕЗОПАСНО КЛИКАЮТСЯ БЕЗ NAMEERROR) ---
 c_btn1, c_btn2 = st.columns(2)
 
 with c_btn1:
-    if st.button("📥 Добавить элемент в фактическую спецификацию КНБК", use_container_width= True):
-        # Находим текущий максимальный порядок
+    if st.button("📥 Добавить элемент в фактическую спецификацию КНБК", use_container_width=True, key="add_to_bha_final_btn"):
+        if "bha_components" not in st.session_state:
+            st.session_state["bha_components"] = []
+            
         if st.session_state["bha_components"]:
             next_order = max(item["Порядок"] for item in st.session_state["bha_components"]) + 1
         else:
@@ -320,7 +287,7 @@ with c_btn1:
             "ID, мм": round(eq_id, 1),
             "Резьба Низ": eq_thread_low,
             "Резьба Верх": eq_thread_top,
-            "Тип Ввода": "1С (Авто)" if "1С" in input_source else "Ручной ввод"
+            "Тип Ввода": "1С (Авто)" if "🛒 Подгрузить спецификацию из КИС 1С" in input_source else "Ручной ввод"
         }
         
         st.session_state["bha_components"].append(new_component)
@@ -328,9 +295,9 @@ with c_btn1:
         st.rerun()
 
 with c_btn2:
-    if st.button("🗑 Полностью очистить текущую спецификацию КНБК", use_container_width= True):
+    if st.button("🗑 Полностью очистить текущую спецификацию КНБК", use_container_width=True, key="clear_bha_final_btn"):
         st.session_state["bha_components"] = []
-        st.warning("⚠ Ведомость КНБК полностью очищена. Внесите элементы заново.")
+        st.warning("⚠ Ведомость КНБК полностью очищена.")
         st.rerun()
 
 # =========================================================================
