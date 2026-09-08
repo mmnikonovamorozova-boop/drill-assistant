@@ -129,11 +129,38 @@ def load_tech_cards_database():
                     file_key = file.replace(".png", "").lower()
                     card_name = translation_map.get(file_key, file_key.replace("_", " ").capitalize())
                     img_relative_path = f"repository/{folder}/{file}"
-                    v_route = [
-                        {"step": f"Аудит и сверка геометрии по схеме {card_name}", "role": "Инженер ННБ"},
-                        {"step": "Верификация калибров и датчиков перед началом работ", "role": "Инженер MWD"},
-                        {"step": "Контроль параметров и подписание акта ликвидации", "role": "Супервайзер"}
-                    ]
+                 
+                    json_db_path = "repository/tech_steps_db.json"
+                    v_route = []
+
+                    # Пытаемся прочитать уникальные шаги из JSON-базы
+                    if os.path.exists(json_db_path):
+                        try:
+                            with open(json_db_path, "r", encoding="utf-8") as f:
+                                json_db = json.load(f)
+                            # Ищем шаги по техническому ключу файла (например, jar-operation-matrix)
+                            if file_key in json_db:
+                                v_route = json_db[file_key]
+                        except Exception:
+                            v_route = []
+
+                    # ФОЛБЭК: Если в JSON пусто или файла нет, генерируем базовый регламент устья
+                    if not v_route:
+                        card_name_lower = card_name.lower()
+                        if "ясс" in card_name_lower or "jar" in file_key:
+                            v_route = [
+                                {"step": "**Шаг 1:** Фиксация веса инструмента на крюке перед активацией ясса", "role": "Инженер ННБ"},
+                                {"step": "**Шаг 2:** Расчет критической силы взведения и калибровка задержки гидромеханизма", "role": "Инженер ННБ"},
+                                {"step": "**Шаг 3:** Контроль работы телеметрической системы MWD во время ударов", "role": "Инженер MWD"},
+                                {"step": "**Шаг 4:** Запись времени и величины натяжения в журнал рейса", "role": "Инженер ННБ"}
+                            ]
+                        else:
+                            v_route = [
+                                {"step": f"**Этап А:** Проверка соответствия параметров схеме **{card_name}**", "role": "Инженер ННБ"},
+                                {"step": f"**Этап Б:** Проверка датчиков наземного комплекса и каналов связи с ОЦБ", "role": "Инженер MWD"},
+                                {"step": f"**Этап В:** Фиксация результатов операции в рапорте СМО СТО ИНТИ", "role": "Супервайзер"}
+                            ]
+
                     
                     tech_cards[card_name] = {
                         "title": card_name,
