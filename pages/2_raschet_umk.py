@@ -62,21 +62,7 @@ with st.expander("➕ Регистрация кастомной модели к�
 # =========================================================================
 # --- ШИНА ДАННЫХ (БЛОК 2) ---
 with st.sidebar:
-    st.markdown("### 📋 Паспорт рейса")
-    
-    # Сквозной шлюз: забираем данные напрямую из общей сессии приложения
-    engineer = st.session_state.get("engineer_name", "Не указано")
-    well = st.session_state.get("well_number", "Не указано")
-    field = st.session_state.get("field_name", "Не указано")
-    bha = st.session_state.get("bha_number", "1")
-    
-    # Отображаем текущие параметры в режиме чтения (без дублирующих кнопок ввода)
-    st.markdown(f"**Месторождение:** `{field}`")
-    st.markdown(f"**Скважина/Куст:** `{well}`")
-    st.markdown(f"**Сборка КНБК №:** `{bha}`")
-    st.markdown(f"**Инженер ННБ:** `{engineer}`")
-    
-    st.divider()
+
     st.caption(f"📍 Заказчик: {st.session_state.get('main_page_company', 'Роснефть')}")
     st.markdown("### 🛠 Входные параметры крепления соединений")
 
