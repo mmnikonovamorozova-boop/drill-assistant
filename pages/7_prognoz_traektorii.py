@@ -152,6 +152,35 @@ def load_calibrations_from_github_api(target_well_name):
     except Exception:
         # Защитный барьер: при любых сетевых ошибках возвращаем стабильный дефолт
         return default_passport
+@st.cache_data(ttl=60)
+def load_actual_ggi_from_github(target_well_name):
+    """
+    Автоматический шлюз ОЦБ: скачивание актуального проектного 
+    профиля ГГИ напрямую из репозитория GitHub компании.
+    """
+    token = st.secrets.get("GITHUB_TOKEN", None)
+    clean_well = str(target_well_name).strip().upper().replace(" ", "_")
+    url = f"https://github.com_{clean_well}.csv"
+    
+    if not token:
+        return None
+        
+    try:
+        import requests
+        headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+        response = requests.get(url, headers=headers, timeout=5)
+        
+        if response.status_code == 200:
+            file_data = response.json()
+            content_b64 = file_data.get("content", "")
+            csv_str = base64.b64decode(content_b64).decode("utf-8")
+            
+            import io
+            df_ggi = pd.read_csv(io.StringIO(csv_str))
+            return df_ggi
+    except Exception:
+        return None
+    return None
 
 # =========================================================================
 # БЛОК 4 — ОБРАБОТКА ГГИ ЗАКАЗЧИКА И РАСЧЕТ ТРАЕКТОРИИ (MINIMUM CURVATURE METHOD)
