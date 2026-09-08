@@ -275,7 +275,7 @@ if route_steps and isinstance(route_steps, list):
         hide_index=True,
         use_container_width=True,
         key="verification_table_editor"
-    )
+     )
 
     # Пересохраняем данные для генерации финального рапорта (кнопка внизу страницы их подхватит)
     verified_route_data = []
