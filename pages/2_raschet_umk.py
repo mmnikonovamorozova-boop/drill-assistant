@@ -10,6 +10,11 @@ if "authenticated" not in st.session_state or not st.session_state["authenticate
 
 st.set_page_config(page_title="Расчет ключа УМК", layout="wide")
 st.title("🔧 Контроль момента свинчивания УМК")
+# Получение сквозных метаданных из сессии приложения
+engineer = st.session_state.get("engineer_name", "Не указано")
+well = st.session_state.get("well_number", "Не указано")
+field = st.session_state.get("field_name", "Не указано")
+bha = st.session_state.get("bha_number", "1")
 
 # --- ПАСПОРТ СТО ИНТИ ---
 with st.expander("🔰 Паспорт верификации СТО ИНТИ", expanded=False):
