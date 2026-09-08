@@ -310,56 +310,54 @@ with c_btn2:
         st.rerun()
 
 # =========================================================================
-# БЛОК 4 И 6 — ЕДИНАЯ РАБОЧАЯ ЗОНА: ВЕДОМОСТЬ + СХЕМА КНБК В ОДНУ СТРОКУ
+# БЛОК 4 И 6 — ОПТИМИЗИРОВАННАЯ РАБОЧАЯ ЗОНА: МАКСИМАЛЬНАЯ ШИРИНА ТАБЛИЦЫ
 # =========================================================================
 
 st.markdown("---")
 
-# Создаем глобальный контейнер из двух колонок: слева таблица, справа чертеж КНБК
-col_main_table, col_main_viz = st.columns([3, 2], gap="large")
+# Меняем пропорции: 4 части отдаем таблице, 1.5 части — суженному окну схемы
+col_main_table, col_main_viz = st.columns([4, 1.5], gap="medium")
 
-# --- ЛЕВАЯ КОЛОНКА: ИНТЕРАКТИВНАЯ ТАБЛИЦА-РЕДАКТОР ---
+# --- ЛЕВАЯ КОЛОНКА: ШИРОКАЯ ИНТЕРАКТИВНАЯ ТАБЛИЦА (БЕЗ СКРОЛЛА) ---
 with col_main_table:
     st.subheader("📋 Сводная ведомость элементов (ФАКТ)")
-    st.caption("Редактируйте параметры прямо в ячейках таблицы. Данные обновятся мгновенно.")
+    st.caption("Редактируйте параметры в ячейках. Текст переносится автоматически, скроллинг отключен.")
     
     if st.session_state["bha_components"]:
         df_bha = pd.DataFrame(st.session_state["bha_components"])
         
-        # Запускаем интерактивный редактор данных с оптимизированной шириной столбцов
+        # Запускаем интерактивный редактор с жестко оптимизированными весами колонок под Full HD экран
         edited_bha_df = st.data_editor(
             df_bha,
             column_config={
                 "Порядок": st.column_config.NumberColumn("№", width="small", disabled=True),
-                "Тип": st.column_config.TextColumn("Тип", width="small", disabled=True),
-                "Наименование": st.column_config.TextColumn("Оборудование / Модель", width="medium"),
+                "Тип": st.column_config.TextColumn("Тип", width="medium", disabled=True),
+                "Наименование": st.column_config.TextColumn("Оборудование / Модель", width="large"),
                 "СН": st.column_config.TextColumn("СН (Клеймо)", width="small"),
                 "Длина, м": st.column_config.NumberColumn("L, м", width="small", min_value=0.01, max_value=50.0, step=0.01, format="%.2f"),
                 "OD, мм": st.column_config.NumberColumn("OD, мм", width="small", min_value=10.0, max_value=500.0, step=0.1, format="%.1f"),
                 "ID, мм": st.column_config.NumberColumn("ID, мм", width="small", min_value=10.0, max_value=300.0, step=0.1, format="%.1f"),
-                "Резьба Низ": st.column_config.SelectboxColumn("Замок Низ", width="small", options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
-                "Резьба Верх": st.column_config.SelectboxColumn("Замок Верх", width="small", options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
+                "Резьба Низ": st.column_config.SelectboxColumn("Замок Низ", width="medium", options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
+                "Резьба Верх": st.column_config.SelectboxColumn("Замок Верх", width="medium", options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
                 "Тип Ввода": st.column_config.TextColumn("Источник", width="small", disabled=True)
             },
             hide_index=True,
-            use_container_width=True,
+            use_container_width=True,  # Растягиваем таблицу ровно по выделенной левой зоне
             key="bha_table_editor"
         )
         
-        # Синхронизируем изменения обратно в глобальное состояние сессии
+        # Синхронизируем изменения обратно в сессию приложения
         st.session_state["bha_components"] = edited_bha_df.to_dict(orient="records")
     else:
         st.info("ℹ️ Компоновка пуста. Подгрузите элементы из 1С или добавьте вручную.")
 
-# --- ПРАВАЯ КОЛОНКА: ДИНАМИЧЕСКИЙ ЧЕРТЕЖ КНБК ---
+# --- ПРАВАЯ КОЛОНКА: СУЖЕННЫЙ И КОМПАКТНЫЙ ЧЕРТЕЖ КНБК ---
 with col_main_viz:
-    st.subheader("📐 Схема КНБК (План / Факт)")
-    st.caption("Пропорциональное графическое сопоставление КНБК в реальном масштабе.")
+    st.subheader("📐 Схема КНБК")
+    st.caption("План / Факт бок о бок")
     
-    # Внутренние колонки внутри правой зоны для выравнивания План и Факт бок о бок
     col_sub_plan, col_sub_fact = st.columns(2)
     
-    # Справочная карта цветов для элементов бурового снаряда
     COLOR_MAP = {
         "Долото": "#3B82F6", "ВЗД (Двигатель)": "#10B981", "ТМС (Телесистема)": "#F59E0B",
         "NMDC (Немагнитная УБТ)": "#8B5CF6", "Осциллятор": "#EC4899", "Переливной клапан": "#EF4444",
@@ -368,13 +366,12 @@ with col_main_viz:
 
     def generate_bha_html(components_list, title_label):
         if not components_list:
-            return "<div style='text-align:center; padding:40px; color:#94A3B8; font-family:sans-serif; border:2px dashed #E2E8F0; border-radius:6px; margin-top:15px;'>Пусто</div>"
+            return "<div style='text-align:center; padding:20px; color:#94A3B8; font-family:sans-serif; border:1px dashed #E2E8F0; border-radius:6px; font-size:11px;'>Пусто</div>"
         
-        # Снизили внутренние отступы, чтобы схема идеально вставала без лишних скроллов
         html_out = f"""
-        <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 8px; text-align: center;">
-            <span style="font-size:11px; font-weight:bold; color:#475569; font-family:sans-serif;">{title_label}</span>
-            <div style="display: flex; flex-direction: column; align-items: center; margin-top: 10px; min-height: 320px; justify-content: flex-end;">
+        <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; padding: 6px; text-align: center;">
+            <span style="font-size:10px; font-weight:bold; color:#475569; font-family:sans-serif;">{title_label}</span>
+            <div style="display: flex; flex-direction: column; align-items: center; margin-top: 8px; min-height: 280px; justify-content: flex-end;">
         """
         
         for elem in reversed(components_list):
@@ -382,11 +379,11 @@ with col_main_viz:
             bg_color = COLOR_MAP.get(el_type, "#6B7280")
             
             raw_len = float(elem.get("Длина, м", 1.0))
-            # Масштабируем высоту элементов, чтобы они оставались компактными в окне
-            display_height = max(14, min(int(raw_len * 6), 90)) 
+            display_height = max(12, min(int(raw_len * 5), 70)) 
             
+            # Уменьшили коэффициент ширины с 0.4 до 0.28, чтобы схема стала изящнее и уже
             raw_od = float(elem.get("OD, мм", 172.0))
-            display_width = max(24, min(int(raw_od * 0.4), 110))
+            display_width = max(18, min(int(raw_od * 0.28), 75))
             
             html_out += f"""
             <div style="
@@ -394,14 +391,14 @@ with col_main_viz:
                 width: {display_width}px; 
                 height: {display_height}px; 
                 margin: 1px 0; 
-                border-radius: 3px; 
+                border-radius: 2px; 
                 border: 1px solid rgba(0,0,0,0.15);
                 display: flex; 
                 align-items: center; 
                 justify-content: center; 
                 color: white; 
                 font-family: sans-serif; 
-                font-size: 9px; 
+                font-size: 8px; 
                 font-weight: bold;
                 overflow: hidden;"
                 title="Тип: {el_type} | СН: {elem.get('СН')} | L: {raw_len}м | OD: {raw_od}мм">
@@ -424,11 +421,11 @@ with col_main_viz:
             {"Порядок": 5, "Тип": "ТМС (Телесистема)", "Длина, м": 4.50, "OD, мм": 172.0},
             {"Порядок": 6, "Тип": "NMDC (Немагнитная УБТ)", "Длина, м": 9.45, "OD, мм": 165.0}
         ]
-        st.components.v1.html(generate_bha_html(plan_mock, "📋 ПЛАН"), height=420, scrolling=False)
+        st.components.v1.html(generate_bha_html(plan_mock, "📋 ПЛАН"), height=360, scrolling=False)
 
     with col_sub_fact:
-        st.components.v1.html(generate_bha_html(st.session_state["bha_components"], "🔧 ФАКТ"), height=420, scrolling=False)
-
+        st.components.v1.html(generate_bha_html(st.session_state["bha_components"], "🔧 ФАКТ"), height=360, scrolling=False)
+        
 # =========================================================================
 # БЛОК 5 — ВСТРОЕННОЕ ИИ-ЯДРО И ЭКСПЕРТНЫЙ АНАЛИЗ РИСКОВ СБОРКИ КНБК
 # =========================================================================
