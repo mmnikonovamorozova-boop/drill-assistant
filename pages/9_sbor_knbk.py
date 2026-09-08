@@ -424,7 +424,7 @@ def generate_official_excel_report():
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "РАПОРТ по КНБК"
-    ws.views.sheetView.showGridLines = True
+    ws.views.sheetView[0].showGridLines = True
     
     # 📌 Путь 1: Автозаполнение метаданных из глобальных модулей приложения
     field_val = st.session_state.get("field_select", "Верхнесалымское")
