@@ -5,35 +5,76 @@ import math
 import json
 import base64
 import time
+import io
 
-# --- КОНФИГУРАЦИЯ СТРАНИЦЫ И СТРОГАЯ АВТЕНТИФИКАЦИЯ ---
+# --- КОНФИГУРАЦИЯ СТРАНИЦЫ И СТРОГАЯ АВТЕНТИФИКАЦИЯ СМК ---
 st.set_page_config(page_title="Прогноз траектории КНБК", layout="wide")
 
 if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
-    st.error("🚨 ДОСТУП ОГРАНИЧЕН: Авторизуйтесь на Главной странице.")
+    st.error("🚨 ДОСТУП ОГРАНИЧЕН: Пожалуйста, авторизуйтесь на Главной странице приложения.")
     st.stop()
 
-# --- СКВОЗНОЙ ШЛЮЗ ДАННЫХ ИЗ СЕССИИ ---
+# --- СКВОЗНОЙ ШЛЮЗ ДАННЫХ ИЗ ГЛОБАЛЬНОЙ СЕССИИ ПРИЛОЖЕНИЯ ---
 engineer = st.session_state.get("engineer_name", "Не указано")
 well = st.session_state.get("well_number", "Не указано")
 field = st.session_state.get("field_name", "Не указано")
 bha = st.session_state.get("bha_number", "1")
 
-# 1. Единая синяя информационная плашка как во всех прошлых модулях
+# Выводим единую синюю плашку контекста рейса, идентичную прошлым модулям
 st.info(f"📋 **Рейс:** {field} | Скв/Куст: {well} | КНБК №{bha} | **Инженер:** {engineer}")
 st.divider()
 
 st.title("🎯 Модуль предиктивного моделирования пространственной интенсивности")
+st.markdown("### 📈 Блок 1: Предиктивный прогноз траектории скважины")
 
-# 2. Обновленный развернутый Паспорт верификации СТО ИНТИ в едином стиле
 with st.expander("🔰 Паспорт верификации СТО ИНТИ (Прогнозирование траектории и КНБК)", expanded=False):
-    st.markdown("### 🔬 Требования отраслевых стандартов СТО ИНТИ S.100.3 и S.QS.8:")
+    st.markdown("### 🔬 Требования отраслевых стандартов СТО ИНТИ S.100.3 и СТО ИНТИ S.QS.8:")
     st.markdown("""
-    * **Стандартизация предиктивных моделей:** Применение методов машинного обучения и градиентного спуска (СМК) для адаптивного прогнозирования пространственного положения ствола скважины.
-    * **Интегральный тригонометрический расчет:** Расчет координат забоя по легитимному методу минимальной кривизны (Minimum Curvature Method) согласно международным стандартам API.
+    * **Стандартизация предиктивных моделей:** Применение методов адаптивного машинного обучения и градиентного спуска (СМК) для прогнозирования пространственного положения ствола.
+    * **Интегральный тригонометрический расчет:** Расчет координат забоя по легитимному методу минимальной кривизны (Minimum Curvature Method) согласно международным стандартам API RP 7G.
     * **Контроль коммерческих штрафов:** Реализация алгоритма скользящего окна для автоматического контроля правила 3 последовательных нарушений лимита интенсивности (DLS) по ТК договора.
-    * **Адаптация геометрических весов:** Непрерывный полевой расчет фактических коэффициентов передачи геометрии КНБК (Slide/Rotary Factor) по результатам замеров маркшейдерии.
+    * **Цифровой мост ОЦБ:** Интеграция шлюза оперативной корректировки планового профиля и калибровочных весов КНБК специалистами Операционного Центра из города без предоставления прямого доступа к коду.
+    * **Аудит извилистости ствола:** Непрерывный расчет индекса пространственной сложности (DDI — Directional Difficulty Index) для превентивной оценки рисков возникновения затяжек и посадок инструмента.
     """)
+
+st.markdown(" ") # Компактный технологический отступ
+# =========================================================================
+# БЛОК 3 — СКВОЗНАЯ ШИНА ДАННЫХ И ЦЕНТРАЛЬНЫЙ АДАПТИВНЫЙ ИНТЕРФЕЙС
+# =========================================================================
+
+# Боковая панель: считывание параметров из сессии и инициализация лимитов
+st.sidebar.markdown("### 🧬 Сквозные данные системы")
+selected_vink = st.sidebar.text_input("Заказчик (Холдинг):", value=st.session_state.get("main_page_company", "Роснефть"), disabled=True)
+
+# Загрузка базы лимитов с резервным словарем
+try:
+    df_vink_db = pd.read_excel("vink_limits_db.xlsx")
+except Exception:
+    df_vink_db = pd.DataFrame()
+
+shared_buoyancy = float(st.session_state.get("shared_buoyancy_factor", 0.85))
+yield_stress = float(st.session_state.get("shared_yield_stress", 40.0))
+radial_wear_vzd = float(st.session_state.get("val_radial_ich", 0.20))
+
+st.sidebar.caption(f"💧 ДНС раствора: {yield_stress} дПа")
+st.sidebar.caption(f"🔧 Люфт шпинделя: {radial_wear_vzd} мм")
+st.sidebar.caption(f"🚢 Коэф. плавучести: {shared_buoyancy:.2f}")
+# --- 3.2. Центральная рабочая область (Адаптивные вкладки) ---
+# Полный исходный код для создания вкладок (Контракт, КНБК, Геология) адаптирован для интерфейса настройки интервала бурения.
+st.markdown("### 🛠 Настройки интервала бурения")
+tab_contract, tab_knbc, tab_geology = st.tabs(["📋 Контракт и Лимиты", "📐 Компоновка КНБК", "🌋 Геологический разрез"])
+
+with tab_contract:
+    st.selectbox("🏢 Выберите предприятие:", ["Стандартный договор"])
+    st.checkbox("⚠ Учитывать зоны ГНО / Опасность желобов", value=False)
+    st.number_input("Макс. допустимый DLS по договору, °/10м:", value=3.0, step=0.1)
+
+with tab_knbc:
+    st.selectbox("Конфигурация КНБК:", ["Стандартная", "Маятниковая", "Стабилизирующая"])
+    st.number_input("Текущий зенитный угол, °:", min_value=0.0, max_value=90.0, value=45.0)
+
+with tab_geology:
+    st.selectbox("Текущая проходимая свита / литология:", ["Переслаивание глин и песчаников (Средняя твердость)"])
 
 # =========================================================================
 # БЛОК 2: УМНОЕ ИИ-ЯДРО: ИМПОРТ И СЕЛЕКЦИЯ КАЛИБРОВОК ПО ИМЕНИ СКВАЖИНЫ
@@ -200,38 +241,31 @@ buoyancy_factor = shared_buoyancy # Переменная для сохранен
 # =========================================================================
 
 st.markdown("---")
-st.markdown("### 🗺️ Блок 4: Сверка пространственных данных и импорт ГГИ")
+st.markdown("### 🗺 Блок 4: Сверка пространственных данных и импорт ГГИ")
 well_name = st.text_input("Номер/Название скважины:", value="101-Г", key="b4_well_name_input")
 
-# Извлекаем калибровки из ИИ-ядра (из Блока 2)
+# Инициализация и подготовка данных
 active_calibration = load_calibrations_from_github_api(well_name)
 st.sidebar.markdown(f"**Статус ИИ-ядра:** Калибровки для {well_name} успешно применены.")
 
-# Интерактивный загрузчик планового профиля ГГИ Заказчика
 uploaded_ggi = st.file_uploader("Выгрузите Excel/CSV с плановым профилем (ГГИ):", type=["xlsx", "csv"], key="b4_file_uploader")
 
 def calculate_spatial_trajectory_legyt(df_inc):
-    """
-    Развернутый расчет пространственного положения ствола по методу минимальной кривизны
-    в строгом соответствии с требованиями легитимности СТО ИНТИ S.QS.8 и API RP 7G.
-    """
     df_inc.columns = [str(col).strip().upper() for col in df_inc.columns]
-    
-    # Динамический поиск целевых колонок для исключения ошибок .iloc
     col_md = [c for c in df_inc.columns if "ГЛУБ" in c or "MD" in c or "LENGTH" in c]
     col_inc = [c for c in df_inc.columns if "ЗЕН" in c or "INC" in c or "УГОЛ" in c]
     col_azi = [c for c in df_inc.columns if "АЗИ" in c or "AZI" in c or "НАПР" in c]
     
     if not col_md or not col_inc or not col_azi:
-        st.error("🚨 ОШИБКА ФОРМАТА ГГИ: Не удалось автоматически распознать колонки (Глубина, Зенит, Азимут). Проверьте шапку файла!")
+        st.error("🚨 ОШИБКА ФОРМАТА ГГИ: Не удалось автоматически распознать колонки.")
         return None
-
+        
     try:
         md = pd.to_numeric(df_inc[col_md[0]], errors="coerce").fillna(0).values
         inc = np.radians(pd.to_numeric(df_inc[col_inc[0]], errors="coerce").fillna(0).values)
         azi = np.radians(pd.to_numeric(df_inc[col_azi[0]], errors="coerce").fillna(0).values)
-        
         n_records = len(md)
+        
         if n_records < 2:
             return None
             
@@ -239,65 +273,47 @@ def calculate_spatial_trajectory_legyt(df_inc):
         north = np.zeros(n_records)
         east = np.zeros(n_records)
         dls = np.zeros(n_records)
-        
         tvd[0] = md[0]
-        
         for i in range(1, n_records):
             dl_md = md[i] - md[i-1]
             if dl_md <= 0:
                 tvd[i], north[i], east[i] = tvd[i-1], north[i-1], east[i-1]
                 continue
-                
-            cos_alpha = math.cos(inc[i-1]) * math.cos(inc[i]) + \
-                        math.sin(inc[i-1]) * math.sin(inc[i]) * math.cos(azi[i] - azi[i-1])
+            cos_alpha = math.cos(inc[i-1]) * math.cos(inc[i]) + math.sin(inc[i-1]) * math.sin(inc[i]) * math.cos(azi[i] - azi[i-1])
             cos_alpha = max(-1.0, min(1.0, cos_alpha))
             alpha = math.acos(cos_alpha)
-            
-            if alpha == 0:
-                f_ratio = 1.0
-            else:
-                f_ratio = (2.0 / alpha) * math.tan(alpha / 2.0)
-                
+            f_ratio = (2.0 / alpha) * math.tan(alpha / 2.0) if alpha != 0 else 1.0
             tvd[i] = tvd[i-1] + (dl_md / 2.0) * (math.cos(inc[i-1]) + math.cos(inc[i])) * f_ratio
             north[i] = north[i-1] + (dl_md / 2.0) * (math.sin(inc[i-1]) * math.cos(azi[i-1]) + math.sin(inc[i]) * math.cos(azi[i])) * f_ratio
             east[i] = east[i-1] + (dl_md / 2.0) * (math.sin(inc[i-1]) * math.sin(azi[i-1]) + math.sin(inc[i]) * math.sin(azi[i])) * f_ratio
-            
             dls[i] = (alpha * 10.0) / dl_md if dl_md > 0 else 0.0
             
-        df_res = pd.DataFrame({
-            "ГЛУБИНА_MD": md, 
-            "ЗЕНИТ_ГРАД": np.degrees(inc), 
-            "АЗИМУТ_ГРАД": np.degrees(azi),
-            "TVD": tvd, 
-            "NORTH": north, 
-            "EAST": east, 
-            "DLS_10M": np.degrees(dls)
-        })
-        return df_res
-        
+        return pd.DataFrame({"ГЛУБИНА_MD": md, "ЗЕНИТ_ГРАД": np.degrees(inc), "АЗИМУТ_ГРАД": np.degrees(azi), "TVD": tvd, "NORTH": north, "EAST": east, "DLS_10M": np.degrees(dls)})
     except Exception as ex:
-        st.error(f"🚨 КРИТИЧЕСКИЙ СБОЙ ТРИГОНОМЕТРИИ КНБК: {str(ex)}")
+        st.error(f"🚨 СБОЙ MCM: {str(ex)}")
         return None
-
-# Инициализируем датафрейм, чтобы застраховаться от NameError ниже по коду
 df_trajectory_calculated = None
+df_inc_raw = None
 
-if uploaded_ggi is not None:
+# Автоматическая попытка забрать последнюю поправку плана из ОЦБ через облако
+df_cloud_ggi = load_actual_ggi_from_github(well_name)
+
+if df_cloud_ggi is not None:
+    df_inc_raw = df_cloud_ggi
+    st.success(f"🌐 СИНХРОНИЗАЦИЯ ОЦБ: Автоматически применен актуальный скорректированный план траектории из города! Точек плана: {len(df_inc_raw)}")
+elif uploaded_ggi is not None:
     try:
         if uploaded_ggi.name.endswith('.xlsx'):
             df_inc_raw = pd.read_excel(uploaded_ggi)
         else:
             df_inc_raw = pd.read_csv(uploaded_ggi)
-            
-        df_inc_raw.columns = df_inc_raw.columns.astype(str).str.upper().str.strip()
-        st.success(f"✔️ Профиль ГГИ Заказчика успешно подгружен! Считано точек плана: {len(df_inc_raw)}")
-        
-        # Запуск легитимного тригонометрического ядра
-        df_trajectory_calculated = calculate_spatial_trajectory_legyt(df_inc_raw)
-        
+        st.success(f"✔ Профиль ГГИ успешно подгружен инженером вручную. Точек плана: {len(df_inc_raw)}")
     except Exception as e:
-        st.error(f"🚨 Ошибка парсинга файла ГГИ: {str(e)}. Использован стандартный профиль.")
-        uploaded_ggi = None
+        st.error(f"🚨 Ошибка парсинга ручного файла ГГИ: {str(e)}")
+
+# Запуск расчета координат при успешной загрузке данных
+if df_inc_raw is not None:
+    df_trajectory_calculated = calculate_spatial_trajectory_legyt(df_inc_raw)
 
 # =========================================================================
 # БЛОК 5.1 — ФИЗИКО-МАТЕМАТИЧЕСКОЕ МОДЕЛИРОВАНИЕ СИЛ КНБК И УВОДА ДОЛОТА
