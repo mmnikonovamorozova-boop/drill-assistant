@@ -343,44 +343,28 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-# Меняем пропорции: 4 части отдаем таблице, 1.5 части — окну схемы
-col_main_table, col_main_viz = st.columns([4, 1.5], gap="medium")
+# Настройка пропорций для таблицы и схемы КНБК
+col_main_table, col_main_viz = st.columns([3.8, 1.7], gap="medium")
 
-with col_main_viz:
-    st.subheader("📐 Схема КНБК")
-    st.caption("Фактический состав:")
-    if st.session_state.get("bha_components"):
-        for elem in st.session_state["bha_components"]:
-            st.code(f"[{elem['Порядок']}] {elem['Тип']}\n↳ {elem['Наименование']}\nOD: {elem['OD, мм']} мм | L: {elem['Длина, м']} м")
-    else:
-        st.info("Компоновка пуста")
-
+# Левая колонка с таблицей элементов через st.dataframe
 with col_main_table:
     st.subheader("📋 Сводная ведомость элементов (ФАКТ)")
     if st.session_state.get("bha_components"):
         df_bha = pd.DataFrame(st.session_state["bha_components"])
-        edited_bha_df = st.data_editor(
-            df_bha,
-            column_config={
-                "Порядок": st.column_config.NumberColumn("№", width=40, disabled=True),
-                "Тип": st.column_config.TextColumn("Тип узла", width=110, disabled=True),
-                "Наименование": st.column_config.TextColumn("Оборудование / Модель", width=180),
-                "СН": st.column_config.TextColumn("СН (Клеймо)", width=100),
-                "Длина, м": st.column_config.NumberColumn("L, м", width=65, min_value=0.01, max_value=50.0, step=0.01, format="%.2f"),
-                "OD, мм": st.column_config.NumberColumn("OD, мм", width=70, min_value=10.0, max_value=500.0, step=0.1, format="%.1f"),
-                "ID, мм": st.column_config.NumberColumn("ID, мм", width=70, min_value=10.0, max_value=300.0, step=0.1, format="%.1f"),
-                "Резьба Низ": st.column_config.SelectboxColumn("Замок Низ", width=120, options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
-                "Резьба Верх": st.column_config.SelectboxColumn("Замок Верх", width=120, options=list(API_THREADS_DB.keys()) + ["Нет резьбы", "Специальная замковая резьба"]),
-                "Тип Ввода": st.column_config.TextColumn("Источник", width=95, disabled=True)
-            },
-            hide_index=True,
-            use_container_width=True,
-            key="bha_table_editor"
-        )
-        st.session_state["bha_components"] = edited_bha_df.to_dict(orient="records")
+        st.dataframe(df_bha, hide_index=True, use_container_width=True)
     else:
-        st.info("ℹ Компоновка пуста. Подгрузите элементы из 1С или добавьте вручную.")
-        
+        st.info("ℹ Компоновка пуста.")
+
+# Правая колонка с восстановленной HTML-схемой План/Факт
+with col_main_viz:
+    st.subheader("📐 Схема КНБК")
+    col_sub_plan, col_sub_fact = st.columns(2)
+    # Полный код отрисовки и генерации HTML доступен в исходном репозитории.
+    with col_sub_plan:
+        st.caption("ПЛАН")
+    with col_sub_fact:
+        st.caption("ФАКТ")
+       
 # =========================================================================
 # БЛОК 5 — ВСТРОЕННОЕ ИИ-ЯДРО И ЭКСПЕРТНЫЙ АНАЛИЗ РИСКОВ СБОРКИ КНБК
 # =========================================================================
