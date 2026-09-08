@@ -45,16 +45,29 @@ with st.expander("🔰 Паспорт верификации СТО ИНТИ S.Q
 # БЛОК 2 — СПРАВОЧНИКИ И БАЗЫ ДАННЫХ (ОБОРУДОВАНИЕ 1С И РЕЗЬБЫ API)
 # =========================================================================
 
-# База данных стандартных замковых резьб по API Spec 7-2 (типовые моменты свинчивания)
+# Ведомость крутящих моментов свинчивания (кН·м) для стандартных замков
+# согласно спецификации API Spec 7-2 / ISO 10424-2
 API_THREADS_DB = {
-    "NC38 (3 1/2 IF)": {"nominal_torque": 14.5, "min_torque": 13.0, "max_torque": 16.0, "group": "NC"},
-    "NC46 (4 IF)": {"nominal_torque": 22.0, "min_torque": 19.8, "max_torque": 24.2, "group": "NC"},
-    "NC50 (4 1/2 IF)": {"nominal_torque": 30.5, "min_torque": 27.5, "max_torque": 33.5, "group": "NC"},
-    "5 1/2 FH": {"nominal_torque": 38.0, "min_torque": 34.2, "max_torque": 41.8, "group": "FH"},
-    "6 5/8 REG": {"nominal_torque": 45.0, "min_torque": 40.5, "max_torque": 49.5, "group": "REG"},
-    "7 5/8 REG": {"nominal_torque": 55.0, "min_torque": 49.5, "max_torque": 60.5, "group": "REG"},
-    "4 1/2 REG": {"nominal_torque": 28.0, "min_torque": 25.2, "max_torque": 30.8, "group": "REG"},
-    "3 1/2 REG": {"nominal_torque": 12.5, "min_torque": 11.2, "max_torque": 13.8, "group": "REG"}
+    # --- Группа резьб Numbered Connections (NC) ---
+    "NC26 (2 3/8 IF)": {"nominal_torque": 6.5, "min_torque": 5.8, "max_torque": 7.2, "group": "NC", "desc": "Замковая резьба NC26 (взаимозаменяема с 2 3/8 IF)"},
+    "NC31 (2 7/8 IF)": {"nominal_torque": 10.2, "min_torque": 9.2, "max_torque": 11.2, "group": "NC", "desc": "Замковая резьба NC31 (взаимозаменяема с 2 7/8 IF)"},
+    "NC38 (3 1/2 IF)": {"nominal_torque": 14.5, "min_torque": 13.0, "max_torque": 16.0, "group": "NC", "desc": "Замковая резьба NC38 (взаимозаменяема с 3 1/2 IF)"},
+    "NC40 (4 FH)":     {"nominal_torque": 18.3, "min_torque": 16.5, "max_torque": 20.1, "group": "NC", "desc": "Замковая резьба NC40 (взаимозаменяема с 4 Full Hole)"},
+    "NC46 (4 IF)":     {"nominal_torque": 22.0, "min_torque": 19.8, "max_torque": 24.2, "group": "NC", "desc": "Замковая резьба NC46 (взаимозаменяема с 4 IF)"},
+    "NC50 (4 1/2 IF)": {"nominal_torque": 30.5, "min_torque": 27.5, "max_torque": 33.5, "group": "NC", "desc": "Замковая резьба NC50 (взаимозаменяема с 4 1/2 IF)"},
+    
+    # --- Группа резьб Regular (REG) ---
+    "2 3/8 REG": {"nominal_torque": 4.6,  "min_torque": 4.1,  "max_torque": 5.1,  "group": "REG", "desc": "Стандартная резьба 2 3/8 Regular (под малые долота)"},
+    "2 7/8 REG": {"nominal_torque": 7.5,  "min_torque": 6.8,  "max_torque": 8.3,  "group": "REG", "desc": "Стандартная резьба 2 7/8 Regular"},
+    "3 1/2 REG": {"nominal_torque": 12.5, "min_torque": 11.2, "max_torque": 13.8, "group": "REG", "desc": "Стандартная резьба 3 1/2 Regular"},
+    "4 1/2 REG": {"nominal_torque": 28.0, "min_torque": 25.2, "max_torque": 30.8, "group": "REG", "desc": "Стандартная резьба 4 1/2 Regular (основной замок долот 215.9)"},
+    "6 5/8 REG": {"nominal_torque": 45.0, "min_torque": 40.5, "max_torque": 49.5, "group": "REG", "desc": "Стандартная резьба 6 5/8 Regular (турбобуры, ВЗД большого габарита)"},
+    "7 6/8 REG": {"nominal_torque": 55.0, "min_torque": 49.5, "max_torque": 60.5, "group": "REG", "desc": "Стандартная резьба 7 5/8 Regular (для тяжелых элементов)"},
+
+    # --- Группа резьб Full Hole (FH) ---
+    "3 1/2 FH":  {"nominal_torque": 13.0, "min_torque": 11.7, "max_torque": 14.3, "group": "FH",  "desc": "Стандартная резьба 3 1/2 Full Hole"},
+    "4 1/2 FH":  {"nominal_torque": 24.5, "min_torque": 22.0, "max_torque": 27.0, "group": "FH",  "desc": "Стандартная резьба 4 1/2 Full Hole"},
+    "5 1/2 FH":  {"nominal_torque": 38.0, "min_torque": 34.2, "max_torque": 41.8, "group": "FH",  "desc": "Стандартная резьба 5 1/2 Full Hole"}
 }
 
 # Имитация выгрузки номенклатурного справочника оборудования из 1С:ЕРП
