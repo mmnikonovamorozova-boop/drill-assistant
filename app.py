@@ -116,27 +116,23 @@ else:
         st.session_state.authenticated = False
         st.rerun()
 
-    import os
+import os
 
-    spisok_stranic = [
-        st.Page("pages/1_vhodnoy_kontrol.py", title="1. Входной контроль"),
-        st.Page("pages/2_raschet_umk.py", title="2. Расчет УМК"),
-        st.Page("pages/3_tech_cards.py", title="3. Техкарты"),
-        st.Page("pages/8_lyuft_vzd.py", title="4. Люфт ВЗД")
-    ]
-    
-    spisok_stranic.extend([
-        st.Page("pages/4_matrix_and_lnd.py", title="5. Матрица и ЛНД"),
-        st.Page("pages/5_kontrol_rastvora.py", title="6. Контроль раствора"),
-        st.Page("pages/6_baza_znaniy.py", title="7. База знаний"),
-        st.Page("pages/7_prognoz_traektorii.py", title="8. Прогноз траектории")
-    ])
-    
-    # Безопасная проверка: добавляем 9-й модуль только если файл физически существует на сервере
-    if os.path.exists("pages/1_sbor_knbk.py"):
-        spisok_stranic.append(st.Page("pages/1_sbor_knbk.py", title="9. Сборка КНБК"))
-    
-    st.navigation(spisok_stranic).run()
-    
-        
-        st.navigation(spisok_stranic).run()
+spisok_stranic = [
+    st.Page("pages/1_vhodnoy_kontrol.py", title="1. Входной контроль"),
+    st.Page("pages/2_raschet_umk.py", title="2. Расчет УМК"),
+    st.Page("pages/3_tech_cards.py", title="3. Техкарты"),
+    st.Page("pages/8_lyuft_vzd.py", title="4. Люфт ВЗД")
+]
+
+spisok_stranic.extend([
+    st.Page("pages/4_matrix_and_lnd.py", title="5. Матрица и ЛНД"),
+    st.Page("pages/5_kontrol_rastvora.py", title="6. Контроль раствора"),
+    st.Page("pages/6_baza_znaniy.py", title="7. База знаний"),
+    st.Page("pages/7_prognoz_traektorii.py", title="8. Прогноз траектории")
+])
+
+if os.path.exists("pages/1_sbor_knbk.py"):
+    spisok_stranic.append(st.Page("pages/1_sbor_knbk.py", title="9. Сборка КНБК"))
+
+st.navigation(spisok_stranic).run()
