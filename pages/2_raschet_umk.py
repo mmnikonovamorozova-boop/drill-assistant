@@ -235,45 +235,61 @@ with st.container(border=True):
 st.markdown("---")
 st.markdown("### 📋 Блок 5: Документ СМК")
 
+# Определяем название файла для скачивания
 if is_order_disabled:
-    file_title = f"Акт_запрета_работ_Скв_{well_number.replace(' ', '_')}"
-    reasons_md = "\n".join([f"* 🚨 {r}" for r in error_reasons])
-    work_order_text = f"""# ОФИЦИАЛЬНЫЙ АКТ О ЗАПРЕТЕ ПРОВЕДЕНИЯ ИНЖЕНЕРНЫХ РАБОТ
-* **Месторождение:** {field} | **Скважина/Куст:** {well}
-* **Объект контроля:** Свинчивание КНБК ключом УМК
-
-## ВЫЯВЛЕННЫЕ КРИТИЧЕСКИЕ НАРУШЕНИЯ:
-{reasons_md}
-
----
-Документ сформирован автоматически службой контроля качества по СТО ИНТИ S.QS.7. Свинчивание запрещено до полного устранения дефектов.
-"""
+    file_title = f"Akt_Zapreta_UMK_Skv_{well}"
+    bg_color = "#FEF2F2"  # Мягкий красный фон для запрета
+    border_color = "#EF4444"  # Красная рамка
+    title_text = "АКТ О ЗАПРЕТЕ ПРОВЕДЕНИЯ ИНЖЕНЕРНЫХ РАБОТ"
 else:
-    file_title = f"Order_UMK_Well_{well_number.replace(' ', '_')}"
+    file_title = f"Order_UMK_Well_{well}"
+    bg_color = "#FAFAFA"  # Светлый фон для распоряжения
+    border_color = "#1E3A8A"  # Синяя рамка
+    title_text = "РАСПОРЯЖЕНИЕ НА КРЕПЛЕНИЕ СОЕДИНЕНИЙ КНБК"
+
+# Начинаем сборку HTML бланка (открываем контейнер-рамку)
+html_form = f"<div style='border:3px solid {border_color}; padding:25px; border-radius:10px; background-color:{bg_color}; font-family:Arial, sans-serif; color:#333333;'>"
+html_form += "<h2 style='text-align:center; color:#1E3A8A; margin-top:0;'>ООО «ТРАЕКТОРИЯ-СЕРВИС»</h2>"
+html_form += f"<h3 style='text-align:center; color:#4B5563; margin-top:-10px;'>{title_text}</h3>"
+# Заполнение блока общей информации о скважине и инженере
+html_form += f"<p><b>Месторождение:</b> {field} &nbsp;&nbsp;&nbsp;&nbsp; <b>Скважина / Куст:</b> {well}</p>"
+html_form += f"<p><b>Инженер ННБ:</b> {engineer} &nbsp;&nbsp;&nbsp;&nbsp; <b>Сборка КНБК №:</b> {bha}</p>"
+html_form += "<hr style='border:1px solid #CCCCCC; margin:15px 0;'>"
+if is_order_disabled:
+    html_form += "<p style='color:#991B1B;'><b>КРИТИЧЕСКИЕ НАРУШЕНИЯ (СВИНЧИВАНИЕ ЗАПРЕЩЕНО):</b></p><ul>"
+    for reason in error_reasons:
+        html_form += f"<li>{reason}</li>"
+    html_form += "</ul>"
+else:
+    html_form += f"<p><b>Группа прочности стали:</b> {pipe_steel_group} &nbsp;&nbsp;&nbsp;&nbsp; <b>Номинальный момент:</b> {p_moment:.1f} кН·м</p>"
+    html_form += f"<p><b>Скорректированный момент (учет смазки):</b> {M_required:.2f} кН·м</p>"
     if "Электронный" in control_type:
-        control_line = f"**ЦЕЛЕВОЕ УСИЛИЕ НА ИВЭ-50:** {f_pull_tons:.2f} т \n* Угол натяжения каната α: {angle_alpha:.1f} °"
+        html_form += f"<p style='color:#1E3A8A;'><b>ЦЕЛЕВОЕ УСИЛИЕ НА ИВЭ-50:</b> {f_pull_tons:.2f} т (при угловом коэффициенте α: {angle_alpha:.1f}°)</p>"
     else:
-        control_line = f"**ЦЕЛЕВОЕ ДАВЛЕНИЕ МАНОМЕТРА:** {p_target_mpa:.2f} МПа ({p_target_mpa * 10.1972:.1f} кгс/см²)"
-    work_order_text = f"""# РАСПОРЯЖЕНИЕ НА КРЕПЛЕНИЕ СОЕДИНЕНИЙ КНБК
-* **Месторождение:** {field_name} | **Скважина/Куст:** {well_number}
-* **Элемент КНБК:** Бурильная труба (Сталь группы {pipe_steel_group})
+        html_form += f"<p style='color:#1E3A8A;'><b>ЦЕЛЕВОЕ ДАВЛЕНИЕ МАНОМЕТРА:</b> {p_target_mpa:.2f} МПа ({p_target_mpa * 10.1972:.1f} кгс/см²)</p>"
 
-**ТЕХНОЛОГИЧЕСКИЕ УСТАВКИ СВИНЧИВАНИЯ:**
-* Номинальный момент резьбы: {p_moment:.1f} кН·м
-* Скорректированный момент (с учетом смазки): {M_required:.2f} кН·м
-* {control_line}
+# Закрываем главный контейнер бланка
+html_form += "</div>"
+# Отображаем собранный документ в интерфейсе
+st.components.v1.html(html_form, height=350, scrolling=True)
 
----
-Протокол сформирован в соответствии с регламентами СТО ИНТИ S.QS.7 и S.QS.8.
-"""
-# Отрисовка бланка (Распоряжения или Акта запрета) в интерфейсе Streamlit
-with st.container(border=True):
-    st.markdown(work_order_text)
+# Кнопка №1: Скачивание готового файла
+st.download_button(
+    label="💾 Скачать официальный документ СМК в формате HTML",
+    data=html_form,
+    file_name=f"{file_title}.html",
+    mime="text/html",
+    use_container_width=True
+)
+
+# Поле для почты
+email_recipient = st.text_input("Email получателя документа:", placeholder="boss@yourcompany.ru")
+
+# Кнопка №2: Безопасная отправка почты через кнопку-триггер
+if st.button("✉ Подготовить письмо в почтовой программе", use_container_width=True):
+    subject_text = f"Документ СМК по УМК — {field}, Скв. {well}".replace(" ", "%20")
+    body_text = f"Приветствую! Сформирован документ контроля момента свинчивания УМК для скважины {well} ({field}). Инженер: {engineer}.".replace(" ", "%20")
     
-    st.download_button(
-        label="📄 Скачать официальный документ СМК (.md)",
-        data=work_order_text,
-        file_name=f"{file_title}.md",
-        disabled=False,  # Кнопка теперь ВСЕГДА активна для выгрузки Акта или Распоряжения
-        use_container_width=True
-    )
+    mailto_link = f"mailto:{email_recipient}?subject={subject_text}&body={body_text}"
+    js_code = f'<script>window.open("{mailto_link}", "_blank");</script>'
+    st.components.v1.html(js_code, height=0)
