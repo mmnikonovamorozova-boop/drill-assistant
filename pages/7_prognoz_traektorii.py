@@ -91,6 +91,37 @@ with tab_contract:
     else:
         max_allowed_dls = st.number_input("Макс. допустимый DLS по договору, °/10м:", value=contract_dls_limit, step=0.1)
 
+# Вкладка 2: Профессиональная компоновка КНБК (Вендорские стандарты NOV/Baker)
+with tab_knbc:
+    st.markdown("##### ⚙️ Конструктивные параметры и жесткость компоновки:")
+    col_k1, col_col2 = st.columns(2)
+    with col_k1:
+        bit_type = st.selectbox("Тип PDC долота (калибр):", ["6-лопастное матричное", "5-лопастное стальное"])
+        vzd_angle = st.slider("Угол изгиба шпинделя ВЗД (градусы):", 0.0, 3.0, 1.15, 0.25)
+    with col_col2:
+        target_angle = st.number_input("Текущий зенитный угол ствола, °:", min_value=0.0, max_value=90.0, value=45.0, key="knbc_angle_real")
+        target_wob = st.number_input("Нагрузка на долото (WOB), т:", value=15.0, key="knbc_wob_real")
+
+with tab_geology:
+    st.markdown("##### 🌋 Физико-механические свойства разреза:")
+    lithology_type = st.selectbox(
+        "Текущая проходимая свита / литология:",
+        ["Глины пластичные (Мягкие породы)", "Переслаивание глин и песчаников (Средние)", "Плотные известняки и доломиты (Крепкие)"]
+    )
+    if "Глины" in lithology_type:
+        rock_ucs_mpa = 25.0
+        formation_anisotropy = 0.02
+    elif "Переслаивание" in lithology_type:
+        rock_ucs_mpa = 65.0
+        formation_anisotropy = 0.06
+    else:
+        rock_ucs_mpa = 120.0
+        formation_anisotropy = 0.12
+
+    col_g1, col_g2 = st.columns(2)
+    col_g1.metric("Предел прочности на сжатие (UCS)", f"{rock_ucs_mpa:.1f} МПа")
+    col_g2.metric("Базовая анизотропия пласта", f"{formation_anisotropy:.2f} ед.")
+
 # =========================================================================
 # БЛОК 2: УМНОЕ ИИ-ЯДРО: ИМПОРТ И СЕЛЕКЦИЯ КАЛИБРОВОК ПО ИМЕНИ СКВАЖИНЫ
 # =========================================================================
