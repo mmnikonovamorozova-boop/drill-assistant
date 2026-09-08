@@ -71,7 +71,6 @@ if 'df_vink_db' in locals() and not df_vink_db.empty:
 else:
     list_of_dors = ["Стандартный договор"]
 
-# Вкладка 1: Контрактные ограничения ДОРов
 with tab_contract:
     c_c1, c_c2 = st.columns(2)
     with c_c1:
@@ -79,17 +78,25 @@ with tab_contract:
     with c_c2:
         gno_zone = st.checkbox("⚠ Учитывать зоны ГНО / Опасность желобов", value=False)
         
-    if 'filtered_dors' in locals() and not filtered_dors.empty and selected_dor in list_of_dors:
-        dor_row = filtered_dors[filtered_dors["Заказчик (ДОР)"] == selected_dor].iloc[0]
-        contract_dls_limit = float(dor_row["Лимит_DLS"])
-        contract_gno_limit = float(dor_row["Лимит_ГНО"])
+    # Если выбран неизвестный Заказчик / Стандартный договор — включаем ручной ввод
+    if selected_dor == "Стандартный договор":
+        st.info("ℹ️ Неизвестный Заказчик. Введите технологические лимиты из ТЗ вручную:")
+        manual_dls = st.number_input("Лимит интенсивности (DLS) из ТЗ, °/10м:", value=3.0, step=0.1)
+        manual_gno = st.number_input("Лимит для зон ГНО из ТЗ, °/10м:", value=1.2, step=0.1)
+        contract_dls_limit, contract_gno_limit = manual_dls, manual_gno
     else:
-        contract_dls_limit, contract_gno_limit = 3.0, 1.2
-        
+        # Если Заказчик есть в базе — берем цифры из таблицы автоматически
+        if 'filtered_dors' in locals() and not filtered_dors.empty and selected_dor in list_of_dors:
+            dor_row = filtered_dors[filtered_dors["Заказчик (ДОР)"] == selected_dor].iloc[0]
+            contract_dls_limit = float(dor_row["Лимит_DLS"])
+            contract_gno_limit = float(dor_row["Лимит_ГНО"])
+        else:
+            contract_dls_limit, contract_gno_limit = 3.0, 1.2
+            
     if gno_zone:
-        max_allowed_dls = st.number_input("Макс. допустимый DLS по договору (ГНО), °/10м:", value=contract_gno_limit, step=0.1)
+        max_allowed_dls = st.number_input("Макс. допустимый DLS по договору (ГНО), °/10м:", value=contract_gno_limit, step=0.1, key="real_dls_max_val")
     else:
-        max_allowed_dls = st.number_input("Макс. допустимый DLS по договору, °/10м:", value=contract_dls_limit, step=0.1)
+        max_allowed_dls = st.number_input("Макс. допустимый DLS по договору, °/10м:", value=contract_dls_limit, step=0.1, key="real_dls_max_val")
 
 # Вкладка 2: Профессиональная компоновка КНБК (Вендорские стандарты NOV/Baker)
 with tab_knbc:
