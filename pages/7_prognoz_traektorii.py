@@ -138,34 +138,6 @@ def load_calibrations_from_github_api(target_well_name):
         # Защитный барьер: при любых сетевых ошибках возвращаем стабильный дефолт
         return default_passport
 
-# =========================================================================
-# БЛОК 3 — СКВОЗНАЯ ШИНА ДАННЫХ И ЦЕНТРАЛЬНЫЙ АДАПТИВНЫЙ ИНТЕРФЕЙС
-# Функционал: Считывание vink_limits_db.xlsx, разгрузка боковой панели,
-# вынос настроек КНБК, режимов и геологии в центр экрана для мобильных устройств.
-# =========================================================================
-
-# --- 3.1. Боковая панель (Только автоматические сквозные данные) ---
-st.sidebar.markdown("### 🧬 Сквозные данные системы")
-selected_vink = st.sidebar.text_input("Заказчик (Холдинг):", value=st.session_state.get("main_page_company", "Роснефть"), disabled=True)
-
-# Считывание базы данных лимитов из Excel с защитным откатом
-try:
-    df_vink_db = pd.read_excel("vink_limits_db.xlsx")
-    df_vink_db["Холдинг"] = df_vink_db["Холдинг"].astype(str).str.strip()
-    df_vink_db["Заказчик (ДОР)"] = df_vink_db["Заказчик (ДОР)"].astype(str).str.strip()
-except Exception:
-    fallback_data = {
-        "Холдинг": ["Роснефть", "Роснефть", "Газпром нефть", "ЛУКОЙЛ"],
-        "Заказчик (ДОР)": ["ООО РН-Юганскнефтегаз", "АО Самаранефтегаз", "ООО Газпромнефть-Хантос", "ООО ЛУКОЙЛ-Западная Сибирь"],
-        "Лимит_DLS": [2.5, 3.0, 3.2, 2.8],
-        "Лимит_ГНО": [1.0, 1.5, 1.2, 1.1]
-    }
-    df_vink_db = pd.DataFrame(fallback_data)
-
-# Фильтруем строки таблицы по холдингу
-filtered_dors = df_vink_db[df_vink_db["Холдинг"] == selected_vink]
-list_of_dors = filtered_dors["Заказчик (ДОР)"].unique().tolist() if not filtered_dors.empty else ["Стандартный договор"]
-
 # Подтягиваем автоматические параметры раствора и износа
 shared_buoyancy = float(st.session_state.get("shared_buoyancy_factor", 0.85))
 yield_stress = float(st.session_state.get("shared_yield_stress", 40.0))
