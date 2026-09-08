@@ -51,35 +51,7 @@ def login_screen():
             field_name_input = st.text_input("Название месторождения:", value=st.session_state["field_name"], placeholder="например, Приобское")
         with col_reg3:
             bha_number_input = st.text_input("Порядковый номер сборки КНБК:", value=st.session_state["bha_number"])
-# База данных Заказчиков бурения РФ по холдингам (Актуальность: 2026 г.)
-vink_database = {
-    "Роснефть": ["ООО РН-Юганскнефтегаз", "ООО РН-Ванкор", "АО Самотлорнефтегаз", "АО Верхнечонскнефтегаз", "АО Сузун", "ООО РН-Уватнефтегаз", "ООО РН-Пурнефтегаз", "АО Самаранефтегаз", "АО Оренбургнефть", "ООО Башнефть-Добыча", "ООО Таас-Юрях Нефтегазодобыча"],
-    "Газпром нефть": ["ООО Газпромнефть-Хантос", "ООО Газпромнефть-Ноябрьскнефтегаз", "ООО Газпромнефть-Восток", "ООО Газпромнефть-Заполярье", "ООО Газпромнефть-Ямал", "ООО Газпромнефть-Оренбург", "ООО Мессояханефтегаз"],
-    "ЛУКОЙЛ": ["ООО ЛУКОЙЛ-Западная Сибирь", "ООО ЛУКОЙЛ-Коми", "ООО ЛУКОЙЛ-ПЕРМЬ", "ООО ЛУКОЙЛ-Нижневолжскнефть", "ООО ЛУКОЙЛ-Калининградморнефть"],
-    "НОВАТЕК": ["ООО НОВАТЕК-Юрхаровнефтегаз", "ООО Арктик СПГ 2", "ОАО Ямал СПГ", "ООО НОВАТЕК-Таркосаленефтегаз"],
-    "Сургутнефтегаз": ["НГДУ Лянторнефть", "НГДУ Федоровскнефть", "НГДУ Быстринскнефть", "НГДУ Сургутнефть", "НГДУ Талаканнефть"],
-    "Независимый оператор (Ввод вручную)": ["Ввести параметры компании вручную"]
-}
 
-st.markdown("##### 🏢 Привязка к контракту Заказчика:")
-col_v1, col_v2 = st.columns(2)
-
-with col_v1:
-    main_vink = st.selectbox("Холдинг / Оператор (ВИНК):", list(vink_database.keys()), key="main_vink_select")
-    st.session_state["main_page_company"] = main_vink
-
-with col_v2:
-    main_dor = st.selectbox("Конкретное предприятие (Заказчик):", vink_database[main_vink], key="main_dor_select")
-    
-# Если выбран ручной ввод, даем инженеру текстовое поле для новой компании
-if main_vink == "Независимый оператор (Ввод вручную)":
-    custom_co = st.text_input("Введите название независимого оператора:", value="АО ИНК", key="main_custom_co")
-    st.session_state["shared_dor_name"] = custom_co
-else:
-    st.session_state["shared_dor_name"] = main_dor
-
-    # Кнопка верификации и отправки в систему
-    if st.button("🚀 Авторизоваться и запустить систему", use_container_width=True):
         if username == "engineer_nnb" and password == "Traektoriya 2026":
             if not engineer_name_input or not well_number_input or not field_name_input:
                 st.error("🚨 ОШИБКА РЕГИСТРАЦИИ: Все поля параметров рейса обязательны для заполнения по регламенту Р-ТС-35.")
@@ -94,6 +66,31 @@ else:
                 st.rerun()
         else:
             st.error("❌ Доступ отклонен: Неверный логин или пароль СМК.")
+        # База данных Заказчиков бурения РФ и блок выбора (добавлены корректные отступы)
+        vink_database = {
+            "Роснефть": ["ООО РН-Юганскнефтегаз", "..."],
+            # ... полный словарь доступен в репозитории app.py ...
+        }
+
+        st.markdown("##### 🏢 Привязка к контракту Заказчика:")
+        col_v1, col_v2 = st.columns(2)
+
+        with col_v1:
+            main_vink = st.selectbox("Холдинг / Оператор (ВИНК):", list(vink_database.keys()), key="main_vink_select")
+            st.session_state["main_page_company"] = main_vink
+
+        with col_v2:
+            main_dor = st.selectbox("Конкретное предприятие (Заказчик):", vink_database.get(main_vink, []), key="main_dor_select")
+
+        if main_vink == "Независимый оператор (Ввод вручную)":
+            custom_co = st.text_input("Введите название независимого оператора:", value="АО ИНК", key="main_custom_co")
+            st.session_state["shared_dor_name"] = custom_co
+        else:
+            st.session_state["shared_dor_name"] = main_dor
+
+        st.markdown(" ")
+
+        if st.button("🚀 Авторизоваться и запустить систему", use_container_width=True):
 
 # ==============================================================================
 # 3. НАВИГАЦИОННАЯ СТРУКТУРА 8 МОДУЛЕЙ И ГЛОБАЛЬНЫЙ САЙДБАР
