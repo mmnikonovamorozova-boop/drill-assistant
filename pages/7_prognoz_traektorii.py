@@ -281,24 +281,7 @@ rheology_modifier = (1.0 / f_dens) * (1.0 + (f_yp_corrected * 0.025) * (2.0 - n_
 k_slide_current = float(active_calibration.get("k_slide_base", 0.38))
 k_rotary_current = float(active_calibration.get("k_rotary_base", 0.02))
 
-# --- НОВАЯ ФУНКЦИЯ ОЦБ: РАСЧЕТ ИНДЕКСА СЛОЖНОСТИ СТВОЛА (DDI) ---
-forecast_dls_val = st.session_state.get("forecast_dls_deg10m", 0.0)
-if forecast_dls_val > 0:
-    calculated_ddi = math.log10(forecast_md) * (1.0 + (forecast_dls_val / max_allowed_dls))
-else:
-    calculated_ddi = math.log10(forecast_md)
 
-st.markdown("##### 📐 Оценка профиля по стандарту СТО ИНТИ S.QS.8:")
-col_ddi1, col_ddi2 = st.columns(2)
-with col_ddi1:
-    st.metric("Индекс сложности ствола (DDI)", f"{calculated_ddi:.2f} ед.")
-with col_ddi2:
-    if calculated_ddi < 4.0:
-        st.success("🟢 Профиль простой (Низкие риски затяжек)")
-    elif calculated_ddi < 6.0:
-        st.warning("⚠ Профиль средней сложности (Контролировать торк)")
-    else:
-        st.error("🚨 Высокая извилистость! Риск недохождения обсадной колонны")
 
 st.markdown("##### ⚙ Параметры калибровки боковой силы и анизотропии пласта:")
 col_f1, col_f2 = st.columns(2)
@@ -336,6 +319,24 @@ delta_azi = (itogo_shag_azimut / 10.0) * progno_step_meters
 forecast_inc = max(0.0, min(90.0, current_inc + delta_inc))
 forecast_azi = (current_azi + delta_azi) % 360.0
 st.session_state["forecast_dls_deg10m"] = abs(itogo_shag_zenit)
+# --- НОВАЯ ФУНКЦИЯ ОЦБ: РАСЧЕТ ИНДЕКСА СЛОЖНОСТИ СТВОЛА (DDI) ---
+forecast_dls_val = st.session_state.get("forecast_dls_deg10m", 0.0)
+if forecast_dls_val > 0:
+    calculated_ddi = math.log10(forecast_md) * (1.0 + (forecast_dls_val / max_allowed_dls))
+else:
+    calculated_ddi = math.log10(forecast_md)
+
+st.markdown("##### 📐 Оценка профиля по стандарту СТО ИНТИ S.QS.8:")
+col_ddi1, col_ddi2 = st.columns(2)
+with col_ddi1:
+    st.metric("Индекс сложности ствола (DDI)", f"{calculated_ddi:.2f} ед.")
+with col_ddi2:
+    if calculated_ddi < 4.0:
+        st.success("🟢 Профиль простой (Низкие риски затяжек)")
+    elif calculated_ddi < 6.0:
+        st.warning("⚠ Профиль средней сложности (Контролировать торк)")
+    else:
+        st.error("🚨 Высокая извилистость! Риск недохождения обсадной колонны")
 st.markdown("##### 📊 Прогноз пространственного положения КНБК на забое:")
 col_r1, col_r2, col_r3 = st.columns(3)
 col_r1.metric("Прогнозная глубина MD", f"{forecast_md:.1f} м", f"+{progno_step_meters:.1f} м")
