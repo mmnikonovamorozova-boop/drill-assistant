@@ -308,31 +308,6 @@ if st.button("✉ Подготовить письмо в почтовой про
     mailto_link = f"mailto:{email_recipient}?subject={subject_text}&body={body_text}"
     js_code = f'<script>window.open("{mailto_link}", "_blank");</script>'
     st.components.v1.html(js_code, height=0)
-# ... здесь заканчивается сборка html_vzd += "</div>"
-
-# Отображаем собранный документ в интерфейсе
-st.components.v1.html(html_vzd, height=350, scrolling=True)
-
-# Кнопка №1: Скачивание готового файла акта
-st.download_button(
-    label="💾 Скачать официальный Акт замера люфтов в формате HTML",
-    data=html_vzd,
-    file_name=f"Akt_Lyuft_VZD_Skv_{well}.html",
-    mime="text/html",
-    use_container_width=True
-)
-
-# Поле для ввода адреса почты
-email_recipient = st.text_input("Email получателя Акта:", placeholder="boss@yourcompany.ru")
-
-# Кнопка №2: Безопасная отправка почты через кнопку-триггер
-if st.button("✉ Подготовить письмо в почтовой программе", use_container_width=True):
-    subject_text = f"Акт контроля люфта ВЗД — {field}, Скв. {well}".replace(" ", "%20")
-    body_text = f"Приветствую! Сформирован официальный акт замера осевого и радиального люфта ВЗД для скважины {well} ({field}). Инженер: {engineer}.".replace(" ", "%20")
-    
-    mailto_link = f"mailto:{email_recipient}?subject={subject_text}&body={body_text}"
-    js_code = f'<script>window.open("{mailto_link}", "_blank");</script>'
-    st.components.v1.html(js_code, height=0)
 
 # =========================================================================
 # БЛОК 6: СТАБИЛЬНЫЙ МОДУЛЬ ОНЛАЙН-ВАЛИДАЦИИ (ГЕОМЕТРИЯ + ННБ)
