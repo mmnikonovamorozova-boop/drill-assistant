@@ -243,9 +243,11 @@ safe_radial_ich = max(0.01, radial_ich)
 safe_limit_wear = max(1.0, limit_wear)
 
 # 2. МАТЕМАТИЧЕСКОЕ ЯДРО С ПОЛНОЙ БЛОКИРОВКОЙ ПРИ СМЯТИИ/ИЗНОСЕ ОПОР
-if calculated_axial_delta < eff_max or radial_ich > 1.0 or calculated_axial_delta <= 0:
+
+if calculated_axial_delta > eff_max or radial_ich > 1.80 or calculated_axial_delta <= 0:
     wob_reduction_factor = 0.0
     dls_reduction_factor = 0.0
+
 else:
     # Чем больше зазор calculated_axial_delta относительно порога eff_max, тем стабильнее работа
     wob_reduction_factor = max(0.1, min(1.0, (eff_max / max(0.01, calculated_axial_delta)) ** 0.5))
@@ -288,8 +290,9 @@ st.markdown("---")
 st.markdown("#### Результаты комплексной проверки шпиндельного узла:")
 
 is_measurement_error = calculated_axial_delta <= 0
-is_failed = calculated_axial_delta < eff_max or radial_ich > 1.0
-is_warning = abs(calculated_axial_delta - eff_max) < 0.01
+# Двигатель забракован, если фактический люфт БОЛЬШЕ лимита
+is_failed = calculated_axial_delta > eff_max or radial_ich > 1.80
+is_warning = abs(calculated_axial_delta - eff_max) < 0.1
 
 if is_measurement_error:
     res, style = "ОШИБКА ИЗМЕРЕНИЙ (Зазор меньше или равен нулю)", "color: #795203; background-color: #FEF3C7;"
@@ -367,7 +370,8 @@ st.markdown("---")
 st.subheader("📥 Официальный бланк замера")
 
 # Определение цветовой схемы и статуса допуска ВЗД на основе расчета
-if res == "ДОПУЩЕН":
+
+if "ДОПУЩЕНО" in res:
     border_color = "#1E3A8A"  # Синий
     bg_color = "#FAFAFA"      # Светлый
     title_text = "АКТ ТЕХНИЧЕСКОГО КОНТРОЛЯ ШПИНДЕЛЯ ВЗД"
