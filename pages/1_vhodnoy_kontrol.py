@@ -134,16 +134,52 @@ html_form += "<p style='font-size:15px;'><b>Наименование обору�
 html_form += "<p style='font-size:15px;'><b>Заводской серийный номер (ввод вручную):</b> " + (str(element_serial) if element_serial else "<span style='color:red;'>НЕ ВВЕДЕН</span>") + "</p>"
 html_form += "<hr style='border:1px dashed #D1D5DB; margin:15px 0;'>"
 html_form += "<h4 style='color:#1E3A8A; margin-top:10px; padding-bottom:5px;'>РЕЗУЛЬТАТЫ ВЕРИФИКАЦИИ УЗЛОВ КНБК:</h4>"
-html_form += "<p style='font-size:14px;'><b>1. Общий контроль элементов КНБК и УМК:</b> <span style='color:" + color_k + ";'><b>" + res_k + "</b></span></p>"
+html_form += f"<p style='font-size:14px;'><b>1. Общий контроль элементов КНБК и УМК:</b> <span style='color:{color_k};'><b>{res_k}</b></span></p>"
 
-# Вшиваем результаты блоков в Акт только если они активировались
+# Если есть замечания по Блоку 1, выводим список того, что НЕ выполнено
+if not (k1 and k2 and k3 and k4 and k5 and k6 and k7 and k8 and k9 and k10):
+    html_form += "<div style='background-color: #FEF2F2; border-left: 4px solid #EF4444; padding: 10px; margin-left: 20px; border-radius: 4px;'>"
+    html_form += "<p style='margin: 0 0 5px 0; color: #991B1B; font-weight: bold; font-size: 13px;'>❌ Выявленные несоответствия общего контроля:</p><ul style='margin: 0; padding-left: 20px; color: #B91C1C; font-size: 13px;'>"
+    if not k1: html_form += "<li>Не соответствует количество поступившего оборудования указанному в ТТН</li>"
+    if not k2: html_form += "<li>Отсутствуют заводские паспорта или акты дефектоскопии (старше 12 месяцев)</li>"
+    if not k3: html_form += "<li>Данные в паспортах не соответствуют выбитым номерам на оборудовании</li>"
+    if not k4: html_form += "<li>Отсутствует декларация о соответствии или сертификаты качества</li>"
+    if not k5: html_form += "<li>Не выполнен замер комплекта шаров циркуляционного переводника на проходимость</li>"
+    if not k6: html_form += "<li>Защитные колпаки присутствуют не на всех резьбовых соединениях</li>"
+    if not k7: html_form += "<li>Отсутствует поверенный паспорт на моментомер ключа УМК</li>"
+    if not k8: html_form += "<li>Предохранительный хомут (ХП) не укомплектован ЗИП, есть дефекты сухарей/шплинтов</li>"
+    if not k9: html_form += "<li>Не проведена калибровка мерительного инструмента</li>"
+    if not k10: html_form += "<li>На корпус кожуха резистивиметра не нанесена надпись «ВВЕРХ» или не замерены окна</li>"
+    html_form += "</ul></div>"
+
+# Выводим результаты блоков в Акт только если они активировались
+
 if "ВЗД" in str(element_name).upper():
-    html_form += "<p style='font-size:14px;'><b>2. Специальная проверка забойного двигателя (ВЗД):</b> <span style='color:" + color_v + ";'><b>" + res_v + "</b></span></p>"
-if "ДОЛОТО" in str(element_name).upper():
-    html_form += "<p style='font-size:14px;'><b>3. Специальный входной контроль бурового долота:</b> <span style='color:" + color_d + ";'><b>" + res_d + "</b></span></p>"
+    html_form += f"<p style='font-size:14px; margin-top:15px;'><b>2. Специальная проверка забойного двигателя (ВЗД):</b> <span style='color:{color_v};'><b>{res_v}</b></span></p>"
+    
+    # Если по ВЗД есть замечания, выводим конкретные дефекты
+    if not (v1 and v2 and v3 and v4 and v5):
+        html_form += "<div style='background-color: #FEF2F2; border-left: 4px solid #EF4444; padding: 10px; margin-left: 20px; border-radius: 4px;'>"
+        html_form += "<p style='margin: 0 0 5px 0; color: #991B1B; font-weight: bold; font-size: 13px;'>❌ Выявленные несоответствия по ВЗД:</p><ul style='margin: 0; padding-left: 20px; color: #B91C1C; font-size: 13px;'>"
+        if not v1: html_form += "<li>Данные о наработке в паспорте ВЗД внесены не полностью или несвоевременно</li>"
+        if not v2: html_form += "<li>Выставленные углы перекоса регулятора ВЗД НЕ соответствуют заявленным в паспорте</li>"
+        if not v3: html_form += "<li>Визуально обнаружены повреждения резьб муфты или ниппеля ВЗД</li>"
+        if not v4: html_form += "<li>Буровая бригада выявила неисправность или заклинивание обратного клапана ВЗД</li>"
+        if not v5: html_form += "<li>На корпусе шпинделя или статора присутствует красная отметка дефектоскопии (брак)</li>"
+        html_form += "</ul></div>"
 
-html_form += "<p style='font-size:11px; color:#4B5563; text-align:center; margin-top:35px; border-top:1px solid #E5E7EB; padding-top:10px;'><b>Разработчик:</b> Старший инженер-технолог по ННБ • Экосистема цифровых сервисов ООО «Траектория-Сервис»</p>"
-html_form += "</div>"
+if "ДОЛОТО" in str(element_name).upper():
+    html_form += f"<p style='font-size:14px; margin-top:15px;'><b>3. Специальный входной контроль бурового долота:</b> <span style='color:{color_d};'><b>{res_d}</b></span></p>"
+    
+    # Если по долоту есть замечания, выводим конкретные дефекты
+    if not (d1 and d2 and d3 and d4):
+        html_form += "<div style='background-color: #FEF2F2; border-left: 4px solid #EF4444; padding: 10px; margin-left: 20px; border-radius: 4px;'>"
+        html_form += "<p style='margin: 0 0 5px 0; color: #991B1B; font-weight: bold; font-size: 13px;'>❌ Выявленные несоответствия по буровому долоту:</p><ul style='margin: 0; padding-left: 20px; color: #B91C1C; font-size: 13px;'>"
+        if not d1: html_form += "<li>Отсутствует паспорт долота, акт дефектоскопии или свидетельство о поверке колец</li>"
+        if not d2: html_form += "<li>Корпус долота поврежден (микротрещины, эрозия, размывы тела)</li>"
+        if not d3: html_form += "<li>Гидромониторные насадки не установлены, не зафиксированы или не соответствуют программе</li>"
+        if not d4: html_form += "<li>Твердосплавные элементы/матрица имеют сколы, или шарошки вращаются неравномерно</li>"
+        html_form += "</ul></div>"
 
 st.markdown("---")
 st.subheader("📥 Официальный бланк Акта приемки:")
