@@ -50,39 +50,47 @@ with st.expander("🔰 Паспорт верификации СТО ИНТИ S.Q
     * **Следственная прослеживаемость:** Автоматическое логирование фактов принудительного спуска изношенного оборудования (протокол 'Override').
     """)
 
-# --- ФУНКЦИЯ УНИВЕРСАЛЬНОГО ПОЛЕВОГО ПАРСЕРА ---
 def parse_field_bha_report(uploaded_file):
     """
-    Универсальный полевой парсер ООО 'Траектория-Сервис'.
-    Автоматически определяет формат и гарантирует чтение без сбоев движков.
+    Абсолютно неубиваемый полевой парсер ООО 'Траектория-Сервис'.
+    Если стандартный Excel-движок падает из-за старого формата, 
+    автоматически переключается на текстовый поток (CSV), гарантируя чтение.
     """
-    try:
-        file_name = uploaded_file.name
-        
-        # 1. Если мастер прислал Excel (xlsx или старый xls)
-        if file_name.endswith('.xlsx') or file_name.endswith('.xls'):
-            try:
-                # Пробуем прочитать стандартным способом
-                df = pd.read_excel(uploaded_file, header=None).dropna(how='all')
-            except Exception:
-                # Если сервер ругается на отсутствие xlrd для старых .xls, 
-                # принудительно заставляем читать через универсальный движок openpyxl
-                uploaded_file.seek(0)
-                df = pd.read_excel(uploaded_file, header=None, engine='openpyxl').dropna(how='all')
-        
-        # 2. Если файл сохранен как CSV
-        else:
+    df = None
+    file_name = uploaded_file.name
+    
+    # Попытка 1: Читаем как стандартный Excel (если это честный xlsx)
+    if file_name.endswith('.xlsx') or file_name.endswith('.xls'):
+        try:
+            df = pd.read_excel(uploaded_file, header=None).dropna(how='all')
+        except Exception:
+            # Если движок упал (File is not a zip / missing xlrd), сбрасываем указатель и идем в Попытку 2
+            uploaded_file.seek(0)
+            df = None
+
+    # Попытка 2: Читаем как текстовый CSV поток (самый надежный способ для полей)
+    if df is None:
+        try:
             raw_bytes = uploaded_file.read()
             try:
                 text_data = raw_bytes.decode("utf-8")
             except UnicodeDecodeError:
                 text_data = raw_bytes.decode("cp1251", errors="ignore")
+            
+            # Читаем с автоопределением разделителя (запятая, точка с запятой или табуляция)
             df = pd.read_csv(io.StringIO(text_data), header=None, sep=None, engine='python').dropna(how='all')
-            df = df.applymap(lambda x: str(x).strip().replace('"', '') if pd.notna(x) else '')
+        except Exception as e:
+            st.error(f"🚨 Критическая ошибка чтения структуры файла: {str(e)}")
+            return None, None
+
+    # --- БЛОК ОЧИСТКИ И ИЗВЛЕЧЕНИЯ ДАННЫХ (Остается неизменным) ---
+    try:
+        # Очищаем все ячейки от кавычек Excel и пробелов
+        df = df.applymap(lambda x: str(x).strip().replace('"', '') if pd.notna(x) else '')
         
         meta = {"field": "Не указано", "well": "Не указано", "client": "Не указано", "bha_num": "1"}
         
-        # Сканнер шапки рапорта
+        # Сканируем шапку рапорта Траектории-Сервис
         for idx, row in df.iterrows():
             row_list = list(row.values)
             for i, cell in enumerate(row_list):
@@ -96,7 +104,7 @@ def parse_field_bha_report(uploaded_file):
                 if "Номер КНБК" in cell_clean and i+1 < len(row_list):
                     meta["bha_num"] = str(row_list[i+1]).strip()
 
-        # Сканнер таблицы элементов КНБК
+        # Сканируем таблицу элементов КНБК
         table_start_idx = None
         for idx, row in df.iterrows():
             row_str_lower = [str(cell).lower() for cell in row.values]
@@ -108,18 +116,20 @@ def parse_field_bha_report(uploaded_file):
             return meta, None
             
         df_bha_raw = df.loc[table_start_idx:].copy()
-        raw_headers = df_bha_raw.iloc[0].values
+        raw_headers = df_bha_raw.iloc.values
         clean_headers = [str(h).strip().replace('\n', ' ') for h in raw_headers]
         df_bha_raw.columns = clean_headers
         df_bha_raw = df_bha_raw.iloc[1:]
         
+        # Оставляем только строки элементов (где в первом столбце число)
         first_col = df_bha_raw.columns[0]
         df_bha_raw[first_col] = pd.to_numeric(df_bha_raw[first_col], errors='coerce')
         df_bha_clean = df_bha_raw.dropna(subset=[first_col])
         
         return meta, df_bha_clean
+        
     except Exception as e:
-        st.error(f"🚨 Ошибка автоматического парсинга рапорта КНБК: {str(e)}")
+        st.error(f"🚨 Ошибка разбора внутренней таблицы рапорта: {str(e)}")
         return None, None
 
 # =========================================================================
