@@ -51,103 +51,73 @@ with st.expander("🔰 Паспорт верификации СТО ИНТИ S.Q
     """)
 
 def parse_field_bha_report(uploaded_file):
-    """
-    Высокоточный полевой парсер ООО 'Траектория-Сервис'.
-    Мягкая фильтрация строк КНБК, устойчивая к скрытым пробелам и точкам буровых мастеров.
-    Зацепка за таблицу идет по неубиваемым словам 'элемент' и 'серийный'.
-    """
-    try:
-        raw_bytes = uploaded_file.read()
-        
-        # Читаем файл как текстовый поток в кодировке Windows (cp1251)
+    df = None
+    file_name = uploaded_file.name
+    
+    if file_name.endswith('.xlsx') or file_name.endswith('.xls'):
         try:
-            text_data = raw_bytes.decode("cp1251", errors="ignore")
+            df = pd.read_excel(uploaded_file, header=None).dropna(how='all')
         except Exception:
-            text_data = raw_bytes.decode("utf-8", errors="ignore")
-            
-        lines = text_data.splitlines()
-        parsed_rows = []
-        
-        for line in lines:
-            if not line.strip():
-                continue
-            # Автоопределение разделителя полей: запятая или точка с запятой
-            separator = ';' if ';' in line else ','
-            cells = [c.strip().replace('"', '') for c in line.split(separator)]
-            parsed_rows.append(cells)
-            
-        if not parsed_rows:
+            uploaded_file.seek(0)
+            df = None
+    if df is None:
+        try:
+            raw_bytes = uploaded_file.read()
+            try:
+                text_data = raw_bytes.decode("cp1251", errors="ignore")
+            except Exception:
+                text_data = raw_bytes.decode("utf-8", errors="ignore")
+            lines = text_data.splitlines()
+            parsed_rows = []
+            for line in lines:
+                if not line.strip():
+                    continue
+                separator = ';' if ';' in line else ','
+                cells = [c.strip().replace('"', '') for c in line.split(separator)]
+                parsed_rows.append(cells)
+            df = pd.DataFrame(parsed_rows)
+        except Exception:
             return {"field": "Не указано", "well": "Не указано", "client": "Не указано", "bha_num": "1"}, None
-            
-        # Выравниваем длину колонок матрицы
-        max_cols = max(len(row) for row in parsed_rows)
-        for row in parsed_rows:
-            while len(row) < max_cols:
-                row.append('')
-                
-        df = pd.DataFrame(parsed_rows)
-        
-        # --- БЛОК 1: СБОР МЕТАДАННЫХ РЕЙСА ---
-        meta = {"field": "Не указано", "well": "Не указано", "client": "Не указано", "bha_num": "1"}
-        
-        for idx, row in df.iterrows():
-            row_list = list(row.values)
-            for i, cell in enumerate(row_list):
-                cell_clean = str(cell).strip()
-                if "Месторождение" in cell_clean and i+2 < len(row_list):
-                    meta["field"] = str(row_list[i+2]).strip()
-                if "Заказчик" in cell_clean and i+1 < len(row_list):
-                    meta["client"] = str(row_list[i+1]).strip()
-                if "Куст" in cell_clean and i+2 < len(row_list):
-                    meta["well"] = str(row_list[i+2]).strip()
-                if "Номер КНБК" in cell_clean and i+1 < len(row_list):
-                    raw_bha_num = str(row_list[i+1]).strip()
-                    # ИСПРАВЛЕНИЕ: берем только первую часть до точки, возвращая ЧИСТУЮ СТРОКУ
-                    meta["bha_num"] = raw_bha_num.split('.')[0] if '.' in raw_bha_num else raw_bha_num
 
-        # --- БЛОК 2: СБОР ТАБЛИЦЫ ЭЛЕМЕНТОВ КНБК ---
-        table_start_idx = None
-        for idx, row in df.iterrows():
-            row_str_lower = [str(cell).lower() for cell in row.values]
-            # Ищем заголовок таблицы по словам 'элемент' и 'серийный' (игнорируем знак №)
-            if any("элемент" in c for c in row_str_lower) and any("серийный" in c for c in row_str_lower):
-                table_start_idx = idx
-                break
-                
-        if table_start_idx is None:
-            return meta, None
+    meta = {"field": "Не указано", "well": "Не указано", "client": "Не указано", "bha_num": "1"}
+    
+    for idx, row in df.iterrows():
+        row_list = list(row.values)
+        for i, cell in enumerate(row_list):
+            cell_clean = str(cell).strip()
+            if "Месторождение" in cell_clean and i+2 < len(row_list):
+                meta["field"] = str(row_list[i+2]).strip()
+            if "Заказчик" in cell_clean and i+1 < len(row_list):
+                meta["client"] = str(row_list[i+1]).strip()
+            if "Куст" in cell_clean and i+2 < len(row_list):
+                meta["well"] = str(row_list[i+2]).strip()
+            if "Номер КНБК" in cell_clean and i+1 < len(row_list):
+                raw_bha_num = str(row_list[i+1]).strip()
+                meta["bha_num"] = raw_bha_num.split('.')[0] if '.' in raw_bha_num else raw_bha_num
+
+    table_start_idx = None
+    for idx, row in df.iterrows():
+        row_str_lower = [str(cell).lower() for cell in row.values]
+        if any("элемент" in c for c in row_str_lower) and any("серийный" in c for c in row_str_lower):
+            table_start_idx = idx
+            break
+    if table_start_idx is None:
+        return meta, None
+        
+    df_bha_raw = df.loc[table_start_idx:].copy()
+    raw_headers = df_bha_raw.iloc[0].values
+    clean_headers = [str(h).strip().replace('\n', ' ') for h in raw_headers]
+    df_bha_raw.columns = clean_headers
+    df_bha_raw = df_bha_raw.iloc[1:]
+    element_col = df_bha_raw.columns[0]
+    for col in df_bha_raw.columns:
+        if "элемент" in str(col).lower():
+            element_col = col
+            break
             
-        df_bha_raw = df.loc[table_start_idx:].copy()
-        
-        # Назначаем имена колонок по строке найденного заголовка
-        raw_headers = df_bha_raw.iloc[0].values
-        clean_headers = [str(h).strip().replace('\n', ' ') for h in raw_headers]
-        df_bha_raw.columns = clean_headers
-        df_bha_raw = df_bha_raw.iloc[1:] # Смещаем вниз, отсекая строку заголовка
-        
-        # Находим фактическое имя колонки элементов для фильтрации
-        element_col = df_bha_raw.columns[1] # Дефолтная страховка
-        for col in df_bha_raw.columns:
-            if "элемент" in str(col).lower():
-                element_col = col
-                break
-                
-        # МЯГКАЯ ПОЛЕВАЯ ФИЛЬТРАЦИЯ СТРОК
-        # Забираем только те строки, где в колонке элементов есть маркеры реального железа
-        df_bha_clean = df_bha_raw[
-            df_bha_raw[element_col].str.contains("ВР|ВЗД|УБТ|ТБТ|СБТ|П-|М-|долото|клапан|теле|mwd|рус", case=False, na=False)
-        ].copy()
-        
-        # Очищаем от полностью пустых столбцов, если они прилипли сбоку
-        keep_cols = [c for c in df_bha_clean.columns if str(c).strip() != '']
-        df_bha_final = df_bha_clean[keep_cols].copy()
-        
-        return meta, df_bha_final
-        
-    except Exception as e:
-        # Выводим технический Traceback на боковую панель в случае непредвиденного сбоя
-        st.sidebar.error(f"🔧 Внутренний сбой функции парсера: {str(e)}")
-        return {"field": "Не указано", "well": "Не указано", "client": "Не указано", "bha_num": "1"}, None
+    df_bha_clean = df_bha_raw[df_bha_raw[element_col].str.contains("ВР|ВЗД|УБТ|ТБТ|СБТ|П-|М-|долото|клапан|теле|mwd|рус|bs|дру", case=False, na=False)].copy()
+    keep_cols = [c for c in df_bha_clean.columns if str(c).strip() != '']
+    return meta, df_bha_clean[keep_cols].copy()
 
 # =========================================================================
 # ШАГ 1: ПРОЦЕССНЫЙ ТУМБЛЕР
