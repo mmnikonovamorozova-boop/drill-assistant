@@ -102,7 +102,7 @@ def parse_field_bha_report(uploaded_file):
                     meta["well"] = str(row_list[i+2]).strip()
                 if "Номер КНБК" in cell_clean and i+1 < len(row_list):
                     raw_bha_num = str(row_list[i+1]).strip()
-                    # ИСПРАВЛЕНИЕ: Безопасно отсекаем точку и берем только чистый номер
+                    # ИСПРАВЛЕНИЕ: берем только первую часть до точки, возвращая ЧИСТУЮ СТРОКУ
                     meta["bha_num"] = raw_bha_num.split('.')[0] if '.' in raw_bha_num else raw_bha_num
 
         # --- БЛОК 2: СБОР ТАБЛИЦЫ ЭЛЕМЕНТОВ КНБК ---
