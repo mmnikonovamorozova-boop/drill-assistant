@@ -53,8 +53,7 @@ with st.expander("🔰 Паспорт верификации СТО ИНТИ S.Q
 def parse_field_bha_report(uploaded_file):
     """
     Высокоточный полевой парсер ООО 'Траектория-Сервис'.
-    Адаптирован под текстовые CSV-потоки, маскирующиеся под .xls.
-    Игнорирует опечатки буровых мастеров (Длина/Длинна).
+    Мягкая фильтрация строк КНБК, устойчивая к скрытым пробелам и точкам буровых мастеров.
     """
     try:
         raw_bytes = uploaded_file.read()
@@ -101,15 +100,14 @@ def parse_field_bha_report(uploaded_file):
                 if "Куст" in cell_clean and i+2 < len(row_list):
                     meta["well"] = str(row_list[i+2]).strip()
                 if "Номер КНБК" in cell_clean and i+1 < len(row_list):
-                    # Безопасное извлечение номера КНБК без падений
                     raw_bha_num = str(row_list[i+1]).strip()
+                    # ИСПРАВЛЕНИЕ: берем только целую часть до точки, возвращая СТРОКУ, а не список!
                     meta["bha_num"] = raw_bha_num.split('.')[0] if '.' in raw_bha_num else raw_bha_num
 
         # --- БЛОК 2: СБОР ТАБЛИЦЫ ЭЛЕМЕНТОВ ---
         table_start_idx = None
         for idx, row in df.iterrows():
             row_str_lower = [str(cell).lower() for cell in row.values]
-            # Ищем строку заголовка таблицы элементов
             if any("п/п" in c for c in row_str_lower) and any("элемент" in c for c in row_str_lower):
                 table_start_idx = idx
                 break
@@ -120,29 +118,31 @@ def parse_field_bha_report(uploaded_file):
         df_bha_raw = df.loc[table_start_idx:].copy()
         
         # Назначаем имена колонок по строке заголовка
-        raw_headers = df_bha_raw.iloc[0].values
+        raw_headers = df_bha_raw.iloc.values
         clean_headers = [str(h).strip().replace('\n', ' ') for h in raw_headers]
         df_bha_raw.columns = clean_headers
         df_bha_raw = df_bha_raw.iloc[1:]
         
-        # Находим имя первой колонки (№ п/п)
-        first_col = df_bha_raw.columns[0]
+        # Находим имя колонки элементов
+        element_col = df_bha_raw.columns
         for col in df_bha_raw.columns:
-            if "п/п" in str(col).lower():
-                first_col = col
+            if "элемент" in str(col).lower():
+                element_col = col
                 break
                 
-        # Фильтруем строки: оставляем только те, где в № п/п стоит число (1.0, 2.0 и т.д.)
-        df_bha_raw['temp_num'] = pd.to_numeric(df_bha_raw[first_col], errors='coerce')
-        df_bha_clean = df_bha_raw.dropna(subset=['temp_num']).drop(columns=['temp_num'])
+        # МЯГКАЯ ПОЛЕВАЯ ФИЛЬТРАЦИЯ
+        df_bha_clean = df_bha_raw[
+            df_bha_raw[element_col].str.contains("ВР|ВЗД|УБТ|ТБТ|СБТ|П-|М-|долото|клапан|теле|mwd|рус", case=False, na=False)
+        ].copy()
         
-        # Оставляем только значимые колонки, очищая от пустых крайних столбцов
         keep_cols = [c for c in df_bha_clean.columns if c.strip() != '']
         df_bha_final = df_bha_clean[keep_cols].copy()
         
         return meta, df_bha_final
         
     except Exception as e:
+        # Выводим техническую ошибку прямо на экран, чтобы сразу её видеть!
+        st.sidebar.error(f"🔧 Внутренний сбой парсера: {str(e)}")
         return {"field": "Не указано", "well": "Не указано", "client": "Не указано", "bha_num": "1"}, None
 
 # =========================================================================
