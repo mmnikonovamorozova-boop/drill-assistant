@@ -50,17 +50,29 @@ with st.expander("🔰 Паспорт верификации СТО ИНТИ S.Q
     * **Следственная прослеживаемость:** Автоматическое логирование фактов принудительного спуска изношенного оборудования (протокол 'Override').
     """)
 
-# --- ФУНКЦИЯ ОПТИМИЗИРОВАННОГО ПОЛЕВОГО ПАРСЕРА ---
 def parse_field_bha_report(uploaded_file):
+    """
+    Универсальный полевой парсер ООО 'Траектория-Сервис'.
+    Автоматически определяет формат (.csv или .xlsx) и извлекает КНБК и метаданные.
+    """
     try:
-        raw_bytes = uploaded_file.read()
-        try:
-            text_data = raw_bytes.decode("utf-8")
-        except UnicodeDecodeError:
-            text_data = raw_bytes.decode("cp1251")
-            
-        df = pd.read_csv(io.StringIO(text_data), header=None).dropna(how='all')
+        file_name = uploaded_file.name
         
+        # 1. Если мастер скинул оригинальный Excel (.xlsx / .xls)
+        if file_name.endswith('.xlsx') or file_name.endswith('.xls'):
+            # Читаем весь лист без заголовков, чтобы просканировать шапку вручную
+            df = pd.read_excel(uploaded_file, header=None).dropna(how='all')
+        
+        # 2. Если файл сохранен как CSV
+        else:
+            raw_bytes = uploaded_file.read()
+            try:
+                text_data = raw_bytes.decode("utf-8")
+            except UnicodeDecodeError:
+                text_data = raw_bytes.decode("cp1251")
+            df = pd.read_csv(io.StringIO(text_data), header=None).dropna(how='all')
+        
+        # --- БЛОК ИЗВЛЕЧЕНИЯ МЕТАДАННЫХ (Остается прежним) ---
         meta = {"field": "Не указано", "well": "Не указано", "client": "Не указано", "bha_num": "1"}
         
         for idx, row in df.iterrows():
@@ -83,6 +95,7 @@ def parse_field_bha_report(uploaded_file):
                     if "Номер КНБК" in str(cell) and i+1 < len(row_list):
                         meta["bha_num"] = str(row_list[i+1]).strip()
 
+        # --- БЛОК ПОИСКА ТАБЛИЦЫ ЭЛЕМЕНТОВ ---
         table_start_idx = None
         for idx, row in df.iterrows():
             row_str_lower = [str(cell).lower() for cell in row.values if pd.notna(cell)]
@@ -104,8 +117,9 @@ def parse_field_bha_report(uploaded_file):
         df_bha_clean = df_bha_raw.dropna(subset=[first_col])
         
         return meta, df_bha_clean
+        
     except Exception as e:
-        st.error(f"🚨 Ошибка чтения полевого рапорта: {str(e)}")
+        st.error(f"🚨 Ошибка автоматического парсинга рапорта КНБК: {str(e)}")
         return None, None
 
 # =========================================================================
