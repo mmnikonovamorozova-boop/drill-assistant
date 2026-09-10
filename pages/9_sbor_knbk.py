@@ -52,53 +52,45 @@ with st.expander("🔰 Паспорт верификации СТО ИНТИ S.Q
 
 def parse_field_bha_report(uploaded_file):
     """
-    Универсальный полевой парсер ООО 'Траектория-Сервис'.
-    Автоматически определяет формат (.csv или .xlsx) и извлекает КНБК и метаданные.
+    Абсолютно отказоустойчивый полевой парсер ООО 'Траектория-Сервис'.
+    Переваривает любые текстовые и CSV-потоки, сгенерированные буровыми мастерами из Excel.
     """
     try:
-        file_name = uploaded_file.name
+        # Читаем файл как сырой текстовый поток байт
+        raw_bytes = uploaded_file.read()
         
-        # 1. Если мастер скинул оригинальный Excel (.xlsx / .xls)
-        if file_name.endswith('.xlsx') or file_name.endswith('.xls'):
-            # Читаем весь лист без заголовков, чтобы просканировать шапку вручную
-            df = pd.read_excel(uploaded_file, header=None).dropna(how='all')
+        # Автоопределение кодировки (Excel в РФ чаще всего выплевывает cp1251)
+        try:
+            text_data = raw_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            text_data = raw_bytes.decode("cp1251", errors="ignore")
+            
+        # Превращаем в датафрейм, разбивая по запятым (CSV формат)
+        df = pd.read_csv(io.StringIO(text_data), header=None, sep=None, engine='python').dropna(how='all')
         
-        # 2. Если файл сохранен как CSV
-        else:
-            raw_bytes = uploaded_file.read()
-            try:
-                text_data = raw_bytes.decode("utf-8")
-            except UnicodeDecodeError:
-                text_data = raw_bytes.decode("cp1251")
-            df = pd.read_csv(io.StringIO(text_data), header=None).dropna(how='all')
+        # Очищаем все ячейки от лишних пробелов и кавычек Excel
+        df = df.applymap(lambda x: str(x).strip().replace('"', '') if pd.notna(x) else '')
         
-        # --- БЛОК ИЗВЛЕЧЕНИЯ МЕТАДАННЫХ (Остается прежним) ---
         meta = {"field": "Не указано", "well": "Не указано", "client": "Не указано", "bha_num": "1"}
         
+        # --- СКАНЕР МЕТАДАННЫХ ШАПКИ ---
         for idx, row in df.iterrows():
-            row_str = [str(cell).strip() for cell in row.values if pd.notna(cell)]
-            row_joined = " ".join(row_str)
-            
-            if "Месторождение" in row_joined:
-                row_list = list(row.values)
-                for i, cell in enumerate(row_list):
-                    if str(cell).strip() == "Месторождение" and i+1 < len(row_list):
-                        meta["field"] = str(row_list[i+1]).strip()
-                    if "Заказчик" in str(cell) and i+1 < len(row_list):
-                        meta["client"] = str(row_list[i+1]).strip()
-                        
-            if "Куст / скважина" in row_joined:
-                row_list = list(row.values)
-                for i, cell in enumerate(row_list):
-                    if "Куст" in str(cell) and i+1 < len(row_list):
-                        meta["well"] = str(row_list[i+1]).strip()
-                    if "Номер КНБК" in str(cell) and i+1 < len(row_list):
-                        meta["bha_num"] = str(row_list[i+1]).strip()
+            row_list = list(row.values)
+            for i, cell in enumerate(row_list):
+                cell_clean = str(cell).strip()
+                if "Месторождение" in cell_clean and i+1 < len(row_list):
+                    meta["field"] = str(row_list[i+1]).strip()
+                if "Заказчик" in cell_clean and i+1 < len(row_list):
+                    meta["client"] = str(row_list[i+1]).strip()
+                if "Куст / скважина" in cell_clean and i+1 < len(row_list):
+                    meta["well"] = str(row_list[i+1]).strip()
+                if "Номер КНБК" in cell_clean and i+1 < len(row_list):
+                    meta["bha_num"] = str(row_list[i+1]).strip()
 
-        # --- БЛОК ПОИСКА ТАБЛИЦЫ ЭЛЕМЕНТОВ ---
+        # --- СКАНЕР ТАБЛИЦЫ ЭЛЕМЕНТОВ ---
         table_start_idx = None
         for idx, row in df.iterrows():
-            row_str_lower = [str(cell).lower() for cell in row.values if pd.notna(cell)]
+            row_str_lower = [str(cell).lower() for cell in row.values]
             if any("элемент" in cell for cell in row_str_lower) and any("резьба" in cell for cell in row_str_lower):
                 table_start_idx = idx
                 break
@@ -112,6 +104,7 @@ def parse_field_bha_report(uploaded_file):
         df_bha_raw.columns = clean_headers
         df_bha_raw = df_bha_raw.iloc[1:]
         
+        # Оставляем только строки, где первый столбец содержит номер (№ п/п)
         first_col = df_bha_raw.columns[0]
         df_bha_raw[first_col] = pd.to_numeric(df_bha_raw[first_col], errors='coerce')
         df_bha_clean = df_bha_raw.dropna(subset=[first_col])
@@ -121,6 +114,7 @@ def parse_field_bha_report(uploaded_file):
     except Exception as e:
         st.error(f"🚨 Ошибка автоматического парсинга рапорта КНБК: {str(e)}")
         return None, None
+
 
 # =========================================================================
 # ШАГ 1: ПРОЦЕССНЫЙ ТУМБЛЕР (ЭРГОНОМИКА ВРЕМЕНИ)
