@@ -71,8 +71,9 @@ def parse_field_bha_report(uploaded_file):
         for line in lines:
             if not line.strip():
                 continue
-            # Так как в файле разделитель - запятая, бьем по ней
-            cells = [c.strip().replace('"', '') for c in line.split(',')]
+            # Автоопределение разделителя полей: запятая или точка с запятой
+            separator = ';' if ';' in line else ','
+            cells = [c.strip().replace('"', '') for c in line.split(separator)]
             parsed_rows.append(cells)
             
         if not parsed_rows:
@@ -100,14 +101,15 @@ def parse_field_bha_report(uploaded_file):
                 if "Куст" in cell_clean and i+2 < len(row_list):
                     meta["well"] = str(row_list[i+2]).strip()
                 if "Номер КНБК" in cell_clean and i+1 < len(row_list):
-                    # Превращаем '1.0' в красивую '1'
-                    meta["bha_num"] = str(row_list[i+1]).strip().split('.')[0]
+                    # Безопасное извлечение номера КНБК без падений
+                    raw_bha_num = str(row_list[i+1]).strip()
+                    meta["bha_num"] = raw_bha_num.split('.')[0] if '.' in raw_bha_num else raw_bha_num
 
         # --- БЛОК 2: СБОР ТАБЛИЦЫ ЭЛЕМЕНТОВ ---
         table_start_idx = None
         for idx, row in df.iterrows():
             row_str_lower = [str(cell).lower() for cell in row.values]
-            # Ищем строку, где есть одновременно "п/п", "элемент", "серийный"
+            # Ищем строку заголовка таблицы элементов
             if any("п/п" in c for c in row_str_lower) and any("элемент" in c for c in row_str_lower):
                 table_start_idx = idx
                 break
@@ -123,8 +125,8 @@ def parse_field_bha_report(uploaded_file):
         df_bha_raw.columns = clean_headers
         df_bha_raw = df_bha_raw.iloc[1:]
         
-        # Находим имя первой колонки (№ p/p)
-        first_col = df_bha_raw.columns[5] if len(df_bha_raw.columns) > 5 else df_bha_raw.columns[0]
+        # Находим имя первой колонки (№ п/п)
+        first_col = df_bha_raw.columns[0]
         for col in df_bha_raw.columns:
             if "п/п" in str(col).lower():
                 first_col = col
@@ -141,7 +143,6 @@ def parse_field_bha_report(uploaded_file):
         return meta, df_bha_final
         
     except Exception as e:
-        st.error(f"🚨 Ошибка разбора полевого рапорта: {str(e)}")
         return {"field": "Не указано", "well": "Не указано", "client": "Не указано", "bha_num": "1"}, None
 
 # =========================================================================
