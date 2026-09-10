@@ -54,6 +54,7 @@ def parse_field_bha_report(uploaded_file):
     """
     Высокоточный полевой парсер ООО 'Траектория-Сервис'.
     Мягкая фильтрация строк КНБК, устойчивая к скрытым пробелам и точкам буровых мастеров.
+    Зацепка за таблицу идет по неубиваемым словам 'элемент' и 'серийный'.
     """
     try:
         raw_bytes = uploaded_file.read()
@@ -78,7 +79,7 @@ def parse_field_bha_report(uploaded_file):
         if not parsed_rows:
             return {"field": "Не указано", "well": "Не указано", "client": "Не указано", "bha_num": "1"}, None
             
-        # Выравниваем длину колонок
+        # Выравниваем длину колонок матрицы
         max_cols = max(len(row) for row in parsed_rows)
         for row in parsed_rows:
             while len(row) < max_cols:
@@ -101,14 +102,15 @@ def parse_field_bha_report(uploaded_file):
                     meta["well"] = str(row_list[i+2]).strip()
                 if "Номер КНБК" in cell_clean and i+1 < len(row_list):
                     raw_bha_num = str(row_list[i+1]).strip()
-                    # ИСПРАВЛЕНИЕ: берем только целую часть до точки, возвращая СТРОКУ, а не список!
+                    # ИСПРАВЛЕНИЕ: Безопасно отсекаем точку и берем только чистый номер
                     meta["bha_num"] = raw_bha_num.split('.')[0] if '.' in raw_bha_num else raw_bha_num
 
-        # --- БЛОК 2: СБОР ТАБЛИЦЫ ЭЛЕМЕНТОВ ---
+        # --- БЛОК 2: СБОР ТАБЛИЦЫ ЭЛЕМЕНТОВ КНБК ---
         table_start_idx = None
         for idx, row in df.iterrows():
             row_str_lower = [str(cell).lower() for cell in row.values]
-            if any("п/п" in c for c in row_str_lower) and any("элемент" in c for c in row_str_lower):
+            # Ищем заголовок таблицы по словам 'элемент' и 'серийный' (игнорируем знак №)
+            if any("элемент" in c for c in row_str_lower) and any("серийный" in c for c in row_str_lower):
                 table_start_idx = idx
                 break
                 
@@ -117,32 +119,34 @@ def parse_field_bha_report(uploaded_file):
             
         df_bha_raw = df.loc[table_start_idx:].copy()
         
-        # Назначаем имена колонок по строке заголовка
-        raw_headers = df_bha_raw.iloc.values
+        # Назначаем имена колонок по строке найденного заголовка
+        raw_headers = df_bha_raw.iloc[0].values
         clean_headers = [str(h).strip().replace('\n', ' ') for h in raw_headers]
         df_bha_raw.columns = clean_headers
-        df_bha_raw = df_bha_raw.iloc[1:]
+        df_bha_raw = df_bha_raw.iloc[1:] # Смещаем вниз, отсекая строку заголовка
         
-        # Находим имя колонки элементов
-        element_col = df_bha_raw.columns
+        # Находим фактическое имя колонки элементов для фильтрации
+        element_col = df_bha_raw.columns[1] # Дефолтная страховка
         for col in df_bha_raw.columns:
             if "элемент" in str(col).lower():
                 element_col = col
                 break
                 
-        # МЯГКАЯ ПОЛЕВАЯ ФИЛЬТРАЦИЯ
+        # МЯГКАЯ ПОЛЕВАЯ ФИЛЬТРАЦИЯ СТРОК
+        # Забираем только те строки, где в колонке элементов есть маркеры реального железа
         df_bha_clean = df_bha_raw[
             df_bha_raw[element_col].str.contains("ВР|ВЗД|УБТ|ТБТ|СБТ|П-|М-|долото|клапан|теле|mwd|рус", case=False, na=False)
         ].copy()
         
-        keep_cols = [c for c in df_bha_clean.columns if c.strip() != '']
+        # Очищаем от полностью пустых столбцов, если они прилипли сбоку
+        keep_cols = [c for c in df_bha_clean.columns if str(c).strip() != '']
         df_bha_final = df_bha_clean[keep_cols].copy()
         
         return meta, df_bha_final
         
     except Exception as e:
-        # Выводим техническую ошибку прямо на экран, чтобы сразу её видеть!
-        st.sidebar.error(f"🔧 Внутренний сбой парсера: {str(e)}")
+        # Выводим технический Traceback на боковую панель в случае непредвиденного сбоя
+        st.sidebar.error(f"🔧 Внутренний сбой функции парсера: {str(e)}")
         return {"field": "Не указано", "well": "Не указано", "client": "Не указано", "bha_num": "1"}, None
 
 # =========================================================================
