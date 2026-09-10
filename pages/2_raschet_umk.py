@@ -104,18 +104,35 @@ with tab_pipe:
             ["Д", "К", "Е", "Л", "М"],
             help="Укажите группу прочности согласно клеймению или паспорту трубы."
         )
-    current_caliber = st.session_state.get("bha_caliber", "Средний калибр (215.9 мм)")
-    size_key = "Тяжелый" if "Тяжелый" in current_caliber else ("Малый" if "Малый" in current_caliber else "Средний")
+        
+        # РУЧНОЙ ВВОД КАЛИБРА ДЛЯ АВТОНОМНОЙ РАБОТЫ В ТУНДРЕ
+        session_caliber = st.session_state.get("bha_caliber", "Средний калибр (215.9 мм)")
+        caliber_options = ["Малый габарит (хвостовики / НУБТ 98-120)", "Средний калибр (экспл. колонна 172-174)", "Тяжелый габарит (направление / ВЗД 240)"]
+        
+        def_idx = 1
+        if "Малый" in session_caliber: def_idx = 0
+        elif "Тяжелый" in session_caliber: def_idx = 2
+            
+        manual_caliber = st.selectbox(
+            "Фактический габарит свинчиваемого инструмента:",
+            options=caliber_options,
+            index=def_idx,
+            help="Если рапорт КНБК не загружен, выберите габарит вручную для защиты резьбы от перетяга."
+        )
+
+    # Привязываем расчет к ручному переключателю
+    size_key = "Тяжелый" if "Тяжелый" in manual_caliber else ("Малый" if "Малый" in manual_caliber else "Средний")
     
     # Стерильный плоский справочник моментов для обхода фильтров
     m_dict = {"Д": 22.0, "К": 26.0, "Е": 32.0, "Л": 38.0, "М": 44.0}
     if size_key == "Малый":
-        m_dict = {"Д": 11.0, "К": 14.0, "Е": 18.0, "Л": 22.0, "М": 25.0}
+        m_dict = {"Д": 11.0, "К": 14.0, "Е": 19.0, "Л": 22.0, "М": 25.0}
     elif size_key == "Тяжелый":
         m_dict = {"Д": 35.0, "К": 42.0, "Е": 50.0, "Л": 58.0, "М": 65.0}
         
     calculated_base_moment = m_dict.get(pipe_steel_group, 25.0)
 
+    # --- ЗДЕСЬ НАЧИНАЕТСЯ ВАШ СТАРЫЙ ШАГ 6 (ЕГО НЕ ТРОГАЕМ!) ---
     if "p_moment_corrected" in st.session_state:
         calculated_base_moment = float(st.session_state["p_moment_corrected"])
     
