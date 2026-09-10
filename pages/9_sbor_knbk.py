@@ -129,25 +129,24 @@ uploaded_report = st.file_uploader(
 )
 
 if uploaded_report is not None:
-    meta_parsed, table_parsed = parse_field_bha_report(uploaded_report)
-    
-    # Защита: Проверяем, удалось ли вытащить данные КНБК
-    if table_parsed is not None and not table_parsed.empty:
-        st.session_state["parsed_bha_df"] = table_parsed
-        st.session_state["field_name"] = meta_parsed["field"]
-        st.session_state["well_number"] = meta_parsed["well"]
-        st.session_state["main_page_company"] = meta_parsed["client"]
-        st.session_state["bha_number"] = meta_parsed["bha_num"]
-        st.success("✔ Рапорт бурового мастера успешно распознан!")
-        st.rerun()
-    else:
-        st.error("🚨 Формат файла не поддерживается. Пожалуйста, откройте этот файл на компьютере и пересохраните его как 'CSV (разделители - запятые) (*.csv)', после чего загрузите повторно.")
-
-if st.session_state["parsed_bha_df"] is not None:
-    with st.expander("📐 Спецификация геометрии и резьбовых соединений КНБК из файла", expanded=True):
-        st.dataframe(st.session_state["parsed_bha_df"], use_container_width=True, hide_index=True)
-else:
-    st.info("ℹ️ Полевой рапорт КНБК не загружен. Система работает на базовых проектных константах.")
+    # Заворачиваем вызов в тотальную защиту СМК от падений кода
+    try:
+        meta_parsed, table_parsed = parse_field_bha_report(uploaded_report)
+        
+        # Проверяем, что парсер вернул живой датафрейм, а не пустоту
+        if table_parsed is not None and not table_parsed.empty:
+            st.session_state["parsed_bha_df"] = table_parsed
+            st.session_state["field_name"] = meta_parsed["field"]
+            st.session_state["well_number"] = meta_parsed["well"]
+            st.session_state["main_page_company"] = meta_parsed["client"]
+            st.session_state["bha_number"] = meta_parsed["bha_num"]
+            st.success("✔ Рапорт бурового мастера успешно распознан!")
+            st.rerun()
+        else:
+            st.error("🚨 Формат файла не распознан. Пожалуйста, откройте этот файл в Excel на компьютере, нажмите 'Сохранить как' -> формат 'CSV (разделители - запятые) (*.csv)' и загрузите его снова.")
+    except Exception:
+        # Если файл бинарный и питон вообще не смог распаковать кортеж - мягко выводим баннер инженеру
+        st.error("🚨 Обнаружен старый бинарный формат Excel. Система заблокировала падение кода. Пересохраните файл в формат .CSV перед загрузкой!")
 
 # =========================================================================
 # ШАГ 3: КРИТИЧЕСКИЕ ПАРАМЕТРЫ СРЕДЫ И ЖЕЛЕЗА
