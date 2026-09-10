@@ -4,10 +4,55 @@ import numpy as np
 import io
 import os
 
+def init_knbk_database():
+    """Автоматическое создание локальной базы данных комплаенса КНБК СТО ИНТИ"""
+    import sqlite3
+    conn = sqlite3.connect("knbk_core.db")
+    cursor = conn.cursor()
+    
+    # 1. Создаем таблицу элементов и телесистем КНБК
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS elements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT, name TEXT, max_temp REAL, c_part_limit REAL
+    )""")
+    # 2. Создаем таблицу технологических ограничений и матрицу сред
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS risk_matrix (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        factor_type TEXT, 
+        factor_name TEXT, 
+        penalty_points REAL,
+        stop_threshold_modifier REAL
+    )""")
+        # Проверяем, наполнена ли таблица, чтобы не дублировать данные при перезапусках
+    cursor.execute("SELECT COUNT(*) FROM risk_matrix")
+    if cursor.fetchone()[0] == 0:
+        risks_data = [
+            ('acid', 'Мягкая ОПЗ (Органические кислоты)', 5.0, -2.0),
+            ('acid', 'Солянокислотная ванна HCl (Риск смыва хрома ВЗД)', 20.0, -5.0),
+            ('acid', 'Агрессивный "Термит" HCl+HF (Экстремальное наводороживание)', 45.0, -12.0),
+            ('lnk', '🔴 Высокий риск пропуска микротрещины', 15.0, 0.0),
+            ('vzd', 'Низкозаходный 3/4 ("Бронебойный танк" // Высокий Stick-Slip)', 10.0, 0.0),
+            ('region', 'Западная Сибирь / Ямал (Риск термозаклинивания резьб)', 0.0, -5.0)
+        ]
+        cursor.executemany("INSERT INTO risk_matrix (factor_type, factor_name, penalty_points, stop_threshold_modifier) VALUES (?, ?, ?, ?)", risks_data)
+            ('interval', 'Эксплуатационная колонна (1000 - 2500 м) [СПО: 12-18 часов]', 0.0, -5.0),
+            ('interval', 'Техническая колонна (2500 - 3500 м) [СПО: ~24 часа]', 0.0, -12.0),
+            ('interval', 'Бурение хвостовика / Зарезка БС (> 3500 м) [СПО: 1.5 - 2 суток!]', 0.0, -20.0),
+            ('operator', 'Роснефть: Запрет наработки элементов КНБК > 250 ч без УЗК/МПК на устье', 15.0, -5.0),
+            ('operator', 'Газпром нефть: Запрет бурения интервалов DLS > 3.5°/10м без MWD онлайн', 20.0, -8.0),
+            ('operator', 'НОВАТЭК: Запрет спуска нижних пульсаторов MWD при КВЧ > 0.5%', 25.0, -10.0)
+
+    conn.commit()
+    conn.close()
+
 # --- СТРОГАЯ АВТЕНТИФИКАЦИЯ ЭКОСИСТЕМЫ ---
 if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
     st.error("🚨 ДОСТУП ОГРАНИЧЕН: Пожалуйста, пройдите авторизацию на Главной странице.")
     st.stop()
+# Запуск инициализации локальной базы данных СМК после авторизации
+init_knbk_database()
 
 # Конфигурация страницы в стиле drill-assistant
 st.set_page_config(page_title="Сборка КНБК", layout="wide")
