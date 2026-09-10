@@ -52,56 +52,97 @@ with st.expander("🔰 Паспорт верификации СТО ИНТИ S.Q
 
 def parse_field_bha_report(uploaded_file):
     """
-    Абсолютно неубиваемый полевой парсер ООО 'Траектория-Сервис'.
-    Если стандартный Excel-движок падает из-за старого формата, 
-    автоматически переключается на текстовый поток (CSV), гарантируя чтение.
+    Высокоточный полевой парсер ООО 'Траектория-Сервис'.
+    Адаптирован под текстовые CSV-потоки, маскирующиеся под .xls.
+    Игнорирует опечатки буровых мастеров (Длина/Длинна).
     """
-    df = None
-    file_name = uploaded_file.name
-    
-    # Попытка 1: Читаем как стандартный Excel (если это честный xlsx)
-    if file_name.endswith('.xlsx') or file_name.endswith('.xls'):
+    try:
+        raw_bytes = uploaded_file.read()
+        
+        # Читаем файл как текстовый поток в кодировке Windows (cp1251)
         try:
-            df = pd.read_excel(uploaded_file, header=None).dropna(how='all')
+            text_data = raw_bytes.decode("cp1251", errors="ignore")
         except Exception:
-            # Если движок упал (File is not a zip / missing xlrd), сбрасываем указатель и идем в Попытку 2
-            uploaded_file.seek(0)
-            df = None
+            text_data = raw_bytes.decode("utf-8", errors="ignore")
+            
+        lines = text_data.splitlines()
+        parsed_rows = []
+        
+        for line in lines:
+            if not line.strip():
+                continue
+            # Так как в файле разделитель - запятая, бьем по ней
+            cells = [c.strip().replace('"', '') for c in line.split(',')]
+            parsed_rows.append(cells)
+            
+        if not parsed_rows:
+            return {"field": "Не указано", "well": "Не указано", "client": "Не указано", "bha_num": "1"}, None
+            
+        # Выравниваем длину колонок
+        max_cols = max(len(row) for row in parsed_rows)
+        for row in parsed_rows:
+            while len(row) < max_cols:
+                row.append('')
+                
+        df = pd.DataFrame(parsed_rows)
+        
+        # --- БЛОК 1: СБОР МЕТАДАННЫХ РЕЙСА ---
+        meta = {"field": "Не указано", "well": "Не указано", "client": "Не указано", "bha_num": "1"}
+        
+        for idx, row in df.iterrows():
+            row_list = list(row.values)
+            for i, cell in enumerate(row_list):
+                cell_clean = str(cell).strip()
+                if "Месторождение" in cell_clean and i+2 < len(row_list):
+                    meta["field"] = str(row_list[i+2]).strip()
+                if "Заказчик" in cell_clean and i+1 < len(row_list):
+                    meta["client"] = str(row_list[i+1]).strip()
+                if "Куст" in cell_clean and i+2 < len(row_list):
+                    meta["well"] = str(row_list[i+2]).strip()
+                if "Номер КНБК" in cell_clean and i+1 < len(row_list):
+                    # Превращаем '1.0' в красивую '1'
+                    meta["bha_num"] = str(row_list[i+1]).strip().split('.')[0]
 
-        # Попытка 2: Кастомный построчный разбор текстового потока (Защита от Alt+Enter в ячейках)
-    if df is None:
-        try:
-            raw_bytes = uploaded_file.read()
-            try:
-                text_data = raw_bytes.decode("utf-8")
-            except UnicodeDecodeError:
-                text_data = raw_bytes.decode("cp1251", errors="ignore")
+        # --- БЛОК 2: СБОР ТАБЛИЦЫ ЭЛЕМЕНТОВ ---
+        table_start_idx = None
+        for idx, row in df.iterrows():
+            row_str_lower = [str(cell).lower() for cell in row.values]
+            # Ищем строку, где есть одновременно "п/п", "элемент", "серийный"
+            if any("п/п" in c for c in row_str_lower) and any("элемент" in c for c in row_str_lower):
+                table_start_idx = idx
+                break
+                
+        if table_start_idx is None:
+            return meta, None
             
-            # Разбиваем файл на физические строки, очищая от спецсимволов переноса
-            lines = text_data.splitlines()
-            parsed_rows = []
-            
-            for line in lines:
-                if not line.strip():
-                    continue
-                # Универсальное деление по запятой или точке с запятой
-                separator = ';' if ';' in line else ','
-                # Очищаем ячейки от экселевских кавычек
-                cells = [c.strip().replace('"', '') for c in line.split(separator)]
-                parsed_rows.append(cells)
-            
-            # Выравниваем длину строк, чтобы pandas не ругался при создании датафрейма
-            max_cols = max(len(row) for row in parsed_rows) if parsed_rows else 0
-            for row in parsed_rows:
-                while len(row) < max_cols:
-                    row.append('')
-                    
-            # Создаем чистую матрицу данных
-            df = pd.DataFrame(parsed_rows)
-            
-        except Exception as e:
-            st.error(f"🚨 Критическая ошибка чтения структуры файла: {str(e)}")
-            return None, None
+        df_bha_raw = df.loc[table_start_idx:].copy()
+        
+        # Назначаем имена колонок по строке заголовка
+        raw_headers = df_bha_raw.iloc[0].values
+        clean_headers = [str(h).strip().replace('\n', ' ') for h in raw_headers]
+        df_bha_raw.columns = clean_headers
+        df_bha_raw = df_bha_raw.iloc[1:]
+        
+        # Находим имя первой колонки (№ p/p)
+        first_col = df_bha_raw.columns[5] if len(df_bha_raw.columns) > 5 else df_bha_raw.columns[0]
+        for col in df_bha_raw.columns:
+            if "п/п" in str(col).lower():
+                first_col = col
+                break
+                
+        # Фильтруем строки: оставляем только те, где в № п/п стоит число (1.0, 2.0 и т.д.)
+        df_bha_raw['temp_num'] = pd.to_numeric(df_bha_raw[first_col], errors='coerce')
+        df_bha_clean = df_bha_raw.dropna(subset=['temp_num']).drop(columns=['temp_num'])
+        
+        # Оставляем только значимые колонки, очищая от пустых крайних столбцов
+        keep_cols = [c for c in df_bha_clean.columns if c.strip() != '']
+        df_bha_final = df_bha_clean[keep_cols].copy()
+        
+        return meta, df_bha_final
+        
+    except Exception as e:
+        st.error(f"🚨 Ошибка разбора полевого рапорта: {str(e)}")
+        return {"field": "Не указано", "well": "Не указано", "client": "Не указано", "bha_num": "1"}, None
 
 # =========================================================================
 # ШАГ 1: ПРОЦЕССНЫЙ ТУМБЛЕР
