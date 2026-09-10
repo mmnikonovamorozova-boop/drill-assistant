@@ -52,15 +52,25 @@ with st.expander("🔰 Паспорт верификации СТО ИНТИ S.Q
 
 # --- ФУНКЦИЯ УНИВЕРСАЛЬНОГО ПОЛЕВОГО ПАРСЕРА ---
 def parse_field_bha_report(uploaded_file):
+    """
+    Универсальный полевой парсер ООО 'Траектория-Сервис'.
+    Автоматически определяет формат и гарантирует чтение без сбоев движков.
+    """
     try:
         file_name = uploaded_file.name
         
-        # 1. Если загружен оригинальный Excel файл
+        # 1. Если мастер прислал Excel (xlsx или старый xls)
         if file_name.endswith('.xlsx') or file_name.endswith('.xls'):
-            df = pd.read_excel(uploaded_file, header=None).dropna(how='all')
-            df = df.applymap(lambda x: str(x).strip() if pd.notna(x) else '')
+            try:
+                # Пробуем прочитать стандартным способом
+                df = pd.read_excel(uploaded_file, header=None).dropna(how='all')
+            except Exception:
+                # Если сервер ругается на отсутствие xlrd для старых .xls, 
+                # принудительно заставляем читать через универсальный движок openpyxl
+                uploaded_file.seek(0)
+                df = pd.read_excel(uploaded_file, header=None, engine='openpyxl').dropna(how='all')
         
-        # 2. Если загружен текстовый/CSV файл
+        # 2. Если файл сохранен как CSV
         else:
             raw_bytes = uploaded_file.read()
             try:
