@@ -68,7 +68,7 @@ def parse_field_bha_report(uploaded_file):
             uploaded_file.seek(0)
             df = None
 
-    # Попытка 2: Читаем как текстовый CSV поток (самый надежный способ для полей)
+        # Попытка 2: Кастомный построчный разбор текстового потока (Защита от Alt+Enter в ячейках)
     if df is None:
         try:
             raw_bytes = uploaded_file.read()
@@ -77,60 +77,32 @@ def parse_field_bha_report(uploaded_file):
             except UnicodeDecodeError:
                 text_data = raw_bytes.decode("cp1251", errors="ignore")
             
-            # Читаем с автоопределением разделителя (запятая, точка с запятой или табуляция)
-            df = pd.read_csv(io.StringIO(text_data), header=None, sep=None, engine='python').dropna(how='all')
+            # Разбиваем файл на физические строки, очищая от спецсимволов переноса
+            lines = text_data.splitlines()
+            parsed_rows = []
+            
+            for line in lines:
+                if not line.strip():
+                    continue
+                # Универсальное деление по запятой или точке с запятой
+                separator = ';' if ';' in line else ','
+                # Очищаем ячейки от экселевских кавычек
+                cells = [c.strip().replace('"', '') for c in line.split(separator)]
+                parsed_rows.append(cells)
+            
+            # Выравниваем длину строк, чтобы pandas не ругался при создании датафрейма
+            max_cols = max(len(row) for row in parsed_rows) if parsed_rows else 0
+            for row in parsed_rows:
+                while len(row) < max_cols:
+                    row.append('')
+                    
+            # Создаем чистую матрицу данных
+            df = pd.DataFrame(parsed_rows)
+            
         except Exception as e:
             st.error(f"🚨 Критическая ошибка чтения структуры файла: {str(e)}")
             return None, None
 
-    # --- БЛОК ОЧИСТКИ И ИЗВЛЕЧЕНИЯ ДАННЫХ (Остается неизменным) ---
-    try:
-        # Очищаем все ячейки от кавычек Excel и пробелов
-        df = df.applymap(lambda x: str(x).strip().replace('"', '') if pd.notna(x) else '')
-        
-        meta = {"field": "Не указано", "well": "Не указано", "client": "Не указано", "bha_num": "1"}
-        
-        # Сканируем шапку рапорта Траектории-Сервис
-        for idx, row in df.iterrows():
-            row_list = list(row.values)
-            for i, cell in enumerate(row_list):
-                cell_clean = str(cell).strip()
-                if "Месторождение" in cell_clean and i+1 < len(row_list):
-                    meta["field"] = str(row_list[i+1]).strip()
-                if "Заказчик" in cell_clean and i+1 < len(row_list):
-                    meta["client"] = str(row_list[i+1]).strip()
-                if "Куст / скважина" in cell_clean and i+1 < len(row_list):
-                    meta["well"] = str(row_list[i+1]).strip()
-                if "Номер КНБК" in cell_clean and i+1 < len(row_list):
-                    meta["bha_num"] = str(row_list[i+1]).strip()
-
-        # Сканируем таблицу элементов КНБК
-        table_start_idx = None
-        for idx, row in df.iterrows():
-            row_str_lower = [str(cell).lower() for cell in row.values]
-            if any("элемент" in cell for cell in row_str_lower) and any("резьба" in cell for cell in row_str_lower):
-                table_start_idx = idx
-                break
-                
-        if table_start_idx is None:
-            return meta, None
-            
-        df_bha_raw = df.loc[table_start_idx:].copy()
-        raw_headers = df_bha_raw.iloc.values
-        clean_headers = [str(h).strip().replace('\n', ' ') for h in raw_headers]
-        df_bha_raw.columns = clean_headers
-        df_bha_raw = df_bha_raw.iloc[1:]
-        
-        # Оставляем только строки элементов (где в первом столбце число)
-        first_col = df_bha_raw.columns[0]
-        df_bha_raw[first_col] = pd.to_numeric(df_bha_raw[first_col], errors='coerce')
-        df_bha_clean = df_bha_raw.dropna(subset=[first_col])
-        
-        return meta, df_bha_clean
-        
-    except Exception as e:
-        st.error(f"🚨 Ошибка разбора внутренней таблицы рапорта: {str(e)}")
-        return None, None
 
 # =========================================================================
 # ШАГ 1: ПРОЦЕССНЫЙ ТУМБЛЕР
