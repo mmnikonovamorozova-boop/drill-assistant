@@ -130,14 +130,18 @@ uploaded_report = st.file_uploader(
 
 if uploaded_report is not None:
     meta_parsed, table_parsed = parse_field_bha_report(uploaded_report)
-    if meta_parsed and table_parsed is not None:
+    
+    # Защита: Проверяем, удалось ли вытащить данные КНБК
+    if table_parsed is not None and not table_parsed.empty:
         st.session_state["parsed_bha_df"] = table_parsed
         st.session_state["field_name"] = meta_parsed["field"]
         st.session_state["well_number"] = meta_parsed["well"]
         st.session_state["main_page_company"] = meta_parsed["client"]
         st.session_state["bha_number"] = meta_parsed["bha_num"]
-        st.success("✔ Рапорт бурового мастера успешно распознан! Данные СМК обновлены.")
+        st.success("✔ Рапорт бурового мастера успешно распознан!")
         st.rerun()
+    else:
+        st.error("🚨 Формат файла не поддерживается. Пожалуйста, откройте этот файл на компьютере и пересохраните его как 'CSV (разделители - запятые) (*.csv)', после чего загрузите повторно.")
 
 if st.session_state["parsed_bha_df"] is not None:
     with st.expander("📐 Спецификация геометрии и резьбовых соединений КНБК из файла", expanded=True):
