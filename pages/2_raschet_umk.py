@@ -109,31 +109,31 @@ with tab_tongs:
             )
 # === Вкладка 2: Характеристики бурильных труб (СМК Контур) ===
 with tab_pipe:
-col_p1, col_p2 = st.columns(2)
-with col_p1:
-    pipe_steel_group = st.selectbox(
-        "Группа прочности стали бурильной трубы:",
-        ["Д", "К", "Е", "Л", "М"]
-    )
-current_caliber = st.session_state.get("bha_caliber", "Средний калибр (215.9 мм)")
-torque_matrix = {
-    "Д": {"Малый": 11.0, "Средний": 22.0, "Тяжелый": 35.0},
-    "К": {"Малый": 14.0, "Средний": 26.0, "Тяжелый": 42.0},
-    "Е": {"Малый": 18.0, "Средний": 32.0, "Тяжелый": 50.0},
-    "Л": {"Малый": 22.0, "Средний": 38.0, "Тяжелый": 58.0},
-    "М": {"Малый": 25.0, "Средний": 44.0, "Тяжелый": 65.0}
-}
-size_key = "Тяжелый" if "Тяжелый" in current_caliber else ("Малый" if "Малый" in current_caliber else "Средний")
-calculated_base_moment = torque_matrix.get(pipe_steel_group, {}).get(size_key, 25.0)
-if "p_moment_corrected" in st.session_state:
-    calculated_base_moment = float(st.session_state["p_moment_corrected"])
-
-with col_p2:
-    p_moment = st.number_input(
-        "Номинальный момент резьбового соединения, кН·м:",
-        value=float(calculated_base_moment),
-        help="Целевой номинал. Автоматически пересчитан СМК на основе габарита ВЗД, прочности стали и износа."
-    )
+    col_p1, col_p2 = st.columns(2)
+    with col_p1:
+        pipe_steel_group = st.selectbox(
+            "Группа прочности стали бурильной трубы:",
+            ["Д", "К", "Е", "Л", "М"]
+        )
+    current_caliber = st.session_state.get("bha_caliber", "Средний калибр (215.9 мм)")
+    torque_matrix = {
+        "Д": {"Малый": 11.0, "Средний": 22.0, "Тяжелый": 35.0},
+        "К": {"Малый": 14.0, "Средний": 26.0, "Тяжелый": 42.0},
+        "Е": {"Малый": 18.0, "Средний": 32.0, "Тяжелый": 50.0},
+        "Л": {"Малый": 22.0, "Средний": 38.0, "Тяжелый": 58.0},
+        "М": {"Малый": 25.0, "Средний": 44.0, "Тяжелый": 65.0}
+    }
+    size_key = "Тяжелый" if "Тяжелый" in current_caliber else ("Малый" if "Малый" in current_caliber else "Средний")
+    calculated_base_moment = torque_matrix.get(pipe_steel_group, {}).get(size_key, 25.0)
+        if "p_moment_corrected" in st.session_state:
+            calculated_base_moment = float(st.session_state["p_moment_corrected"])
+        
+        with col_p2:
+            p_moment = st.number_input(
+                "Номинальный момент резьбового соединения, кН·м:",
+                value=float(calculated_base_moment),
+                help="Целевой номинал. Автоматически пересчитан СМК на основе габарита ВЗД, прочности стали и износа."
+            )
 
 # === Вкладка 3: Параметры применяемой смазки и тригонометрии ===
 with tab_tribology:
