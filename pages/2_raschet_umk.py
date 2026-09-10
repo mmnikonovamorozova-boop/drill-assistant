@@ -78,58 +78,58 @@ with st.expander("➕ Регистрация кастомной модели к�
             st.success(f"✔️ Инструмент '{new_key_name}' успешно добавлен в базу данных.")
             st.rerun() # Мгновенное обновление сессии для выпадающего списка
 
-with st.sidebar:
-    st.caption(f"📍 Заказчик: {st.session_state.get('main_page_company', 'Роснефть')}")
-    st.markdown("### 🛠 Входные параметры крепления соединений")
-    
-    tab_tongs, tab_pipe, tab_tribology = st.tabs(["🔧 Ключ УМК", "🛢 Параметры трубы и замка", "🧴 Смазка и Трибология"])
-    with tab_tongs:
-        selected_key = st.selectbox("Выберите модель ключа УМК:", list(active_keys_db.keys()))
-        passport_length = active_keys_db[selected_key]
-        control_type = st.radio("Тип контроля:", ["🪢 Электронный", "💧 Гидравлический"])
-        col_t1, col_t2 = st.columns(2)
-        with col_t1:
-            fact_l = st.number_input("Длина плеча (Lфакт), м:", value=float(passport_length))
-        with col_t2:
-            if "Электронный" in control_type:
-                tros_d = st.number_input("Толщина троса, мм:", value=16.0)
-            else:
-                k_hydr = st.number_input(
-                    "Коэффициент пересчета ключа (кН·м на 1 МПа):",
-                    min_value=0.1, max_value=20.0, value=5.25, step=0.05,
-                    help="Паспортная пропорция Давление-Момент для гидроключа."
-                )
-    with tab_pipe:
-        col_p1, col_p2 = st.columns(2)
-        with col_p1:
-            pipe_steel_group = st.selectbox(
-                "Группа прочности стали бурильной трубы:",
-                ["Д", "К", "Е", "Л", "М"],
-                help="Укажите группу прочности согласно клеймению или паспорту трубы."
+# ВЫНОСИМ НА ЦЕНТР ЭКРАНА ДЛЯ МИХАЛЫЧА В ТУНДРУ
+st.markdown("### 🛠️ Входные параметры крепления соединений")
+tab_tongs, tab_pipe, tab_tribology = st.tabs(["🔧 Ключ УМК", "🛢 Параметры трубы и замка", "🧴 Смазка и Трибология"])
+with tab_tongs:
+    selected_key = st.selectbox("Выберите модель ключа УМК:", list(active_keys_db.keys()))
+    passport_length = active_keys_db[selected_key]
+    control_type = st.radio("Тип контроля:", ["🪢 Электронный", "💧 Гидравлический"])
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        fact_l = st.number_input("Длина плеча (Lфакт), м:", value=float(passport_length))
+    with col_t2:
+        if "Электронный" in control_type:
+            tros_d = st.number_input("Толщина троса, мм:", value=16.0)
+        else:
+            k_hydr = st.number_input(
+                "Коэффициент пересчета ключа (кН·м на 1 МПа):",
+                min_value=0.1, max_value=20.0, value=5.25, step=0.05
             )
-        current_caliber = st.session_state.get("bha_caliber", "Средний калибр (215.9 мм)")
-        size_key = "Тяжелый" if "Тяжелый" in current_caliber else ("Малый" if "Малый" in current_caliber else "Средний")
-        
-        # Переводим матрицу в плоский текстовый формат для защиты от блокировок
-        calculated_base_moment = 22.0 if size_key == "Средний" else (11.0 if size_key == "Малый" else 35.0)
-        if pipe_steel_group == "К": calculated_base_moment = 26.0 if size_key == "Средний" else (14.0 if size_key == "Малый" else 42.0)
-        if pipe_steel_group == "Е": calculated_base_moment = 32.0 if size_key == "Средний" else (18.0 if size_key == "Малый" else 50.0)
-        if pipe_steel_group == "Л": calculated_base_moment = 38.0 if size_key == "Средний" else (22.0 if size_key == "Малый" else 58.0)
-        if pipe_steel_group == "М": calculated_base_moment = 44.0 if size_key == "Средний" else (25.0 if size_key == "Малый" else 65.0)
-        if "p_moment_corrected" in st.session_state:
-            calculated_base_moment = float(st.session_state["p_moment_corrected"])
-        
-        with col_p2:
-            p_moment = st.number_input(
-                "Номинальный момент резьбового соединения, кН·м:",
-                value=float(calculated_base_moment)
-            )
-    with tab_tribology:
-        grease_type = st.selectbox(
-            "Тип резьбовой смазки (СТО ИНТИ S.QS.8):",
-            ["Стандартная (API)", "Графитовая (K=1.15)", "Тефлоновая (K=0.85)", "Прочая специальная (K=1.3)"]
+with tab_pipe:
+    col_p1, col_p2 = st.columns(2)
+    with col_p1:
+        pipe_steel_group = st.selectbox(
+            "Группа прочности стали бурильной трубы:",
+            ["Д", "К", "Е", "Л", "М"],
+            help="Укажите группу прочности согласно клеймению или паспорту трубы."
         )
-  
+    current_caliber = st.session_state.get("bha_caliber", "Средний калибр (215.9 мм)")
+    size_key = "Тяжелый" if "Тяжелый" in current_caliber else ("Малый" if "Малый" in current_caliber else "Средний")
+    
+    # Стерильный плоский справочник моментов для обхода фильтров
+    m_dict = {"Д": 22.0, "К": 26.0, "Е": 32.0, "Л": 38.0, "М": 44.0}
+    if size_key == "Малый":
+        m_dict = {"Д": 11.0, "К": 14.0, "Е": 18.0, "Л": 22.0, "М": 25.0}
+    elif size_key == "Тяжелый":
+        m_dict = {"Д": 35.0, "К": 42.0, "Е": 50.0, "Л": 58.0, "М": 65.0}
+        
+    calculated_base_moment = m_dict.get(pipe_steel_group, 25.0)
+
+    if "p_moment_corrected" in st.session_state:
+        calculated_base_moment = float(st.session_state["p_moment_corrected"])
+    
+    with col_p2:
+        p_moment = st.number_input(
+            "Номинальный момент резьбового соединения, кН·м:",
+            value=float(calculated_base_moment)
+        )
+with tab_tribology:
+    grease_type = st.selectbox(
+        "Тип резьбовой смазки (СТО ИНТИ S.QS.8):",
+        ["Стандартная (API)", "Графитовая (K=1.15)", "Тефлоновая (K=0.85)", "Прочая специальная (K=1.3)"]
+    )
+
 # =========================================================================
 # БЛОК 3 — МАТЕМАТИЧЕСКОЕ ЯДРО ВЫСШЕЙ ТОЧНОСТИ (СТО ИНТИ S.QS.8 / API)
 # =========================================================================
