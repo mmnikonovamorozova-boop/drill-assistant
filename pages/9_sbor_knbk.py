@@ -103,6 +103,12 @@ def parse_field_bha_report(uploaded_file):
     df = None
     file_name = uploaded_file.name
     
+    import json
+    elements_lib = []
+    if os.path.exists("bha_elements_library.json"):
+        with open("bha_elements_library.json", "r", encoding="utf-8") as f:
+            elements_lib = json.load(f).get("elements_library", [])
+    
     if file_name.endswith('.xlsx') or file_name.endswith('.xls'):
         try:
             df = pd.read_excel(uploaded_file, header=None).dropna(how='all')
@@ -166,6 +172,24 @@ def parse_field_bha_report(uploaded_file):
             
     df_bha_clean = df_bha_raw[df_bha_raw[element_col].str.contains("ВР|ВЗД|УБТ|ТБТ|СБТ|П-|М-|долото|клапан|теле|mwd|рус|bs|дру", case=False, na=False)].copy()
     keep_cols = [c for c in df_bha_clean.columns if str(c).strip() != '']
+   
+    st.session_state["bha_wear_critical"] = False
+    df_bha_clean["Статус СМК"] = "🟢 Паспорт проверен"
+    df_bha_clean["Отклонение OD, мм"] = 0.0
+    for idx, row in df_bha_clean.iterrows():
+        el_str = str(row.get("ЭлементКНБК", row.iloc[0])).upper()
+        match = next((item for item in elements_lib if item["model"] in el_str or item["element_type"].upper() in el_str), None)
+        if match:
+            try:
+                fact_od = float(str(row.get("НаружныйДиаметр", row.iloc[2])).replace(",", "."))
+                diff = abs(match["nominal_od"] - fact_od)
+                df_bha_clean.at[idx, "Отклонение OD, мм"] = round(diff, 1)
+                if diff > 4.5:
+                    df_bha_clean.at[idx, "Статус СМК"] = "🔴 ПРЕВЫШЕН ИЗНОС OD!"
+                    st.session_state["bha_wear_critical"] = True
+            except: pass
+        else: df_bha_clean.at[idx, "Статус СМК"] = "静态 НЕТ В БАЗЕ ПАСПОРТОВ"
+    
     return meta, df_bha_clean[keep_cols].copy()
 
 # =========================================================================
