@@ -320,10 +320,12 @@ thread_dims = {
     "З-122": (155.0, 80.0), "З-133": (162.0, 83.0), "З-147": (177.8, 91.0),
     "З-161": (196.8, 100.0), "NC38": (127.0, 71.4), "NC50": (165.1, 76.2)
 }
-    top_D, top_d = thread_dims.get(top_thread, (177.8, 91.0))
-    bot_D, bot_d = thread_dims.get(bottom_thread, (162.0, 83.0))
-    delta_D = abs(top_D - bot_D)
-    st.markdown("<br><div style='font-weight: bold; font-size: 18px;'>🚦 ВЕРДИКТ СТЫКОВОЧНОГО КОМПЛАЕНСА:</div>", unsafe_allow_html=True)
+
+top_D, top_d = thread_dims.get(top_thread, (177.8, 91.0))
+bot_D, bot_d = thread_dims.get(bottom_thread, (162.0, 83.0))
+delta_D = abs(top_D - bot_D)
+st.markdown("<br><div style='font-weight: bold; font-size: 18px;'>🚦 ВЕРДИКТ СТЫКОВОЧНОГО КОМПЛАЕНСА:</div>", unsafe_allow_html=True)
+
     is_thread_mismatch = top_thread != bottom_thread
     if not is_thread_mismatch:
         st.success(f"🟢 РЕЗЬБЫ ОДНОТИПНЫ: Прямое соединение разрешено ({top_thread} ↔ {bottom_thread})")
