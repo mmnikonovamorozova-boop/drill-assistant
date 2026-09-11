@@ -342,45 +342,54 @@ else:
 
 st.caption(context_banner)
 
-# МАТЕМАТИЧЕСКАЯ МАТРИЦА РИСКОВ (Физико-вероятностная модель "Случайного леса")
-risk_points = 5.0
-# Вставляем в Шаг 4, прямо под строчкой risk_points = 5.0
-if is_thread_damaged:
-    risk_points += 45.0
-elif is_thread_warning:
-    risk_points += 15.0
-    
-if is_rotor_critical:
-    risk_points += 20.0
+import sqlite3
 
-# 1. Фактор износа геометрии муфты замка труб из кузова
+# Инициализируем расчеты
+risk_points = 5.0
+base_stop_threshold = 80.0
+
+# Тянем веса факторов из нашей базы knbk_core.db
+conn = sqlite3.connect("knbk_core.db")
+cursor = conn.cursor()
+
+# Опрашиваем базу по выбранной химии сред и региону
+cursor.execute("SELECT penalty_points, stop_threshold_modifier FROM risk_matrix WHERE factor_name IN (?, ?)", (acid_history, region_select))
+db_rows = cursor.fetchall()
+
+for row in db_rows:
+    risk_points += float(row[0])          # Первое поле — penalty_points
+    base_stop_threshold += float(row[1])  # Второе поле — stop_threshold_modifier
+
+# Опрашиваем базу по конфигурации винтовой пары и интервалу глубин
+cursor.execute("SELECT penalty_points, stop_threshold_modifier FROM risk_matrix WHERE factor_name IN (?, ?)", (vzd_lobes, well_interval))
+db_rows_2 = cursor.fetchall()
+
+for row in db_rows_2:
+    risk_points += float(row[0])          # Первое поле — penalty_points
+    base_stop_threshold += float(row[1])  # Второе поле — stop_threshold_modifier
+
+conn.close()
+# Износ муфты замка труб (геометрия из кузова)
 if actual_od_lock < 168.0: risk_points += 30.0
 if actual_od_lock < 164.0: risk_points += 15.0
 
-# 2. Химический фактор деградации стали (наводороживание и смыв хрома ротора)
-if "Органические" in acid_history: risk_points += 5.0
-elif "HCl (Риск" in acid_history: risk_points += 20.0
-elif "Термит" in acid_history: risk_points += 45.0
-
-# 3. Человеческий фактор дефектоскопии (риск пропуска микротрещин)
-if "Риск пропуска" in lnk_status: risk_points += 15.0
-
-# 3.5. Фактор резьбового комплаенса переводников со Стола Ротора
+# Сигналы с Виртуального стола ротора
 if is_thread_damaged:
-    risk_points += 40.0  # Экстремальный штраф за работу на ломаной резьбе
+    risk_points += 40.0
+    base_stop_threshold -= 15.0
 elif is_thread_warning:
-    risk_points += 15.0  # Штраф за дефекты средней тяжести
+    risk_points += 15.0
+
 if is_rotor_critical:
-    risk_points += 20.0  # Штраф за критический перепад диаметров уступа КНБК
+    risk_points += 20.0
+    base_stop_threshold -= 10.0
+# Профиль скважины (интенсивность искривления DLS)
+base_stop_threshold -= (current_dls * 2.5)
 
-# 4. Кинематика ВЗД и крутящий момент ("Танк" против "Шустрого")
-if "3/4" in vzd_lobes: risk_points += 10.0  # Мощные пиковые удары кручения и Stick-Slip
-
-# 5. Профиль скважины (Фактическое или плановое кривляние ствола)
-if current_dls > 2.5: risk_points += 15.0
-if current_dls > 4.0: risk_points += 20.0
-
+# Фиксируем итоговые значения ИИ-комплаенса
 calculated_total_risk = min(99.2, risk_points)
+dynamic_stop_threshold = max(45.0, base_stop_threshold)
+
 
 # ВЫЧИСЛЕНИЕ ДИНАМИЧЕСКОГО ПОРОГА БЛОКИРОВКИ СТОП (Самообучающаяся логика СМК)
 base_stop_threshold = 80.0
