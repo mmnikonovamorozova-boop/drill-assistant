@@ -329,69 +329,48 @@ with col_p3:
 st.markdown("---")
 st.markdown("<h2 style='font-size:26px;'>🔄 Шаг 3.5: Виртуальный стол ротора (Контроль переводников)</h2>", unsafe_allow_html=True)
 st.caption("Автоматическая кросс-проверка замковых резьб переводников на совместимость и геометрический износ по СТО ИНТИ")
-
-# Крупный контейнер на всю ширину экрана
 with st.container(border=True):
-    st.markdown("<div style='background-color:#1E293B; padding:10px; border-radius:5px; text-align: center; font-weight: bold; color: #38BDF8; font-size: 22px;'>⚙ ПАРАМЕТРЫ СТЫКОВКИ И ГЕОМЕТРИЧЕСКИЙ КОМПЛАЕНС</div>", unsafe_allow_html=True)
-    
-    # Список основных замковых резьб СТО ИНТИ
-    rotor_threads = ["З-86", "З-102", "З-117", "З-122", "З-133", "З-147", "З-161", "NC38", "NC50"]
-    
-    col_rot1, col_rot2 = st.columns(2)
-    with col_rot1:
+st.markdown("<div style='background-color:#1E293B; padding:10px; border-radius:5px; text-align: center; font-weight: bold; color: #38BDF8; font-size: 22px;'>⚙ ПАРАМЕТРЫ СТЫКОВКИ И ГЕОМЕТРИЧЕСКИЙ КОМПЛАЕНС</div>", unsafe_allow_html=True)
+rotor_threads = ["З-86", "З-102", "З-117", "З-122", "З-133", "З-147", "З-161", "NC38", "NC50"]
+col_rot1, col_rot2 = st.columns(2)
+with col_rot1:
         top_thread = st.selectbox("Верхнее соединение КНБК (МУФТА) на роторе:", options=rotor_threads, index=5)
-    with col_rot2:
-        bottom_thread = st.selectbox("Нижнее соединение КНБК (НИППЕЛЬ) под ротором:", options=rotor_threads, index=4)
-        
-    # Жёсткая трибологическая и геометрическая матрица замков (Наружный OD / Внутренний ID)
-    thread_dims = {
-        "З-86": (108.0, 57.0), "З-102": (127.0, 71.4), "З-117": (146.0, 76.2),
-        "З-122": (155.0, 80.0), "З-133": (162.0, 83.0), "З-147": (177.8, 91.0),
-        "З-161": (196.8, 100.0), "NC38": (127.0, 71.4), "NC50": (165.1, 76.2)
-    }
-    
+with col_rot2:
+    bottom_thread = st.selectbox("Нижнее соединение КНБК (НИППЕЛЬ) под ротором:", options=rotor_threads, index=4)
+thread_dims = {
+    "З-86": (108.0, 57.0), "З-102": (127.0, 71.4), "З-117": (146.0, 76.2),
+    "З-122": (155.0, 80.0), "З-133": (162.0, 83.0), "З-147": (177.8, 91.0),
+    "З-161": (196.8, 100.0), "NC38": (127.0, 71.4), "NC50": (165.1, 76.2)
+}
     top_D, top_d = thread_dims.get(top_thread, (177.8, 91.0))
     bot_D, bot_d = thread_dims.get(bottom_thread, (162.0, 83.0))
     delta_D = abs(top_D - bot_D)
-    
     st.markdown("<br><div style='font-weight: bold; font-size: 18px;'>🚦 ВЕРДИКТ СТЫКОВОЧНОГО КОМПЛАЕНСА:</div>", unsafe_allow_html=True)
-    
-    # Логика светофора совместимости резьб
     is_thread_mismatch = top_thread != bottom_thread
     if not is_thread_mismatch:
         st.success(f"🟢 РЕЗЬБЫ ОДНОТИПНЫ: Прямое соединение разрешено ({top_thread} ↔ {bottom_thread})")
     else:
         st.warning(f"🟡 ВНИМАНИЕ МАС ТЕРА: Требуется переводник ПП (разнородные резьбы {top_thread} ↔ {bottom_thread})")
-        
-    # Анализ критического перепада диаметров
     if delta_D > 15.0:
         st.error(f"❌ КРИТИЧЕСКИЙ ПЕРЕПАД ГАБАРИТОВ: Разница OD составляет {delta_D:.1f} мм! Высокий риск уступа и заклинивания КНБК при подъеме.")
         is_rotor_critical = True
     else:
         st.info(f"📐 Геометрический перепад в допуске СТО ИНТИ (ΔD: {delta_D:.1f} мм)")
         is_rotor_critical = False
-        
     st.divider()
     st.markdown("<div style='font-weight: bold; color: #9CA3AF; font-size: 18px; margin-bottom: 10px;'>📋 СИЛОВОЙ ЧЕК-ЛИСТ ДЕФЕКТОСКОПИИ ПЕРЕВОДНИКА (КОНТРОЛЬ ИЗНОСА)</div>", unsafe_allow_html=True)
-    
     col_chk1, col_chk2 = st.columns(2)
     with col_chk1:
         defect_wear = st.radio(
             "Состояние витков и упорных уступов (Замер калибром):", 
-            ["🟢 Витки чистые (Износ в норме)", 
-             "🟡 Зализывание/смятие витков резьбы", 
-             "🔴 Промоины / Критический вынос конуса резьбы"]
+            ["🟢 Витки чистые (Износ в норме)", "🟡 Зализывание/смятие витков резьбы", "🔴 Промоины / Критический вынос конуса резьбы"]
         )
     with col_chk2:
         defect_geometry = st.radio(
             "Линейная геометрия торцев и трещины:", 
-            ["🟢 Торцы параллельны, задиров нет", 
-             "🔴 Выявлено смятие торца муфты / Трещины корпуса переводника"]
+            ["🟢 Торцы параллельны, задиров нет", "🔴 Выявлено смятие торца муфты / Трещины корпуса переводника"]
         )
-        
-    # Жесткое присвоение логических флагов для передачи в Шаг 4
     is_thread_damaged = ("🔴" in defect_wear) or ("🔴" in defect_geometry)
-    is_thread_warning = "🟡" in defect_wear
 
 
 # =========================================================================
