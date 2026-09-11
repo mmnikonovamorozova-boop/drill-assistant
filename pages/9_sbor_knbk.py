@@ -253,6 +253,74 @@ with col_p3:
                                   "Бурение хвостовика / Зарезка БС (> 3500 м) [СПО: 1.5 - 2 суток!]"])
 
 # =========================================================================
+# ШАГ 3.5: ВИРТУАЛЬНЫЙ СТОЛ РОТОРА (РЕЗЬБОВОЙ КОМПЛАЕНС ПЕРЕВОДНИКОВ)
+# =========================================================================
+st.markdown("---")
+st.markdown("### 🔄 Шаг 3.5: Виртуальный стол ротора (Контроль переводников)")
+st.caption("Автоматическая кросс-проверка замковых резьб переводников (безопасности, переходных, наддолотных) на совместимость и износ по ГОСТ 52866")
+
+# Выстраиваем промышленный дизайн строго по центру для Михалыча
+c_space1, c_rotor, c_space2 = st.columns([1, 3, 1])
+
+with c_rotor:
+    with st.container(border=True):
+        st.markdown("<div style='text-align: center; font-weight: bold; color: #38BDF8; font-size: 18px;'>⚙ ПАРАМЕТРЫ СТЫКОВКИ НА РОТОРЕ</div>", unsafe_allow_html=True)
+        
+        # Список основных замковых резьб СТО ИНТИ
+        rotor_threads = ["З-86", "З-102", "З-117", "З-122", "З-133", "З-147", "З-161", "NC38", "NC50"]
+        
+        col_rot1, col_rot2 = st.columns(2)
+        with col_rot1:
+            top_thread = st.selectbox("Верхнее соединение КНБК (МУФТА):", options=rotor_threads, index=5)
+        with col_rot2:
+            bottom_thread = st.selectbox("Нижнее соединение КНБК (НИППЕЛЬ):", options=rotor_threads, index=4)
+            
+        # Жёсткая трибологическая и геометрическая матрица замков (Наружный OD / Внутренний ID)
+        thread_dims = {
+            "З-86": (108.0, 57.0), "З-102": (127.0, 71.4), "З-117": (146.0, 76.2),
+            "З-122": (155.0, 80.0), "З-133": (162.0, 83.0), "З-147": (177.8, 91.0),
+            "З-161": (196.8, 100.0), "NC38": (127.0, 71.4), "NC50": (165.1, 76.2)
+        }
+        
+        top_D, top_d = thread_dims.get(top_thread, (177.8, 91.0))
+        bot_D, bot_d = thread_dims.get(bottom_thread, (162.0, 83.0))
+        delta_D = abs(top_D - bot_D)
+        
+        st.markdown("<br><div style='text-align: center; font-weight: bold;'>🚦 ВЕРДИКТ СТЫКОВОЧНОГО КОМПЛАЕНСА:</div>", unsafe_allow_html=True)
+        
+        # Логика светофора
+        is_thread_mismatch = top_thread != bottom_thread
+        if not is_thread_mismatch:
+            st.success(f"🟢 РЕЗЬБЫ ОДНОТИПНЫ: Прямое соединение разрешено ({top_thread} ↔ {bottom_thread})")
+        else:
+            st.warning(f"🟡 ВНИМАНИЕ: Требуется переводник ПП (разнородные резьбы {top_thread} ↔ {bottom_thread})")
+            
+        if delta_D > 15.0:
+            st.error(f"❌ КРИТИЧЕСКИЙ ПЕРЕПАД ГАБАРИТОВ: Разница OD составляет {delta_D:.1f} мм! Риск уступа и зависания КНБК.")
+            is_rotor_critical = True
+        else:
+            is_rotor_critical = False
+            
+        st.metric(label="Фактический перепад наружного диаметра замка (ΔD):", value=f"{delta_D:.1f} мм", delta=f"{'- Риск уступа' if delta_D > 15.0 else 'В допуске СТО ИНТИ'}")
+        st.divider()
+        st.markdown("<div style='text-align: center; font-weight: bold; color: #9CA3AF; font-size: 14px;'>📋 ЧЕК-ЛИСТ ВИЗУАЛЬНОГО ИНСПЕКТИРОВАНИЯ РЕЗЬБЫ</div>", unsafe_allow_html=True)
+        
+        col_chk1, col_chk2 = st.columns(2)
+        with col_chk1:
+            defect_wear = st.radio("Состояние витков и упорных уступов:", 
+                                   ["🟢 Витки чистые (Износ в норме)", 
+                                    "🟡 Зализывание/смятие витков резьбы", 
+                                    "🔴 Промоины / Критический вынос конуса"])
+        with col_chk2:
+            defect_geometry = st.radio("Линейная геометрия переводника:", 
+                                       ["🟢 Торцы параллельны, задиров нет", 
+                                        "🔴 Выявлено смятие торца муфты / трещины"])
+            
+        # Формируем флаг брака по резьбе
+        is_thread_damaged = "🔴" in defect_wear or "🔴" in defect_geometry
+        is_thread_warning = "🟡" in defect_wear
+
+# =========================================================================
 # ШАГ 4: ДИНАМИЧЕСКИЙ СКВОЗНОЙ ИНТЕГРАТОР И РАСЧЕТ РИСКОВ (ИИ-ЯДРО)
 # =========================================================================
 st.markdown("---")
@@ -286,6 +354,14 @@ elif "Термит" in acid_history: risk_points += 45.0
 # 3. Человеческий фактор дефектоскопии (риск пропуска микротрещин)
 if "Риск пропуска" in lnk_status: risk_points += 15.0
 
+# 3.5. Фактор резьбового комплаенса переводников со Стола Ротора
+if is_thread_damaged:
+    risk_points += 40.0  # Экстремальный штраф за работу на ломаной резьбе
+elif is_thread_warning:
+    risk_points += 15.0  # Штраф за дефекты средней тяжести
+if is_rotor_critical:
+    risk_points += 20.0  # Штраф за критический перепад диаметров уступа КНБК
+
 # 4. Кинематика ВЗД и крутящий момент ("Танк" против "Шустрого")
 if "3/4" in vzd_lobes: risk_points += 10.0  # Мощные пиковые удары кручения и Stick-Slip
 
@@ -307,6 +383,11 @@ if "Термит" in acid_history: base_stop_threshold -= 12.0
 
 # Штрафной вычет за Сибирь (температурный шок разбурки холодного корпуса)
 if "Сибирь" in region_select: base_stop_threshold -= 5.0
+# Штрафной вычет динамического порога за аварийную резьбу переводника
+if is_thread_damaged:
+    base_stop_threshold -= 15.0
+if is_rotor_critical:
+    base_stop_threshold -= 10.0
 
 # Штрафной вычет за целевой интервал и цену времени СПО (Хвостовик на 3500м)
 if "Эксплуатационная" in well_interval: base_stop_threshold -= 5.0
@@ -350,6 +431,12 @@ if "Сибирь" in region_select:
 
 if not recommendation_text:
     recommendation_text = "🟢 Компоновка полностью соответствует базовым прочностным характеристикам для данного интервала. Бурение разрешено в штатном технологическом режиме."
+if is_thread_damaged:
+    recommendation_text += f"🚨 **КРИТИЧЕСКИЙ БРАК РЕЗЬБЫ!** Обнаружены недопустимые дефекты переводника ({top_thread} или {bottom_thread}) согласно СТО ИНТИ S.QS.7. Спуск КНБК с поврежденными упорными торцами категорически запрещен из-за угрозы оставления компоновки в скважине! "
+elif is_thread_warning:
+    recommendation_text += f"⚠ **ПРЕДУПРЕЖДЕНИЕ ПО РЕЗЬБЕ:** На переводнике зафиксировано частичное замятие витков. Требуется повторная калибровка резьбовым шаблоном перед накручиванием. "
+if is_rotor_critical:
+    recommendation_text += f"⚠️ **ВНИМАНИЕ:** Геометрический перепад замков муфта/ниппель превышает 15 мм. Обеспечьте плавность проработки уступов при СПО для предотвращения посадок инструмента. "
 
 if is_blocked:
     st.error(recommendation_text)
