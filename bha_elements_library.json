@@ -1,0 +1,36 @@
+{
+  "elements_library": [
+    {
+      "element_type": "ВЗД",
+      "model": "ДЗ-172",
+      "nominal_od": 172.0,
+      "nominal_id": 71.4,
+      "max_torque_k_nm": 18.5,
+      "max_temp_c": 130
+    },
+    {
+      "element_type": "ТБТ",
+      "model": "ТБТ-127",
+      "nominal_od": 127.0,
+      "nominal_id": 92.4,
+      "max_torque_k_nm": 32.0,
+      "max_temp_c": 200
+    },
+    {
+      "element_type": "СБТ",
+      "model": "СБТ-127",
+      "nominal_od": 127.0,
+      "nominal_id": 101.6,
+      "max_torque_k_nm": 28.0,
+      "max_temp_c": 200
+    },
+    {
+      "element_type": "Телесистема",
+      "model": "MWD-172",
+      "nominal_od": 172.0,
+      "nominal_id": 76.0,
+      "max_torque_k_nm": 15.0,
+      "max_temp_c": 125
+    }
+  ]
+}
