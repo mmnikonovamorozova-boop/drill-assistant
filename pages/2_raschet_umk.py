@@ -3,30 +3,25 @@ import json
 import os
 import numpy as np
 
-# --- АВТЕНТИФИКАЦИЯ И НАСТРОЙКА ---
+# --- 1. АППАРАТНАЯ ИНИЦИАЛИЗАЦИЯ СТРИМЛИТ (СТРОГО НА ПЕРВОМ МЕСТЕ) ---
+st.set_page_config(page_title="Расчет ключа УМК", layout="wide")
+
+# --- 2. АВТЕНТИФИКАЦИЯ И БЕЗОПАСНОСТЬ ---
 if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
     st.error("🚨 ДОСТУП ОГРАНИЧЕН: Авторизуйтесь на Главной странице.")
     st.stop()
-# Получение сквозных метаданных из сессии приложения
+
+# --- 3. ЕДИНЫЙ СКВОЗНОЙ СБОР МЕТАДАННЫХ СЕССИИ ---
 engineer = st.session_state.get("engineer_name", "Не указано")
 well = st.session_state.get("well_number", "Не указано")
 field = st.session_state.get("field_name", "Не указано")
 bha = st.session_state.get("bha_number", "1")
 
-# Добавляем синюю информационную плашку как в первом модуле
+# --- 4. ПРОМЫШЛЕННЫЙ ИНФОРМАЦИОННЫЙ БЛОК ДЛЯ МИХАЛЫЧА ---
 st.info(f"📋 **Рейс:** {field} | Скв/Куст: {well} | КНБК №{bha} | **Инженер:** {engineer}")
-
-# Рисуем горизонтальную черту-разделитель для идеальной симметрии
 st.divider()
 
-st.set_page_config(page_title="Расчет ключа УМК", layout="wide")
 st.title("🔧 Контроль момента свинчивания УМК")
-
-# Получение сквозных метаданных из сессии приложения
-engineer = st.session_state.get("engineer_name", "Не указано")
-well = st.session_state.get("well_number", "Не указано")
-field = st.session_state.get("field_name", "Не указано")
-bha = st.session_state.get("bha_number", "1")
 
 # --- ПАСПОРТ СТО ИНТИ ---
 with st.expander("🔰 Паспорт верификации СТО ИНТИ", expanded=False):
