@@ -1,28 +1,58 @@
 {
   "elements_library": [
     {
+      "element_type": "Долото PDC",
+      "model": "PDC 215.9",
+      "nominal_od": 215.9,
+      "nominal_id": 76.2,
+      "max_torque_k_nm": 45.0,
+      "max_temp_c": 300.0,
+      "description": "Долото лопастное PDC для секции 215.9 мм"
+    },
+    {
+      "element_type": "Долото PDC",
+      "model": "PDC 120.6",
+      "nominal_od": 120.6,
+      "nominal_id": 50.8,
+      "max_torque_k_nm": 22.0,
+      "max_temp_c": 300.0,
+      "description": "Малогабаритное долото PDC для ЗБС и хвостовиков"
+    },
+    {
+      "element_type": "Долото шарошечное",
+      "model": "Ш 215.9",
+      "nominal_od": 215.9,
+      "nominal_id": 76.2,
+      "max_torque_k_nm": 35.0,
+      "max_temp_c": 350.0,
+      "description": "Долото шарошечное для твердых пропластков"
+    },
+    {
+      "element_type": "Долото шарошечное",
+      "model": "Ш 120.6",
+      "nominal_od": 120.6,
+      "nominal_id": 38.0,
+      "max_torque_k_nm": 18.0,
+      "max_temp_c": 350.0,
+      "description": "Шарошечное долото малого диаметра"
+    },
+    {
       "element_type": "ВЗД",
       "model": "ДЗ-172",
       "nominal_od": 172.0,
       "nominal_id": 71.4,
       "max_torque_k_nm": 18.5,
-      "max_temp_c": 130
+      "max_temp_c": 130.0,
+      "description": "Двигатель винтовой забойный стандартного габарита"
     },
     {
-      "element_type": "ТБТ",
-      "model": "ТБТ-127",
-      "nominal_od": 127.0,
-      "nominal_id": 92.4,
-      "max_torque_k_nm": 32.0,
-      "max_temp_c": 200
-    },
-    {
-      "element_type": "СБТ",
-      "model": "СБТ-127",
-      "nominal_od": 127.0,
-      "nominal_id": 101.6,
-      "max_torque_k_nm": 28.0,
-      "max_temp_c": 200
+      "element_type": "ВЗД",
+      "model": "ДЗ-120",
+      "nominal_od": 120.0,
+      "nominal_id": 57.0,
+      "max_torque_k_nm": 9.5,
+      "max_temp_c": 140.0,
+      "description": "Малогабаритный ВЗД для бурения хвостовиков и БС"
     },
     {
       "element_type": "Телесистема",
@@ -30,7 +60,134 @@
       "nominal_od": 172.0,
       "nominal_id": 76.0,
       "max_torque_k_nm": 15.0,
-      "max_temp_c": 125
+      "max_temp_c": 125.0,
+      "description": "Телесистема траекторная онлайн"
+    },
+    {
+      "element_type": "Телесистема",
+      "model": "MWD-120",
+      "nominal_od": 120.0,
+      "nominal_id": 50.0,
+      "max_torque_k_nm": 8.0,
+      "max_temp_c": 125.0,
+      "description": "Малогабаритная телеметрия для ЗБС"
+    },
+    {
+      "element_type": "Наддолотный калибратор",
+      "model": "КНК-215.9",
+      "nominal_od": 215.9,
+      "nominal_id": 76.2,
+      "max_torque_k_nm": 40.0,
+      "max_temp_c": 250.0,
+      "description": "Калибратор наддолотный для стабилизации вала"
+    },
+    {
+      "element_type": "Наддолотный калибратор",
+      "model": "КНК-120.6",
+      "nominal_od": 120.6,
+      "nominal_id": 50.0,
+      "max_torque_k_nm": 18.0,
+      "max_temp_c": 250.0,
+      "description": "Калибратор наддолотный малого габарита"
+    },
+    {
+      "element_type": "Центратор",
+      "model": "ЦС-120.6",
+      "nominal_od": 120.6,
+      "nominal_id": 50.8,
+      "max_torque_k_nm": 18.0,
+      "max_temp_c": 250.0,
+      "description": "Опорно-центрирующий элемент малого калибра"
+    },
+    {
+      "element_type": "Переводник переходной",
+      "model": "ПП (САБ) 120/106",
+      "nominal_od": 120.0,
+      "nominal_id": 55.0,
+      "max_torque_k_nm": 16.0,
+      "max_temp_c": 250.0,
+      "description": "Переводник переходной (САБ) резьбовой З-102 х З-86"
+    },
+    {
+      "element_type": "Переводник безопасности",
+      "model": "ПБ (САБ) 120",
+      "nominal_od": 120.5,
+      "nominal_id": 70.0,
+      "max_torque_k_nm": 15.0,
+      "max_temp_c": 250.0,
+      "description": "Безопасный отсоединяемый переводник (САБ) 120 габарита"
+    },
+    {
+      "element_type": "Клапан циркуляционный",
+      "model": "КЦ (САБ) 120",
+      "nominal_od": 120.0,
+      "nominal_id": 54.0,
+      "max_torque_k_nm": 14.0,
+      "max_temp_c": 150.0,
+      "description": "Циркуляционный суб-клапан активации шарами"
+    },
+    {
+      "element_type": "Ясс",
+      "model": "ЯГ-120",
+      "nominal_od": 120.0,
+      "nominal_id": 48.0,
+      "max_torque_k_nm": 15.0,
+      "max_temp_c": 150.0,
+      "description": "Малогабаритный буровой гидромеханический ясс"
+    },
+    {
+      "element_type": "Осциллятор",
+      "model": "ОД-120",
+      "nominal_od": 120.0,
+      "nominal_id": 52.0,
+      "max_torque_k_nm": 11.0,
+      "max_temp_c": 140.0,
+      "description": "Гидравлический снижатель сил трения КНБК"
+    },
+    {
+      "element_type": "Турбобур",
+      "model": "Т12М3Б-120",
+      "nominal_od": 120.0,
+      "nominal_id": 45.0,
+      "max_torque_k_nm": 6.5,
+      "max_temp_c": 160.0,
+      "description": "Малогабаритный забойный турбобур"
+    },
+    {
+      "element_type": "НУБТ",
+      "model": "НУБТ-120",
+      "nominal_od": 120.0,
+      "nominal_id": 55.0,
+      "max_torque_k_nm": 19.0,
+      "max_temp_c": 200.0,
+      "description": "Труба бурильная утяжеленная немагнитная 120 габарита"
+    },
+    {
+      "element_type": "Спиральные УБТ",
+      "model": "УБТС-120",
+      "nominal_od": 120.0,
+      "nominal_id": 50.0,
+      "max_torque_k_nm": 20.0,
+      "max_temp_c": 300.0,
+      "description": "Спиральная утяжеленная труба против прихватов в хвостовиках"
+    },
+    {
+      "element_type": "Фрезер оконный",
+      "model": "ФО-120.6",
+      "nominal_od": 120.6,
+      "nominal_id": 40.0,
+      "max_torque_k_nm": 12.0,
+      "max_temp_c": 250.0,
+      "description": "Оконный фрезер малого диаметра для вырезания окон ЗБС"
+    },
+    {
+      "element_type": "Фрезер-райбер",
+      "model": "ФР-120.6",
+      "nominal_od": 120.6,
+      "nominal_id": 42.0,
+      "max_torque_k_nm": 14.0,
+      "max_temp_c": 250.0,
+      "description": "Фрезер-райбер малого калибра для калибровки окна"
     }
   ]
 }
