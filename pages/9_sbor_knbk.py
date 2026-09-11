@@ -287,7 +287,7 @@ with col_p1:
                                  "Агрессивная 'Термит' HCl+HF (Экстремальное наводороживание)"])
     lnk_status = st.radio("Качество дефектоскопии (ЛНК) на базе приемки:", ["🟢 Полный УЗК/МПК контроль", "🔴 Высокий риск пропуска микротрещины"])
         
-        st.divider()
+
         st.markdown("<div style='font-weight: bold; font-size: 16px;'>⏳ НАКОПЛЕННАЯ УСТАЛОСТЬ И ЗАБОЙНАЯ ДИНАМИКА ПЕРЕВОДНИКОВ:</div>", unsafe_allow_html=True)
         
         fatigue_select = st.selectbox(
