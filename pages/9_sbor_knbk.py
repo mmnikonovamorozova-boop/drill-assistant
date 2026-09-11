@@ -407,8 +407,14 @@ elif is_thread_warning:
 if is_rotor_critical:
     risk_points += 20.0
     base_stop_threshold -= 10.0
+
 # Профиль скважины (интенсивность искривления DLS)
 base_stop_threshold -= (current_dls * 2.5)
+
+# Накладываем штраф за критический износ элементов из файла Бурсофт
+if st.session_state.get("bha_wear_critical", False):
+    risk_points += 35.0
+    base_stop_threshold -= 10.0
 
 # Фиксируем итоговые значения ИИ-комплаенса
 calculated_total_risk = min(99.2, risk_points)
@@ -487,6 +493,9 @@ elif is_thread_warning:
 
 if is_rotor_critical:
     recommendation_text += f"⚠ Перепад замков превышает 15 мм. Контролируйте посадки инструмента при СПО. "
+
+if st.session_state.get("bha_wear_critical", False):
+    recommendation_text += "🚨 **КРИТИЧЕСКИЙ ИЗНОС ГЕОМЕТРИИ КНБК!** В загруженном файле Бурсофт обнаружены элементы, наружный диаметр которых изношен более чем на 4.5 мм от паспортного номинала СТО ИНТИ. Спуск компоновки заблокирован из-за риска потери калибра ствола! "
 
 if not recommendation_text:
     recommendation_text = "🟢 Компоновка полностью соответствует прочностным характеристикам. Бурение разрешено в штатном режиме."
