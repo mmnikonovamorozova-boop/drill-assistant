@@ -259,7 +259,7 @@ if uploaded_report is not None:
                 st.session_state["main_page_company"] = meta_parsed["client"]
                 st.session_state["bha_number"] = meta_parsed["bha_num"]
                 st.success("✔ Рапорт бурового мастера успешно распознан!")
-                st.rerun()
+                # st.rerun()
     except Exception as e:
         st.error(f"Ошибка чтения структуры файла: {str(e)}")
 
@@ -339,11 +339,19 @@ if st.session_state.get("parsed_bha_df") is not None:
         el_bot = str(elements_list[idx+1]).strip()
         st.markdown(f"🔗 **Стык №{idx+1}:** {el_top} ↔ {el_bot}")
         
-        # Запрашиваем номинальные диаметры (OD) компонентов из базы ТЭК
-        cursor_audit.execute("SELECT nominal_od FROM elements_library_db WHERE model = ?", (el_top,))
+        # Интеллектуальный поиск по частичному совпадению LIKE под шифры Бурсофта
+        cursor_audit.execute("SELECT nominal_od FROM elements_library_db WHERE ? LIKE '%' || model || '%'", (el_top,))
         row_top = cursor_audit.fetchone()
-        cursor_audit.execute("SELECT nominal_od FROM elements_library_db WHERE model = ?", (el_bot,))
+        if not row_top:
+            cursor_audit.execute("SELECT nominal_od FROM elements_library_db WHERE model LIKE '%' || ? || '%'", (el_top[:6],))
+            row_top = cursor_audit.fetchone()
+
+        cursor_audit.execute("SELECT nominal_od FROM elements_library_db WHERE ? LIKE '%' || model || '%'", (el_bot,))
         row_bot = cursor_audit.fetchone()
+        if not row_bot:
+            cursor_audit.execute("SELECT nominal_od FROM elements_library_db WHERE model LIKE '%' || ? || '%'", (el_bot[:6],))
+            row_bot = cursor_audit.fetchone()
+
         
         top_D = float(row_top[0]) if row_top else 177.8
         bot_D = float(row_bot[0]) if row_bot else 165.1
