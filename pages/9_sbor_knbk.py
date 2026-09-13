@@ -269,12 +269,12 @@ if uploaded_report is not None:
     except Exception as e:
         st.error(f"Ошибка чтения структуры файла: {str(e)}")
 
-
 # --- ВЫВОД ТАБЛИЦЫ ЭЛЕМЕНТОВ ДЛЯ ВИЗУАЛЬНОЙ ПРОВЕРКИ ---
 if st.session_state["parsed_bha_df"] is not None:
     with st.expander("📐 Спецификация геометрии и резьбовых соединений КНБК из файла", expanded=True):
-        # Очищаем таблицу от пустых технических столбцов для эргономики экрана
         display_df = st.session_state["parsed_bha_df"].copy()
+        # Тотальное очищение от безымянных столбцов-призраков Excel 'nan'
+        display_df.columns = [f"Параметр_{i}" if pd.isna(c) or str(c).lower() == 'nan' or c == '' else c for i, c in enumerate(display_df.columns)]
         st.dataframe(display_df, use_container_width=True, hide_index=True)
 
 # =========================================================================
@@ -347,6 +347,21 @@ thread_dims = {
     "З-122": (155.0, 80.0), "З-133": (162.0, 83.0), "З-147": (177.8, 91.0),
     "З-161": (196.8, 100.0), "NC38": (127.0, 71.4), "NC50": (165.1, 76.2)
 }
+else:
+    # Конструктор активируется, если полевой файл рапорта КНБК не загружен
+    st.info("ℹ Полевой рапорт КНБК не загружен. Переход в режим интерактивного конструктора СМК.")
+    
+    # Достаем модели кубиков из базы ТЭК
+    bha_models = st.session_state.get("bha_models_list", ["З-147"])
+    
+    col_rot1, col_rot2 = st.columns(2)
+    with col_rot1:
+        top_thread = st.selectbox("Выберите верхнее соединение (МУФТА) из базы ТЭК:", options=bha_models, index=0)
+    with col_rot2:
+        bottom_thread = st.selectbox("Выберите нижнее соединение (НИППЕЛЬ) из базы ТЭК:", options=bha_models, index=min(1, len(bha_models)-1))
+        
+    elements_list = [top_thread, bottom_thread]
+
 col_chk1, col_chk2 = st.columns(2)
 st.markdown("<div style='font-weight: bold; color: #9CA3AF; font-size: 18px; margin-bottom: 10px;'>📋 СИЛОВОЙ ЧЕК-ЛИСТ ДЕФЕКТОСКОПИИ ПЕРЕВОДНИКА (КОНТРОЛЬ ИЗНОСА)</div>", unsafe_allow_html=True)
    
