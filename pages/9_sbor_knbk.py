@@ -320,18 +320,25 @@ st.markdown("<div style='background-color:#1E293B; padding:10px; border-radius:5
 rotor_threads = ["З-86", "З-102", "З-117", "З-122", "З-133", "З-147", "З-161", "NC38", "NC50"]
 col_rot1, col_rot2 = st.columns(2)
 
-bha_df = st.session_state.get("parsed_bha_df", None)
-if bha_df is not None and not bha_df.empty:
+if st.session_state.get("parsed_bha_df") is not None:
     st.markdown("### 📋 Результаты сквозного аудита соединений колонны:")
-    elements_list = bha_df.iloc[:, 0].tolist()
+    df_active = st.session_state["parsed_bha_df"]
+    elements_list = df_active.iloc[:, 0].dropna().tolist()
     
     is_thread_warning = False
     is_rotor_critical = False
     
     for idx in range(len(elements_list) - 1):
-        el_top = elements_list[idx]
-        el_bot = elements_list[idx+1]
+        el_top = str(elements_list[idx]).strip()
+        el_bot = str(elements_list[idx+1]).strip()
         st.markdown(f"🔗 **Стык №{idx+1}:** {el_top} ↔ {el_bot}")
+        
+        if el_top == el_bot:
+            st.success(f"🟢 Разрешено прямое соединение компонентов")
+        else:
+            st.warning(f"🟡 Стык требует переводника ПП ({el_top} ↔ {el_bot})")
+            is_thread_warning = True
+
         # Полный код с полным словарем резьб и проверками геометрии доступен в репозитории [https://github.com/mmnikonovamorozova-boop/drill-assistant/blob/main/pages/9_sbor_knbk.py]
         st.divider()
 
