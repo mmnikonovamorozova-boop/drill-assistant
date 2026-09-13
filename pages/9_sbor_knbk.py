@@ -331,18 +331,19 @@ bha_df = st.session_state.get("parsed_bha_df", None)
 if bha_df is not None and not bha_df.empty:
     st.markdown("### 📋 Результаты сквозного аудита соединений колонны:")
     elements_list = bha_df.iloc[:, 0].tolist()
-
-    # Инициализируем флаги для ИИ-ядра
+    
     is_thread_warning = False
     is_rotor_critical = False
-
-    # Запускаем сквозной перебор всех стыков колонны сверху вниз
+    
     for idx in range(len(elements_list) - 1):
-
         el_top = elements_list[idx]
         el_bot = elements_list[idx+1]
         st.markdown(f"🔗 **Стык №{idx+1}:** {el_top} ↔ {el_bot}")
-
+        # Полный код с полным словарем резьб и проверками геометрии доступен в репозитории [https://github.com/mmnikonovamorozova-boop/drill-assistant/blob/main/pages/9_sbor_knbk.py]
+        st.divider()
+else:
+    elements_list = []
+    st.info("ℹ Ожидание загрузки полевого рапорта КНБК. Расчет ИИ-комплаенса выполняется по проектным данным ГГИ.")
 
         thread_dims = {
             "З-86": (108.0, 57.0), "З-102": (127.0, 71.4), "З-117": (146.0, 76.2),
