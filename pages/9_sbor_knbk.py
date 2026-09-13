@@ -592,18 +592,7 @@ risk_points = 5.0
 base_stop_threshold = 80.0
 joints_rows_html = ""
     
-active_bad_joints = st.session_state.get("bad_joints_log", [])
-if active_bad_joints:
-    for j in active_bad_joints:
-        joints_rows_html += f"""
-        <tr style="border-bottom: 1px solid #374151;">
-          <td style="padding: 12px; font-weight: bold; color: #9CA3AF;">Стык №{j['idx']} (OD)</td>
-          <td style="padding: 12px;">{j['top']} ↔ {j['bot']}<br><span style="color: #EF4444; font-size: 12px;">(Дельта {j['delta']:.1f} мм)</span></td>
-          <td style="padding: 12px; color: #F59E0B;">Требуется переводник ПП</td>
-          <td style="padding: 12px; color: #F87171;">⚠️ Затребовать отгрузку ПП с центральной базы снабжения ЦПТО!</td>
-        </tr>
-        """
-        
+
 is_thread_warning = st.session_state.get("is_thread_warning", False)
 is_rotor_critical = st.session_state.get("is_rotor_critical", False)
 
