@@ -539,7 +539,7 @@ for uploaded_file in uploaded_passports:
             elif any(x in full_text for x in ["калибратор", "tsrl", "1-кр"]):
                 eq_type = "Калибратор-расширитель"
                 features = "Лопасти спиральные | Верифицирован по ГОСТ"
-
+           
             # 4. ВЫТАСКИВАЕМ РУКОПИСНУЮ НАРАБОТКУ
             if "эксплуатац" in full_text:
                 exploitation_zone = full_text.split("эксплуатац")[-1]
