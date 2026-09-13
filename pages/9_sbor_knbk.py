@@ -529,6 +529,7 @@ st.caption(context_banner)
 
 # 🛡️ ИНИЦИАЛИЗАЦИЯ ИИ-ЯДРА СМК ПО СТО ИНТИ
 calculated_total_risk = 5.0
+dynamic_stop_threshold = 80.0
 risk_points = 5.0
 base_stop_threshold = 80.0
 joints_rows_html = ""
