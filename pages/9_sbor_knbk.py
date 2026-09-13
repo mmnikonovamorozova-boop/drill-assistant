@@ -511,33 +511,13 @@ else:
     current_density = float(st.session_state.get("shared_buoyancy_factor", 1.18))
     current_dls = float(st.session_state.get("forecast_dls_deg10m", 0.0))
     context_banner = f"🔄 ОНЛАЙН ПЕРЕСЧЕТ: ПОДХВАЧЕН ФАКТ РАСТВОРА ({current_density} г/см³) И ИНКЛИНОМЕТРИИ (DLS: {current_dls} °/10м)"
+
 st.caption(context_banner)
 
 # Защитная инициализация флагов аварийности СМК для предотвращения NameError
 is_thread_warning = st.session_state.get("is_thread_warning", False)
 is_rotor_critical = st.session_state.get("is_rotor_critical", False)
 
-
-# --- ИНИЦИАЛИЗАЦИЯ СТРОК ДЛЯ МАТРИЦЫ СМК ---
-joints_rows_html = ""
-active_bad_joints = st.session_state.get("bad_joints_log", [])
-
-if active_bad_joints:
-    for j in active_bad_joints:
-        joints_rows_html += f"""
-        <tr style="border-bottom: 1px solid #374151;">
-          <td style="padding: 12px; font-weight: bold; color: #9CA3AF;">Стык №{j['idx']} (OD)</td>
-          <td style="padding: 12px;">{j['top']} ↔ {j['bot']}<br><span style="color: #EF4444; font-size: 12px;">(Дельта {j['delta']:.1f} мм)</span></td>
-          <td style="padding: 12px; color: #F59E0B;">Требуется переводник ПП</td>
-          <td style="padding: 12px; color: #F87171;">⚠️ Затребовать отгрузку ПП с центральной базыснабжения ЦПТО!</td>
-        </tr>
-        """
-else:
-    joints_rows_html = """
-    <tr>
-      <td colspan="4" style="padding: 12px; text-align: center; color: #34D399;">✅ Критических геометрических перепадов в гирлянде не обнаружено</td>
-    </tr>
-    """
 
 # Автоматически вытягиваем крайние элементы гирлянды для ИИ-комплаенса
 if len(elements_list) >= 2:
@@ -612,6 +592,11 @@ current_risk_pct = calculated_total_risk
 safe_risk_pct = 14.2
 risk_color = "#F87171" if current_risk_pct > 50.0 else "#FBBF24"
 
+# --- ЖИВАЯ ИИ-МАТРИЦА КОМПЛАЕНСА СМК ---
+current_risk_pct = calculated_total_risk
+safe_risk_pct = 14.2
+risk_color = "#F87171" if current_risk_pct > 50.0 else "#FBBF24"
+
 st.markdown(f"""
 <table style="width:100%; border-collapse: collapse; background-color: #111827; border: 1px solid #374151; color: #F3F4F6; font-family: sans-serif;">
   <tr style="background-color: #1F2937; border-bottom: 2px solid #4B5563;">
@@ -624,7 +609,7 @@ st.markdown(f"""
     <td style="padding: 12px; font-weight: bold; color: #9CA3AF;">Риск аварийности</td>
     <td style="padding: 12px; color: {risk_color}; font-weight: bold;">🔴 {current_risk_pct:.1f}% (Критический)</td>
     <td style="padding: 12px; color: #34D399; font-weight: bold;">✅ {safe_risk_pct:.1f}% (Безопасно)</td>
-    <td style="padding: 12px; color: #6EE7B7;">Снижен в 5.5 раз!</td>
+    <td style="padding: 12px; color: #6EE7B7;">Снижен при условии устранения уступов!</td>
   </tr>
   {joints_rows_html}
 </table>
