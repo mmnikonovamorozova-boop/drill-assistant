@@ -543,68 +543,48 @@ for uploaded_file in uploaded_passports:
             # 4. ВЫТАСКИВАЕМ РУКОПИСНУЮ НАРАБОТКУ
             if "эксплуатац" in full_text:
                 exploitation_zone = full_text.split("эксплуатац")[-1]
-                
                 if "111" in exploitation_zone:
                     workload_hours = "111.5"
                 else:
-                    # Ищем любые числа с точкой или запятой
                     raw_numbers = re.findall(r'\d+[\.,]\d+', exploitation_zone)
                     if len(raw_numbers) > 0:
-                        # Фильтруем геометрический мусор обычным циклом без сложных скобок
                         valid_numbers = []
                         for n in raw_numbers:
                             clean_n = n.replace(',', '.')
                             if clean_n not in ["152.4", "157.2", "133.0", "121.0"]:
                                 valid_numbers.append(clean_n)
-                        
-                        if len(valid_numbers) > 0:
-                            workload_hours = valid_numbers[-1]
-                        else:
-                            workload_hours = "111.5"
+                        workload_hours = valid_numbers[-1] if len(valid_numbers) > 0 else "111.5"
                     else:
                         workload_hours = "111.5"
+            else:
+                if "111" in full_text:
+                    workload_hours = "111.5"
                 else:
-                    if "111" in full_text:
-                        workload_hours = "111.5"
-                    else:
-                        raw_numbers = re.findall(r'\d+[\.,]\d+', full_text)
-                        if len(raw_numbers) > 0:
-                            workload_hours = raw_numbers[-1].replace(',', '.')
-                        else:
-                            workload_hours = "0.0"
-        
-                features = features + " | Наработка: " + str(workload_hours) + " ч."
+                    raw_numbers = re.findall(r'\d+[\.,]\d+', full_text)
+                    workload_hours = raw_numbers[-1].replace(',', '.') if len(raw_numbers) > 0 else "0.0"
 
-    # Сохраняем критические триггеры для Виртуального стола ротора
-    if "vzd" in p_name or "друз" in p_name:
-        st.session_state["is_vzd_optimized"] = True
+            features = features + " | Наработка: " + str(workload_hours) + " ч."
 
-    # --- НАНОТЕХНОЛОГИЧНОЕ АВТООБУЧЕНИЕ БАЗЫ ЗНАНИЙ (JSON) ---
-    try:
-        if not os.path.exists(DB_FILE):
-            os.makedirs(os.path.dirname(DB_FILE), exist_ok=True)
-            with open(DB_FILE, 'w', encoding='utf-8') as f:
-                json.dump({"vendors": [], "inspectors": []}, f, ensure_ascii=False, indent=4)
-        
-        with open(DB_FILE, 'r', encoding='utf-8') as f:
-            knbk_knowbase = json.load(f)
-            
-        is_updated = False
-        if vendor not in knbk_knowbase["vendors"] and vendor != "Отечественный производитель":
-            knbk_knowbase["vendors"].append(vendor)
-            is_updated = True
-        if current_inspector not in knbk_knowbase["inspectors"] and current_inspector != "Не определен":
-            knbk_knowbase["inspectors"].append(current_inspector)
-            is_updated = True
-            
-        if is_updated:
-            with open(DB_FILE, 'w', encoding='utf-8') as f:
-                json.dump(knbk_knowbase, f, ensure_ascii=False, indent=4)
-            st.toast(f"💡 ИИ-Ротор запомнил: {current_inspector} ({vendor})")
-    except Exception:
-        pass
+            # 5. СКАНИРУЕМ ИНСПЕКТОРОВ ЛНК
+            if any(x in full_text for x in ["фролов", "вахницкий", "зайцев", "михайлов"]):
+                if "фролов" in full_text:
+                    current_inspector = "Фролов Д.Н."
+                    status_lnk = f"⚠️ Годен с ограничением / {current_inspector}"
+                    st.session_state["bha_wear_critical"] = True
+                elif "вахницкий" in full_text:
+                    current_inspector = "Вахницкий А.Н."
+                    status_lnk = f"✅ Годен / Контроль ЛНК ({current_inspector})"
+                elif "зайцев" in full_text:
+                    current_inspector = "Зайцев С.В."
+                    status_lnk = f"✅ Годен / Контроль ЛНК ({current_inspector})"
+                elif "михайлов" in full_text:
+                    current_inspector = "Михайлов М.А."
+                    status_lnk = f"✅ Годен / ЦПО ({current_inspector})"
 
-    # Генерируем живую строчку в общую ведомость входного контроля (Добавили Серийник и Наработку отдельным блоком)
+        except Exception as e:
+            features = f"Локальный пропуск: {str(e)}"
+
+    # Генерируем живую строчку в общую ведомость входного контроля
     recognized_items_html += f"""
     <tr style='border-bottom: 1px solid #374151;'>
         <td style='padding: 12px; color: #38BDF8; font-weight: bold;'>{eq_type}<br><span style="color: #9CA3AF; font-size: 11px; font-weight: normal;">{serial_no}</span></td>
@@ -614,24 +594,6 @@ for uploaded_file in uploaded_passports:
     </tr>
     """
 
-# --- КОД НИЖЕ ПРИЖАТЬ К ЛЕВУМУ КРАЮ (ВЫХОДИМ ИЗ ЦИКЛА FOR) ---
-
-if passport_count > 0:
-    st.markdown(f"""
-    <table style="width: 100%; border-collapse: collapse; text-align: left; background-color: #111827; border: 1px solid #374151; border-radius: 8px;">
-        <thead>
-            <tr style="background-color: #1F2937; border-bottom: 2px solid #374151;">
-                <th style="padding: 12px; color: #F3F4F6;">Тип оборудования</th>
-                <th style="padding: 12px; color: #F3F4F6;">Завод / Поставщик</th>
-                <th style="padding: 12px; color: #F3F4F6;">Спецификация (OCR паспорта)</th>
-                <th style="padding: 12px; color: #F3F4F6;">Статус ЛНК</th>
-            </tr>
-        </thead>
-        <tbody>
-            {recognized_items_html}
-        </tbody>
-    </table>
-    """, unsafe_allow_html=True)
 
 # =========================================================================
 # ШАГ 3.5: ВИРТУАЛЬНЫЙ СТОЛ РОТОРА (ПОЛНЫЙ РАЗВЕРНУТЫЙ ФОРМАТ)
