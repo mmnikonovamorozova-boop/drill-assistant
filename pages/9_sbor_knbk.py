@@ -411,6 +411,7 @@ if st.session_state.get("parsed_bha_df") is not None:
     # Соединяемся с базой для динамического матчинга геометрических габаритов железа
     conn_audit = sqlite3.connect("knbk_core.db")
     cursor_audit = conn_audit.cursor()
+    bad_joints_log = []  # Хранилище для динамической матрицы
 
     for idx in range(len(elements_list) - 1):
         el_top = str(elements_list[idx]).strip()
@@ -438,7 +439,11 @@ if st.session_state.get("parsed_bha_df") is not None:
         if delta_D > 15.0:
             st.error(f"❌ КРИТИЧЕСКИЙ ПЕРЕПАД ГАБАРИТОВ СТЫКА: Разница OD составляет {delta_D:.1f} мм! Высокий риск уступа при СПО.")
             is_rotor_critical = True
-            
+            # Записываем косяк для итоговой таблицы
+            bad_joints_log.append({
+                "idx": idx + 1, "top": el_top, "bot": el_bot, "delta": delta_D
+            })
+
             # ИИ-ОПТИМИЗАТОР: Достаем остатки со стеллажа Михалыча
             sklad = st.session_state.get("bha_sklad_list", [])
             subs = [i for i in sklad if any(x in i.lower() for x in ["п-", "м-", "перевод", "sub"])]
@@ -453,7 +458,8 @@ if st.session_state.get("parsed_bha_df") is not None:
             st.info(f"📐 Геометрический переход в допуске СТО ИНТИ (ΔD: {delta_D:.1f} мм)")
         st.divider()
 
-        
+        st.session_state["bad_joints_log"] = bad_joints_log
+    
     conn_audit.close()
     st.session_state["active_bha_elements"] = elements_list
 
@@ -512,6 +518,28 @@ current_risk_pct = 78.4 if is_rotor_critical else 35.0
 safe_risk_pct = 14.2
 risk_color = "#F87171" if is_rotor_critical else "#FBBF24"
 
+# --- ДИНАМИЧЕСКИЙ ГЕНЕРАТОР СТРОК МАТРИЦЫ ---
+joints_rows_html = ""
+active_bad_joints = st.session_state.get("bad_joints_log", [])
+
+if active_bad_joints:
+    for j in active_bad_joints:
+        joints_rows_html += f"""
+        <tr style="border-bottom: 1px solid #374151;">
+          <td style="padding: 12px; font-weight: bold; color: #9CA3AF;">Стык №{j['idx']} (OD)</td>
+          <td style="padding: 12px;">{j['top']} ↔ {j['bot']}<br><span style="color: #EF4444; font-size: 12px;">(Дельта {j['delta']:.1f} мм)</span></td>
+          <td style="padding: 12px; color: #F59E0B;">Требуется переводник ПП</td>
+          <td style="padding: 12px; color: #F87171;">⚠️ Затребовать отгрузку ПП с центральной базы снабжения ЦПТО!</td>
+        </tr>
+        """
+else:
+    joints_rows_html = """
+    <tr>
+      <td colspan="4" style="padding: 12px; text-align: center; color: #34D399;">✅ Критических геометрических перепадов в гирлянде не обнаружено</td>
+    </tr>
+    """
+
+# Выводим финальную динамическую таблицу СМК
 st.markdown(f"""
 <table style="width:100%; border-collapse: collapse; background-color: #111827; border: 1px solid #374151; color: #F3F4F6;">
   <tr style="background-color: #1F2937; border-bottom: 2px solid #4B5563;">
@@ -520,27 +548,17 @@ st.markdown(f"""
     <th style="padding: 12px; text-align: left;">Оптимизация СМК (Факт)</th>
     <th style="padding: 12px; text-align: left;">Технологический вердикт</th>
   </tr>
-  <tr style="border-bottom: 1px solid #374151;">
+  <tr style="border-bottom: 2px solid #4B5563;">
     <td style="padding: 12px; font-weight: bold; color: #9CA3AF;">Риск аварийности</td>
-    <td style="padding: 12px; color: {risk_color}; font-weight: bold;">🔴 {current_risk_pct:.1f}% (Критический)</td>
-    <td style="padding: 12px; color: #34D399; font-weight: bold;">✅ {safe_risk_pct:.1f}% (Безопасно)</td>
-    <td style="padding: 12px; color: #6EE7B7;">Снижен в 5.5 раз!</td>
+    <td style="padding: 12px; color: #F87171; font-weight: bold;">🔴 {calculated_total_risk:.1f}% (Критический)</td>
+    <td style="padding: 12px; color: #34D399; font-weight: bold;">✅ 14.2% (Безопасно)</td>
+    <td style="padding: 12px; color: #6EE7B7;">Снижен при условии устранения уступов!</td>
   </tr>
-  <tr style="border-bottom: 1px solid #374151;">
-    <td style="padding: 12px; font-weight: bold; color: #9CA3AF;">Стык №3 (OD)</td>
-    <td style="padding: 12px;">1-КС-203 ↔ НУБТ-172<br><span style="color: #EF4444; font-size: 12px;">(Дельта 57.8 мм)</span></td>
-    <td style="padding: 12px; color: #38BDF8;">1-КС-203 ↔ <b>Переводник П-178/172</b> ↔ НУБТ-172</td>
-    <td style="padding: 12px;">Уступ убран за счет переводника со стеллажа №2</td>
-  </tr>
-  <tr>
-    <td style="padding: 12px; font-weight: bold; color: #9CA3AF;">ВЗД (Мотор)</td>
-    <td style="padding: 12px;">Низкозаходный 3/4<br><span style="color: #F59E0B; font-size: 12px;">(Риск Stick-Slip)</span></td>
-    <td style="padding: 12px; color: #38BDF8;">Среднезаходный 5/6 (Секция №4)</td>
-    <td style="padding: 12px;">Заменен на мотор с лучшим моментом под Ямал</td>
-  </tr>
+  {joints_rows_html}
 </table>
 <br>
 """, unsafe_allow_html=True)
+
 
 
 # Автоматически вытягиваем крайние элементы гирлянды для ИИ-комплаенса
