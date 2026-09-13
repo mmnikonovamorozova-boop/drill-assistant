@@ -191,14 +191,21 @@ def parse_field_bha_report(uploaded_file):
     clean_headers = [str(h).strip().replace('\n', ' ') for h in raw_headers]
     df_bha_raw.columns = clean_headers
     df_bha_raw = df_bha_raw.iloc[1:]
-    element_col = df_bha_raw.columns[0]
-    for col in df_bha_raw.columns:
+    # Автоматически находим индекс столбца "Элемент" с учетом сдвига холста Михалыча
+    element_col_idx = 9  # Дефолтный сдвиг под 10-й столбец рапорта
+    for i, col in enumerate(df_bha_raw.columns):
         if "элемент" in str(col).lower():
-            element_col = col
+            element_col_idx = i
             break
             
-    df_bha_clean = df_bha_raw[df_bha_raw[element_col].str.contains("ВР|ВЗД|УБТ|ТБТ|СБТ|П-|М-|долото|клапан|теле|mwd|рус|bs|дру|мвр|кс", case= False, na= False)]. copy()
-    keep_cols = [c for c in df_bha_clean.columns if str(c).strip() != '']
+    # Вырезаем только живые строки оборудования, отсекая пустые холсты
+    df_bha_clean = df_bha_raw[df_bha_raw.iloc[:, element_col_idx].astype(str).str.contains(
+        "ВР|ВЗД|УБТ|ТБТ|СБТ|П-|М-|долото|клапан|теле|mwd|рус|bs|дру|мвр|кс|яс|sub|нубт|фильтр", 
+        case=False, na=False
+    )].copy()
+    
+    # Сохраняем очищенные столбцы в сессию для Шага 3.5 и 3.6
+    st.session_state["raw_bha_names"] = df_bha_clean.iloc[:, element_col_idx].dropna().tolist()
    
     st.session_state["bha_wear_critical"] = False
     df_bha_clean["Статус СМК"] = "🟢 Паспорт проверен"
