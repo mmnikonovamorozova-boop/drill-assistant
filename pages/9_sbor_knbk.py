@@ -547,23 +547,33 @@ for uploaded_file in uploaded_passports:
                 if "111" in exploitation_zone:
                     workload_hours = "111.5"
                 else:
-                    # Ищем любые числа с запятой или точкой (например, 70,78 или 19.70)
+                    # Ищем любые числа с точкой или запятой
                     raw_numbers = re.findall(r'\d+[\.,]\d+', exploitation_zone)
-                    if raw_numbers:
-                        # Убираем из списка геометрический мусор диаметров
-                        clean_numbers = [n for n in raw_numbers if n.replace(',', '.') not in ["152.4", "157.2", "133.0", "121.0"]]
-                        workload_hours = clean_numbers[-1].replace(',', '.') if clean_numbers else "111.5"
+                    if len(raw_numbers) > 0:
+                        # Фильтруем геометрический мусор обычным циклом без сложных скобок
+                        valid_numbers = []
+                        for n in raw_numbers:
+                            clean_n = n.replace(',', '.')
+                            if clean_n not in ["152.4", "157.2", "133.0", "121.0"]:
+                                valid_numbers.append(clean_n)
+                        
+                        if len(valid_numbers) > 0:
+                            workload_hours = valid_numbers[-1]
+                        else:
+                            workload_hours = "111.5"
                     else:
                         workload_hours = "111.5"
             else:
-                # Если раздела эксплуатации нет, ищем просто число 111 или любое дробное
                 if "111" in full_text:
                     workload_hours = "111.5"
                 else:
                     raw_numbers = re.findall(r'\d+[\.,]\d+', full_text)
-                    workload_hours = raw_numbers[-1].replace(',', '.') if raw_numbers else "0.0"
+                    if len(raw_numbers) > 0:
+                        workload_hours = raw_numbers[-1].replace(',', '.')
+                    else:
+                        workload_hours = "0.0"
 
-            features += f" | Наработка: {workload_hours} ч"
+            features = features + " | Наработка: " + str(workload_hours) + " ч."
 
     # Сохраняем критические триггеры для Виртуального стола ротора
     if "vzd" in p_name or "друз" in p_name:
