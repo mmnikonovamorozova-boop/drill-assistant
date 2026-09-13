@@ -514,10 +514,10 @@ else:
 
 st.caption(context_banner)
 
-# 🛡 ЗАЩИТА СМК ОТ NAMEERROR: Инициализируем переменную дефектов по умолчанию
-joints_rows_html = ""
-active_bad_joints = st.session_state.get("bad_joints_log", [])
-if active_bad_joints:
+    # 🛡 ЗАЩИТА СМК ОТ NAMEERROR: Инициализируем переменную дефектов по умолчанию
+    joints_rows_html = ""
+    active_bad_joints = st.session_state.get("bad_joints_log", [])
+    if active_bad_joints:
 
 if active_bad_joints:
     for j in active_bad_joints:
