@@ -9,18 +9,19 @@ import subprocess
 import shlex
 import io
 import re
-import easyocr
+import pytesseract
 import numpy as np
 from PIL import Image
 import pdf2image
 
 DB_FILE = "repository/knowbase_ocr.json"
 
-# Инициализируем распознаватель (русский + английский). 
-# При первом запуске он сам скачает легкие веса (~30-50 Мб) и будет работать строго локально!
-@st.cache_resource
-def get_local_ocr_reader():
-    return easyocr.Reader(['ru', 'en'], gpu=False) # gpu=False — пашем на обычном процессоре!
+
+def get_local_ocr_text(img_np):
+    """Сверхлегкое и быстрое чтение текста через Tesseract без перегрузки памяти"""
+    # Указываем два языка: русский + английский
+    return pytesseract.image_to_string(img_np, lang='rus+eng').lower()
+
 
 def init_knbk_database():
     """Автоматическое создание локальной базы данных комплаенса КНБК СТО ИНТИ"""
@@ -495,11 +496,9 @@ for uploaded_file in uploaded_passports:
                 img = Image.open(io.BytesIO(file_bytes))
             
             if img:
-                reader = get_local_ocr_reader()
                 img_np = np.array(img)
-                ocr_results = reader.readtext(img_np, detail=0)
-                full_text = " ".join(ocr_results).lower()
-                
+                full_text = get_local_ocr_text(img_np)
+             
                 # 1. Поиск Поставщика по тексту
                 if any(x in full_text for x in ["радиус", "radius", "6534"]):
                     vendor = "ООО 'Фирма 'Радиус-Сервис'"
