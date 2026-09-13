@@ -608,26 +608,25 @@ else:
     </tr>
     """
 
-# Выводим финальную динамическую таблицу СМК
-st.markdown(f"""
-<table style="width:100%; border-collapse: collapse; background-color: #111827; border: 1px solid #374151; color: #F3F4F6;">
-  <tr style="background-color: #1F2937; border-bottom: 2px solid #4B5563;">
-    <th style="padding: 12px; text-align: left;">Режим ИИ</th>
-    <th style="padding: 12px; text-align: left;">Исходная КНБК (Проект)</th>
-    <th style="padding: 12px; text-align: left;">Оптимизация СМК (Факт)</th>
-    <th style="padding: 12px; text-align: left;">Технологический вердикт</th>
-  </tr>
-  <tr style="border-bottom: 2px solid #4B5563;">
-    <td style="padding: 12px; font-weight: bold; color: #9CA3AF;">Риск аварийности</td>
-    <td style="padding: 12px; color: #F87171; font-weight: bold;">🔴 {calculated_total_risk:.1f}% (Критический)</td>
-    <td style="padding: 12px; color: #34D399; font-weight: bold;">✅ 14.2% (Безопасно)</td>
-    <td style="padding: 12px; color: #6EE7B7;">Снижен при условии устранения уступов!</td>
-  </tr>
-  {joints_rows_html}
-</table>
-<br>
-""", unsafe_allow_html=True)
+    st.markdown(f"""
+    <table style="width:100%; border-collapse: collapse; background-color: #111827; border: 1px solid #374151; color: #F3F4F6;">
+      <tr style="background-color: #1F2937; border-bottom: 2px solid #4B5563;">
 
+        <th style="padding: 12px; text-align: left;">Режим ИИ</th>
+        <th style="padding: 12px; text-align: left;">Исходная КНБК (Проект)</th>
+        <th style="padding: 12px; text-align: left;">Оптимизация СМК (Факт)</th>
+        <th style="padding: 12px; text-align: left;">Технологический вердикт</th>
+      </tr>
+      <tr style="border-bottom: 2px solid #4B5563;">
+        <td style="padding: 12px; font-weight: bold; color: #9CA3AF;">Риск аварийности</td>
+        <td style="padding: 12px; color: #F87171; font-weight: bold;">🔴 {calculated_total_risk:.1f}% (Критический)</td>
+        <td style="padding: 12px; color: #34D399; font-weight: bold;">✅ 14.2% (Безопасно)</td>
+        <td style="padding: 12px; color: #6EE7B7;">Снижен при условии устранения уступов!</td>
+      </tr>
+      {joints_rows_html}
+    </table>
+    <br>
+    """, unsafe_allow_html=True)
 
 st.markdown("#### 🔬 Экспертное заключение ИИ-системы:")
 is_blocked = calculated_total_risk >= dynamic_stop_threshold
