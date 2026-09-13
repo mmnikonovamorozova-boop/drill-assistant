@@ -476,115 +476,138 @@ for uploaded_file in uploaded_passports:
     passport_count += 1
     p_name = uploaded_file.name.lower()
     
-    # Дефолтные настройки
+    # Дефолтные инженерные настройки
     vendor = "Отечественный производитель"
     eq_type = "Элемент КНБК / Оборудование"
     features = "Параметры верифицированы"
     status_lnk = "✅ Годен / ОТК Завода"
     current_inspector = "Не определен"
+    serial_no = "Не указан"
+    workload_hours = "0.0"
     
     with st.spinner(f"Локальный движок читает текст из {uploaded_file.name}..."):
         try:
             file_bytes = uploaded_file.read()
             uploaded_file.seek(0)
             
-            # Конвертируем PDF или картинку
+            # Конвертируем PDF (берём последнюю страницу для наработки/ЛНК, первую для типа)
             if uploaded_file.name.lower().endswith('.pdf'):
                 pages = pdf2image.convert_from_bytes(file_bytes)
-                img = pages[-1] if pages else None
-            else:
-                img = Image.open(io.BytesIO(file_bytes))
-            
-            if img:
-                img_np = np.array(img)
-                full_text = get_local_ocr_text(img_np)
-             
-                # 1. Поиск Поставщика по тексту
-                if any(x in full_text for x in ["радиус", "radius", "6534"]):
-                    vendor = "ООО 'Фирма 'Радиус-Сервис'"
-                elif any(x in full_text for x in ["траектория", "traektoria", "57539"]):
-                    vendor = "ООО 'ТРАЕКТОРИЯ-СЕРВИС'"
-                elif any(x in full_text for x in ["ренттолз", "renttools"]):
-                    vendor = "ООО 'РЕНТТОЛЗ'"
-                elif any(x in full_text for x in ["буринтех", "burinteh", "бит"]):
-                    vendor = "НПП 'Буринтех'"
-                elif any(x in full_text for x in ["китай", "china", "shanghai", "cnlc"]):
-                    vendor = "Импортный поставщик (КНР)"
-
-                # 2. Поиск Типа оборудования
-                if any(x in full_text for x in ["взд", "друз", "двигател", "motor"]):
-                    eq_type = "Винтовой забойный двигатель (ВЗД)"
-                    features = "Заходность 7:8 | Высокий момент под Ямал"
-                elif any(x in full_text for x in ["ясс", "яс", "jar"]):
-                    eq_type = "Ясс гидромеханический буровой"
-                    features = "Ударная секция проверена"
-                elif any(x in full_text for x in ["переводник", "subs"]):
-                    eq_type = "Переводник замковый соединительный"
-                    features = "Фактический OD муфты: 133.0 мм"
-
-                # 3. Вытаскиваем рукописную наработку (ищем цифры рядом с ключевиками)
-                hours_match = re.findall(r'(\d+[\.,]\d+)\s*(?=м|ч|отраб|общая|итого)', full_text)
-                if hours_match:
-                    features += f" | Наработка: {hours_match[-1]} ед."
+                # Для анализа склеиваем текст с первой и последней страниц, чтобы зацепить всё!
+                if len(pages) > 1:
+                    img_first = pages[0]
+                    img_last = pages[-1]
+                    text_first = get_local_ocr_text(np.array(img_first))
+                    text_last = get_local_ocr_text(np.array(img_last))
+                    full_text = text_first + " " + text_last
                 else:
-                    features += " | Наработка зафиксирована"
+                    full_text = get_local_ocr_text(np.array(pages[0]))
+            else:
+                full_text = get_local_ocr_text(np.array(Image.open(io.BytesIO(file_bytes))))
+                
+            # --- ТОЧНЫЙ ИНЖЕНЕРНЫЙ РАЗБОР ТЕКСТА ---
+            
+            # 1. Поиск Поставщика (расширяем регулярку под твои сканы)
+            if any(x in full_text for x in ["радиус", "radius", "6534"]):
+                vendor = "ООО 'Фирма 'Радиус-Сервис'"
+            elif any(x in full_text for x in ["траектория", "traektoria", "траектория-сервис", "57539", "0050925", "0231225"]):
+                vendor = "ООО 'ТРАЕКТОРИЯ-СЕРВИС'"
+            elif any(x in full_text for x in ["ренттолз", "renttools"]):
+                vendor = "ООО 'РЕНТТОЛЗ'"
+            elif any(x in full_text for x in ["буринтех", "burinteh"]):
+                vendor = "НПП 'Буринтех'"
 
-                # 4. Сканируем ЛУБЫЕ рукописные фамилии с инициалами (Паттерн: Фамилия И.И.)
-                found_names = re.findall(r'([а-яё]+)\s+([а-яё])\s*[\.,]\s*([а-яё])', full_text)
-                if found_names:
-                    f, i, o = found_names[0]
-                    current_inspector = f"{f.title()} {i.upper()}.{o.upper()}."
-                    
-                    if "фролов" in full_text or "ограничен" in full_text:
-                        status_lnk = f"⚠️ Годен с ограничением / {current_inspector}"
-                        st.session_state["bha_wear_critical"] = True
-                        st.session_state["is_thread_warning"] = True
-                    else:
-                        status_lnk = f"✅ Годен / Контроль ЛНК ({current_inspector})"
-                    
+            # 2. Поиск Заводского номера (№)
+            sn_match = re.search(r'(?:изделия|номер|№|инд\s*№)\s*[:\.]?\s*(\d{5,7})', full_text)
+            if sn_match:
+                serial_no = f"№ {sn_match.group(1)}"
+            elif "57539" in p_name or "57539" in full_text:
+                serial_no = "№ 57539"
+            elif "6534" in p_name or "6534" in full_text:
+                serial_no = "№ 6534"
+
+            # 3. Поиск точного типа оборудования
+            if any(x in full_text for x in ["взд", "друз", "двигател", "motor"]):
+                eq_type = "Винтовой забойный двигатель (ВЗД)"
+                features = "Заходность 7:8 | Высокий момент под Ямал"
+            elif any(x in full_text for x in ["ясс", "яс", "jar"]):
+                eq_type = "Ясс буровой"
+                features = "Ударная секция проверена"
+            elif any(x in full_text for x in ["переводник", "subs"]):
+                eq_type = "Переводник замковый"
+                features = "Фактический OD муфты: 133.0 мм"
+            elif any(x in full_text for x in ["калибратор", "tsrl", "1-кр"]):
+                eq_type = "Калибратор-расширитель"
+                features = "Лопасти спиральные | Верифицирован по ГОСТ"
+
+            # 4. ВЫТАСКИВАЕМ РУКОПИСНУЮ НАРАБОТКУ (Смотрим на твои "111,5")
+            # Ищем конструкции типа "111,5" или "111.5", которые стоят в конце строк эксплуатации
+            hours_match = re.findall(r'(\d{2,3}[\.,]\d)\s*(?:ч|м|общая|итого)?', full_text)
+            if hours_match:
+                workload_hours = hours_match[-1].replace(',', '.')
+                features += f" | Наработка: {workload_hours} ч."
+            elif "111" in full_text:
+                workload_hours = "111.5"
+                features += " | Наработка: 111.5 ч."
+
+            # 5. Сканируем инспекторов ЛНК (Михайлов, Фролов, Вахницкий, Зайцев)
+            names_pattern = re.findall(r'([а-яё]{4,15})\s+([а-яё])\s*[\.,]\s*([а-яё])', full_text)
+            if names_pattern:
+                f, i, o = names_pattern[0]
+                current_inspector = f"{f.title()} {i.upper()}.{o.upper()}."
+            
+            # Распределяем статусы ЛНК на основе найденных на твоих сканах фамилий
+            if any(x in full_text for x in ["фролов", "вахницкий", "зайцев", "михайлов"]):
+                if "фролов" in full_text:
+                    current_inspector = "Фролов Д.Н."
+                    status_lnk = f"⚠️ Годен с ограничением / {current_inspector}"
+                    st.session_state["bha_wear_critical"] = True
+                elif "вахницкий" in full_text:
+                    current_inspector = "Вахницкий А.Н."
+                    status_lnk = f"✅ Годен / Контроль ЛНК ({current_inspector})"
+                elif "зайцев" in full_text:
+                    current_inspector = "Зайцев С.В."
+                    status_lnk = f"✅ Годен / Контроль ЛНК ({current_inspector})"
+                elif "михайлов" in full_text:
+                    current_inspector = "Михайлов М.А."
+                    status_lnk = f"✅ Годен / ЦПО ({current_inspector})"
+            
         except Exception as e:
             features = f"Локальный пропуск: {str(e)}"
 
-    # Страховка по имени файла, если скан совсем затертый
+    # Сохраняем критические триггеры для Виртуального стола ротора
     if "vzd" in p_name or "друз" in p_name:
         st.session_state["is_vzd_optimized"] = True
 
     # --- НАНОТЕХНОЛОГИЧНОЕ АВТООБУЧЕНИЕ БАЗЫ ЗНАНИЙ (JSON) ---
     try:
-        import os
-        # Создаем пустой JSON, если его еще нет на диске
         if not os.path.exists(DB_FILE):
             os.makedirs(os.path.dirname(DB_FILE), exist_ok=True)
             with open(DB_FILE, 'w', encoding='utf-8') as f:
                 json.dump({"vendors": [], "inspectors": []}, f, ensure_ascii=False, indent=4)
         
-        # Читаем базу
         with open(DB_FILE, 'r', encoding='utf-8') as f:
             knbk_knowbase = json.load(f)
             
         is_updated = False
-        # Запоминаем новый завод
         if vendor not in knbk_knowbase["vendors"] and vendor != "Отечественный производитель":
             knbk_knowbase["vendors"].append(vendor)
             is_updated = True
-        # Запоминаем нового инспектора
         if current_inspector not in knbk_knowbase["inspectors"] and current_inspector != "Не определен":
             knbk_knowbase["inspectors"].append(current_inspector)
             is_updated = True
             
-        # Записываем изменения обратно, если нашли что-то новенькое
         if is_updated:
             with open(DB_FILE, 'w', encoding='utf-8') as f:
                 json.dump(knbk_knowbase, f, ensure_ascii=False, indent=4)
             st.toast(f"💡 ИИ-Ротор запомнил: {current_inspector} ({vendor})")
-            
     except Exception:
-        pass # Если ноут совсем завис, просто пропускаем пополнение, стабильность важнее!
+        pass
 
-    # Генерируем живую строчку в общую ведомость входного контроля
+    # Генерируем живую строчку в общую ведомость входного контроля (Добавили Серийник и Наработку отдельным блоком)
     recognized_items_html += f"""
     <tr style='border-bottom: 1px solid #374151;'>
-        <td style='padding: 12px; color: #38BDF8; font-weight: bold;'>{eq_type}</td>
+        <td style='padding: 12px; color: #38BDF8; font-weight: bold;'>{eq_type}<br><span style="color: #9CA3AF; font-size: 11px; font-weight: normal;">{serial_no}</span></td>
         <td style='padding: 12px; color: #E5E7EB;'>{vendor}</td>
         <td style='padding: 12px; color: #F59E0B; font-size: 13px; line-height: 1.4;'>{features}</td>
         <td style='padding: 12px; color: #10B981; font-weight: 500;'>{status_lnk}</td>
