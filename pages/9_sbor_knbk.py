@@ -50,14 +50,17 @@ def init_knbk_database():
         cursor.executemany("INSERT INTO risk_matrix (factor_type, factor_name, penalty_points, stop_threshold_modifier) VALUES (?, ?, ?, ?)", risks_data)
                
     conn.commit()
-    conn.close()
+    conn.commit()
+    return conn, cursor
+
 
 # --- СТРОГАЯ АВТЕНТИФИКАЦИЯ ЭКОСИСТЕМЫ ---
 if "authenticated" not in st.session_state or not st.session_state["authenticated"]:
     st.error("🚨 ДОСТУП ОГРАНИЧЕН: Пожалуйста, пройдите авторизацию на Главной странице.")
     st.stop()
-# Запуск инициализации локальной базы данных СМК после авторизации
-init_knbk_database()
+
+conn, cursor = init_knbk_database()
+
 # Подгружаем матрицу рисков из внешнего корня bha_risk_matrix.json
 if os.path.exists("bha_risk_matrix.json"):
     with open("bha_risk_matrix.json", "r", encoding="utf-8") as f:
