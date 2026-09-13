@@ -392,9 +392,14 @@ else:
     context_banner = f"🔄 ОНЛАЙН ПЕРЕСЧЕТ: ПОДХВАЧЕН ФАКТ РАСТВОРА ({current_density} г/см³) И ИНКЛИНОМЕТРИИ (DLS: {current_dls} °/10м)"
 st.caption(context_banner)
 
-import sqlite3
+# Базовая инициализация флагов для защиты от NameError вне цикла
+is_thread_warning = False
+is_thread_damaged = False
+is_rotor_critical = False
+
 risk_points = 5.0
 base_stop_threshold = 80.0
+
 conn = sqlite3.connect("knbk_core.db")
 cursor = conn.cursor()
 cursor.execute("SELECT penalty_points, stop_threshold_modifier FROM risk_matrix WHERE factor_name IN (?, ?)", (acid_history, region_select))
