@@ -278,8 +278,16 @@ if st.session_state.get("parsed_bha_df") is not None:
         # Переводим всё в чистый текст и тотально зачищаем текстовые остатки
         display_df = display_df.astype(str).replace('nan', '').replace('None', '')
         
-        # Находим и вырезаем только те столбцы, где есть реальный текст (убираем холсты Михалыча)
-        display_df = display_df.loc[:, (display_df != '').any(axis=0)]
+        # Умная обрезка пустых полей Бурсофта: ищем столбец № п/п и отсекаем всё, что левее
+        start_col_idx = 0
+        for i in range(display_df.shape[1]):
+            col_str = " ".join(display_df.iloc[:, i].astype(str).tolist()).lower()
+            if any(x in col_str for x in ["№ п/п", "№", "п/п", "п.п."]):
+                start_col_idx = i
+                break
+        display_df = display_df.iloc[:, start_col_idx:]
+
+        # Находим и вырезаем пустые строки
         display_df = display_df.loc[(display_df != '').any(axis=1)]
         
         # Интеллектуальный поиск ключевых столбцов «Модули», «Примечание» и «Дефекты»
@@ -597,11 +605,6 @@ with col_res1:
     st.markdown(f"""<div style="background-color:#111827; padding:20px; border-radius:10px; text-align:center; border: 1px solid #374151;"><span style="color:#9CA3AF; font-size:14px;">РАСЧЕТНЫЙ РИСК АВАРИЙНОСТИ КНБК</span><br><span style="color:#F3F4F6; font-size:48px; font-weight:bold;">{calculated_total_risk:.1f}%</span></div>""", unsafe_allow_html=True)
 with col_res2:
     st.markdown(f"""<div style="background-color:#111827; padding:20px; border-radius:10px; text-align:center; border: 1px solid #374151;"><span style="color:#9CA3AF; font-size:14px;">ДИНАМИЧЕСКИЙ ПОРОГ БЛОКИРОВКИ СТОП</span><br><span style="color:#6EE7B7; font-size:48px; font-weight:bold;">{dynamic_stop_threshold:.1f}%</span></div>""", unsafe_allow_html=True)
-
-# --- ЖИВАЯ ИИ-МАТРИЦА КОМПЛАЕНСА СМК ---
-current_risk_pct = calculated_total_risk
-safe_risk_pct = 14.2
-risk_color = "#F87171" if current_risk_pct > 50.0 else "#FBBF24"
 
 # --- ИИ-МАТРИЦА СРАВНЕНИЯ КНБК (ВЫВЕРЕННЫЙ МАКЕТ СМК) ---
 risk_color = "#F87171" if calculated_total_risk > 50.0 else "#FBBF24"
