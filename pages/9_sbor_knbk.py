@@ -338,6 +338,9 @@ if st.session_state.get("parsed_bha_df") is not None:
         else:
             st.warning(f"🟡 Стык требует переводника ПП ({el_top} ↔ {el_bot})")
             is_thread_warning = True
+else:
+    # Конструктор активируется, если полевой файл рапорта КНБК не загружен
+    st.info("ℹ Полевой рапорт КНБК не загружен. Переход в режим интерактивного конструктора СМК.")
 
         # Полный код с полным словарем резьб и проверками геометрии доступен в репозитории [https://github.com/mmnikonovamorozova-boop/drill-assistant/blob/main/pages/9_sbor_knbk.py]
         st.divider()
