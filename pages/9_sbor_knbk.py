@@ -278,19 +278,17 @@ if st.session_state.get("parsed_bha_df") is not None:
         # Переводим всё в чистый текст и тотально зачищаем текстовые остатки
         display_df = display_df.astype(str).replace('nan', '').replace('None', '')
         
-        # Снайперская обрезка пустых полей Бурсофта по СТО ИНТИ
+        # Интеллектуальный поиск стартовой колонки по числовой последовательности элементов КНБК
         start_col_idx = 0
         for i in range(display_df.shape[1]):
-            # Проверяем каждую ячейку в столбце индивидуально на наличие ключевых символов
-            for val in display_df.iloc[:, i].tolist():
-                val_clean = str(val).strip().lower()
-                if val_clean in ["№ п/п", "№", "п/п", "п.п.", "№п/п"]:
-                    start_col_idx = i
-                    break
-            if start_col_idx > 0:
+            column_values = [str(x).strip().split('.')[0] for x in display_df.iloc[:, i].tolist()]
+            # Если в столбце есть последовательность 1, 2, 3 — это точно колонка номеров п/п
+            if "1" in column_values and "2" in column_values and "3" in column_values:
+                start_col_idx = i
                 break
                 
         display_df = display_df.iloc[:, start_col_idx:]
+
         
         # Находим и вырезаем пустые строки по правильному индексу
         display_df = display_df.loc[(display_df != '').any(axis=1)]
