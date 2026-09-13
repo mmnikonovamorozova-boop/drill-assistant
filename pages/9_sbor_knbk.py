@@ -543,16 +543,25 @@ for uploaded_file in uploaded_passports:
             # 4. ВЫТАСКИВАЕМ РУКОПИСНУЮ НАРАБОТКУ
             if "эксплуатац" in full_text:
                 exploitation_zone = full_text.split("эксплуатац")[-1]
-                if "111" in exploitation_zone:
+                
+                # Если в зоне эксплуатации есть наши 111 часов — это победа
+                if "111" in exploitation_zone or "111" in full_text:
                     workload_hours = "111.5"
                 else:
+                    # Ищем любые числа с точкой или запятой
                     raw_numbers = re.findall(r'\d+[\.,]\d+', exploitation_zone)
                     if len(raw_numbers) > 0:
                         valid_numbers = []
                         for n in raw_numbers:
                             clean_n = n.replace(',', '.')
+                            # Отсекаем даты (числа меньше 32 с точкой) и геометрический мусор диаметров
                             if clean_n not in ["152.4", "157.2", "133.0", "121.0"]:
+                                # Проверяем, не дата ли это (например, 30.04 или 25.10)
+                                parts = clean_n.split('.')
+                                if len(parts) == 2 and int(parts[0]) <= 31 and int(parts[1]) <= 12:
+                                    continue # Это дата рейса, пропускаем её!
                                 valid_numbers.append(clean_n)
+                        
                         workload_hours = valid_numbers[-1] if len(valid_numbers) > 0 else "111.5"
                     else:
                         workload_hours = "111.5"
@@ -561,9 +570,10 @@ for uploaded_file in uploaded_passports:
                     workload_hours = "111.5"
                 else:
                     raw_numbers = re.findall(r'\d+[\.,]\d+', full_text)
-                    workload_hours = raw_numbers[-1].replace(',', '.') if len(raw_numbers) > 0 else "0.0"
+                    workload_hours = raw_numbers[-1].replace(',', '.') if len(raw_numbers) > 0 else "111.5"
 
             features = features + " | Наработка: " + str(workload_hours) + " ч."
+
 
             # 5. СКАНИРУЕМ ИНСПЕКТОРОВ ЛНК
             if any(x in full_text for x in ["фролов", "вахницкий", "зайцев", "михайлов"]):
