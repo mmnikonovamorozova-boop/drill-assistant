@@ -592,7 +592,9 @@ current_risk_pct = calculated_total_risk
 safe_risk_pct = 14.2
 risk_color = "#F87171" if current_risk_pct > 50.0 else "#FBBF24"
 
-st.markdown(f"""
+# --- ИИ-МАТРИЦА СРАВНЕНИЯ КНБК (ВЫВЕРЕННЫЙ МАКЕТ СМК) ---
+risk_color = "#F87171" if calculated_total_risk > 50.0 else "#FBBF24"
+table_html = f"""
 <table style="width:100%; border-collapse: collapse; background-color: #111827; border: 1px solid #374151; color: #F3F4F6; font-family: sans-serif;">
   <tr style="background-color: #1F2937; border-bottom: 2px solid #4B5563;">
     <th style="padding: 12px; text-align: left;">Режим ИИ</th>
@@ -602,14 +604,14 @@ st.markdown(f"""
   </tr>
   <tr style="border-bottom: 2px solid #4B5563;">
     <td style="padding: 12px; font-weight: bold; color: #9CA3AF;">Риск аварийности</td>
-    <td style="padding: 12px; color: {risk_color}; font-weight: bold;">🔴 {current_risk_pct:.1f}% (Критический)</td>
-    <td style="padding: 12px; color: #34D399; font-weight: bold;">✅ {safe_risk_pct:.1f}% (Безопасно)</td>
+    <td style="padding: 12px; color: {risk_color}; font-weight: bold;">🔴 {calculated_total_risk:.1f}% (Критический)</td>
+    <td style="padding: 12px; color: #34D399; font-weight: bold;">✅ 14.2% (Безопасно)</td>
     <td style="padding: 12px; color: #6EE7B7;">Снижен при условии устранения уступов!</td>
   </tr>
-  {joints_rows_html}
-</table>
-<br>
-""", unsafe_allow_html=True)
+"""
+table_html += f"{joints_rows_html}</table><br>"
+st.markdown(table_html, unsafe_allow_html=True)
+
 
 st.markdown("#### 🔬 Экспертное заключение ИИ-системы:")
 is_blocked = calculated_total_risk >= dynamic_stop_threshold
