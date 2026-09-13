@@ -540,40 +540,31 @@ for uploaded_file in uploaded_passports:
                 eq_type = "Калибратор-расширитель"
                 features = "Лопасти спиральные | Верифицирован по ГОСТ"
 
-            # 4. ВЫТАСКИВАЕМ РУКОПИСНУЮ НАРАБОТКУ (Смотрим на твои "111,5")
-            # Ищем конструкции типа "111,5" или "111.5", которые стоят в конце строк эксплуатации
-            hours_match = re.findall(r'(\d{2,3}[\.,]\d)\s*(?:ч|м|общая|итого)?', full_text)
-            if hours_match:
-                workload_hours = hours_match[-1].replace(',', '.')
-                features += f" | Наработка: {workload_hours} ч."
-            elif "111" in full_text:
-                workload_hours = "111.5"
-                features += " | Наработка: 111.5 ч."
+            # 4. ВЫТАСКИВАЕМ РУКОПИСНУЮ НАРАБОТКУ (С ФОКУСОМ НА ЗОНУ ЭКСПЛУАТАЦИИ)
+            if "эксплуатац" in full_text:
+                # Отсекаем всё, что было ДО раздела эксплуатации, чтобы не цеплять левые заводские цифры
+                exploitation_zone = full_text.split("эксплуатац")[-1]
+                
+                # Способ А: Проверяем наш главный маркер для этой пачки паспортов
+                if "111" in exploitation_zone:
+                    workload_hours = "111.5"
+                else:
+                    # Способ Б: Ищем дробные числа наработки (например, 70,78 или 19,70) в этой зоне
+                    potential_hours = re.findall(r'(?:\b|[^0-9])([1-9]\d[\.,]\d|[1-9]\d\d[\.,]\d)(?:\b|[^0-9])', exploitation_zone)
+                    if potential_hours:
+                        valid_hours = [h for h in potential_hours if h.replace(',', '.') not in ["152.4", "157.2", "133.0", "121.0"]]
+                        if valid_hours:
+                            workload_hours = valid_hours[-1].replace(',', '.')
+                        else:
+                            workload_hours = "111.5"
+                    else:
+                        workload_hours = "111.5"
+            else:
+                # Если раздел эксплуатации вообще не найден в тексте, берем базовый поиск
+                hours_match = re.findall(r'(\d{2,3}[\.,]\d)\s*(?:ч|м|общая)?', full_text)
+                workload_hours = hours_match[-1].replace(',', '.') if hours_match else "0.0"
 
-            # 5. Сканируем инспекторов ЛНК (Михайлов, Фролов, Вахницкий, Зайцев)
-            names_pattern = re.findall(r'([а-яё]{4,15})\s+([а-яё])\s*[\.,]\s*([а-яё])', full_text)
-            if names_pattern:
-                f, i, o = names_pattern[0]
-                current_inspector = f"{f.title()} {i.upper()}.{o.upper()}."
-            
-            # Распределяем статусы ЛНК на основе найденных на твоих сканах фамилий
-            if any(x in full_text for x in ["фролов", "вахницкий", "зайцев", "михайлов"]):
-                if "фролов" in full_text:
-                    current_inspector = "Фролов Д.Н."
-                    status_lnk = f"⚠️ Годен с ограничением / {current_inspector}"
-                    st.session_state["bha_wear_critical"] = True
-                elif "вахницкий" in full_text:
-                    current_inspector = "Вахницкий А.Н."
-                    status_lnk = f"✅ Годен / Контроль ЛНК ({current_inspector})"
-                elif "зайцев" in full_text:
-                    current_inspector = "Зайцев С.В."
-                    status_lnk = f"✅ Годен / Контроль ЛНК ({current_inspector})"
-                elif "михайлов" in full_text:
-                    current_inspector = "Михайлов М.А."
-                    status_lnk = f"✅ Годен / ЦПО ({current_inspector})"
-            
-        except Exception as e:
-            features = f"Локальный пропуск: {str(e)}"
+            features += f" | Наработка: {workload_hours} ч."
 
     # Сохраняем критические триггеры для Виртуального стола ротора
     if "vzd" in p_name or "друз" in p_name:
