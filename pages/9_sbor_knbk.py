@@ -600,7 +600,7 @@ with col_res1:
 with col_res2:
     st.markdown(f"""<div style="background-color:#111827; padding:20px; border-radius:10px; text-align:center; border: 1px solid #374151;"><span style="color:#9CA3AF; font-size:14px;">ДИНАМИЧЕСКИЙ ПОРОГ БЛОКИРОВКИ СТОП</span><br><span style="color:#6EE7B7; font-size:48px; font-weight:bold;">{dynamic_stop_threshold:.1f}%</span></div>""", unsafe_allow_html=True)
 
-# --- ИИ-МАТРИЦА СРАВНЕНИЯ КНБК (ПОЛНЫЙ МАКЕТ СМК) ---
+# --- ЖИВАЯ ИИ-МАТРИЦА КОМПЛАЕНСА СМК ---
 current_risk_pct = calculated_total_risk
 safe_risk_pct = 14.2
 risk_color = "#F87171" if current_risk_pct > 50.0 else "#FBBF24"
@@ -613,29 +613,16 @@ st.markdown(f"""
     <th style="padding: 12px; text-align: left;">Оптимизация СМК (Факт)</th>
     <th style="padding: 12px; text-align: left;">Технологический вердикт</th>
   </tr>
-  <tr style="border-bottom: 1px solid #374151;">
+  <tr style="border-bottom: 2px solid #4B5563;">
     <td style="padding: 12px; font-weight: bold; color: #9CA3AF;">Риск аварийности</td>
     <td style="padding: 12px; color: {risk_color}; font-weight: bold;">🔴 {current_risk_pct:.1f}% (Критический)</td>
     <td style="padding: 12px; color: #34D399; font-weight: bold;">✅ {safe_risk_pct:.1f}% (Безопасно)</td>
     <td style="padding: 12px; color: #6EE7B7;">Снижен в 5.5 раз!</td>
   </tr>
-  <tr style="border-bottom: 1px solid #374151;">
-    <td style="padding: 12px; font-weight: bold; color: #9CA3AF;">Стык №3 (OD)</td>
-    <td style="padding: 12px;">1-КС-203 ↔ НУБТ-172<br><span style="color: #EF4444; font-size: 12px;">(Дельта 57.8 мм)</span></td>
-    <td style="padding: 12px; color: #38BDF8;">1-КС-203 ↔ <b>Переводник П-178/172</b> ↔ НУБТ-172</td>
-    <td style="padding: 12px;">Уступ убран за счет переводника со стеллажа №2</td>
-  </tr>
-  <tr style="border-bottom: 1px solid #374151;">
-    <td style="padding: 12px; font-weight: bold; color: #9CA3AF;">ВЗД (Мотор)</td>
-    <td style="padding: 12px;">Низкозаходный 3/4<br><span style="color: #F59E0B; font-size: 12px;">(Риск Stick-Slip)</span></td>
-    <td style="padding: 12px; color: #38BDF8;">Среднезаходный 5/6 (Секция №4)</td>
-    <td style="padding: 12px;">Заменен на мотор с лучшим моментом под Ямал</td>
-  </tr>
   {joints_rows_html}
 </table>
 <br>
 """, unsafe_allow_html=True)
-
 
 st.markdown("#### 🔬 Экспертное заключение ИИ-системы:")
 is_blocked = calculated_total_risk >= dynamic_stop_threshold
