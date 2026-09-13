@@ -338,10 +338,7 @@ col_rot1, col_rot2 = st.columns(2)
 
 if st.session_state.get("parsed_bha_df") is not None:
     st.markdown("### 📋 Результаты сквозного автоматического аудита всей гирлянды КНБК:")
-    df_active = st.session_state["parsed_bha_df"]
-    
-    # Считываем реальные названия железа (ВЗД, МВР, BS, КС) со второго столбца
-    elements_list = df_active.iloc[:, 1].dropna().tolist() if df_active.shape[1] > 1 else df_active.iloc[:, 0].dropna().tolist()
+    elements_list = st.session_state.get("raw_bha_names", [])
     
     is_thread_warning = False
     is_rotor_critical = False
@@ -380,6 +377,8 @@ if st.session_state.get("parsed_bha_df") is not None:
         st.divider()
         
     conn_audit.close()
+    st.session_state["active_bha_elements"] = elements_list
+
 else:
     # Конструктор активируется, если полевой файл рапорта КНБК не загружен
     st.info("ℹ Полевой рапорт КНБК не загружен. Переход в режим интерактивного конструктора СМК.")
