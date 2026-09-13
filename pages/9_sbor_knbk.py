@@ -80,9 +80,10 @@ if cursor.fetchone()[0] == 0 and os.path.exists("bha_elements_library.json"):
     cursor.executemany("INSERT INTO elements_library_db (element_type, model, nominal_od, nominal_id, max_torque, max_temp) VALUES (?, ?, ?, ?, ?, ?)", insert_elements)
     conn.commit()
 
-cursor.execute("SELECT model, element_type, nominal_od FROM elements_library_db")
-st.session_state["bha_models_list"] = [row[0] for row in cursor.fetchall()]
-
+# Повторно опрашиваем базу, чтобы наполнить список моделей для конструктора КНБК
+cursor.execute("SELECT model FROM elements_library_db")
+rows_models = cursor.fetchall()
+st.session_state["bha_models_list"] = [row[0] for row in rows_models] if rows_models else ["З-147", "З-133", "З-117"]
 
 # Конфигурация страницы в стиле drill-assistant
 st.set_page_config(page_title="Сборка КНБК", layout="wide")
