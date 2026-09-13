@@ -507,21 +507,20 @@ if "📌 ФАЗА 1" in operation_phase:
     current_density = 1.18
     current_dls = 1.5
     context_banner = "📋 РАСЧЕТ ВЫПОЛНЕН ПО ПРОЕКТНЫМ ДАННЫМ ГГИ И ТЗ ЗАКАЗЧИКА"
-else:
-    current_density = float(st.session_state.get("shared_buoyancy_factor", 1.18))
-    current_dls = float(st.session_state.get("forecast_dls_deg10m", 0.0))
-    context_banner = f"🔄 ОНЛАЙН ПЕРЕСЧЕТ: ПОДХВАЧЕН ФАКТ РАСТВОРА ({current_density} г/см³) И ИНКЛИНОМЕТРИИ (DLS: {current_dls} °/10м)"
 
-st.caption(context_banner)
+    else:
+        current_density = float(st.session_state.get("shared_buoyancy_factor", 1.18))
+        current_dls = float(st.session_state.get("forecast_dls_deg10m", 0.0))
+        context_banner = f"🔄 ОНЛАЙН ПЕРЕСЧЕТ: ПОДХВАЧЕН ФАКТ РАСТВОРА ({current_density} г/см³) И ИНКЛИНОМЕТРИИ (DLS: {current_dls} °/10м)"
+        st.caption(context_banner)
 
-    # 🛡 ЗАЩИТА СМК ОТ NAMEERROR: Инициализируем переменную дефектов по умолчанию
-    joints_rows_html = ""
-    active_bad_joints = st.session_state.get("bad_joints_log", [])
-    if active_bad_joints:
-
-# Защитная инициализация флагов аварийности СМК для предотвращения NameError
-is_thread_warning = st.session_state.get("is_thread_warning", False)
-is_rotor_critical = st.session_state.get("is_rotor_critical", False)
+# 🛡 ЗАЩИТА СМК ОТ NAMEERROR: Инициализируем переменную дефектов по умолчанию
+joints_rows_html = ""
+active_bad_joints = st.session_state.get("bad_joints_log", [])
+if active_bad_joints:
+    # Защитная инициализация флагов аварийности СМК для предотвращения NameError
+    is_thread_warning = st.session_state.get("is_thread_warning", False)
+    is_rotor_critical = st.session_state.get("is_rotor_critical", False)
 
 
 # Автоматически вытягиваем крайние элементы гирлянды для ИИ-комплаенса
