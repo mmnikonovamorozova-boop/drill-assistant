@@ -326,9 +326,11 @@ st.markdown("<div style='background-color:#1E293B; padding:10px; border-radius:5
 rotor_threads = ["З-86", "З-102", "З-117", "З-122", "З-133", "З-147", "З-161", "NC38", "NC50"]
 col_rot1, col_rot2 = st.columns(2)
 with col_rot1:
-    top_thread = st.selectbox("Верхнее соединение КНБК (МУФТА) на роторе:", options=rotor_threads, index=5)
-with col_rot2:
-    bottom_thread = st.selectbox("Нижнее соединение КНБК (НИППЕЛЬ) под ротором:", options=rotor_threads, index=4)
+    bha_models = st.session_state.get("bha_models_list", ["З-147"])
+    top_thread = st.selectbox("Верхний элемент КНБК (МУФТА) из базы ТЭК:", options=bha_models, index=0)
+
+bottom_thread = st.selectbox("Нижний элемент КНБК (НИППЕЛЬ) из базы ТЭК:", options=bha_models, index=min(1, len(bha_models)-1))
+
 thread_dims = {
     "З-86": (108.0, 57.0), "З-102": (127.0, 71.4), "З-117": (146.0, 76.2),
     "З-122": (155.0, 80.0), "З-133": (162.0, 83.0), "З-147": (177.8, 91.0),
