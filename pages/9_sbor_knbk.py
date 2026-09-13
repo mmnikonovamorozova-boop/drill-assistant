@@ -543,6 +543,7 @@ else:
     bottom_thread = "З-147"
 
 
+base_stop_threshold = 80.0
 conn = sqlite3.connect("knbk_core.db")
 cursor = conn.cursor()
 cursor.execute("SELECT penalty_points, stop_threshold_modifier FROM risk_matrix WHERE factor_name IN (?, ?)", (acid_history, region_select))
