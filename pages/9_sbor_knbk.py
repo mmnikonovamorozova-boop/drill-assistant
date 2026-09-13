@@ -314,7 +314,15 @@ uploaded_eq_report = st.file_uploader(
 if uploaded_eq_report is not None:
     try:
         # Читаем строго целевой лист "Оборудование", игнорируя стикеры и акты
-        eq_df = pd.read_excel(uploaded_eq_report, sheet_name="Оборудование", header=None)
+        # Автоматический поиск листа по частичному совпадению корня "оборуд"
+        xl = pd.ExcelFile(uploaded_eq_report)
+        target_sheet = xl.sheet_names[0]  # По умолчанию берем самый первый лист
+        for sheet in xl.sheet_names:
+            if "оборуд" in sheet.lower():
+                target_sheet = sheet
+                break
+                
+        eq_df = pd.read_excel(uploaded_eq_report, sheet_name=target_sheet, header=None)
         eq_df = eq_df.astype(str).replace('nan', '').replace('None', '')
         
         # Находим столбцы «Модули» и «Примечание» на листе
