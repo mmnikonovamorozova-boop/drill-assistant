@@ -251,7 +251,6 @@ st.markdown("### 📥 Шаг 2: Загрузка полевого эскиза /
 uploaded_report = st.file_uploader("Перетащите сюда официальный файл рапорта КНБК (.csv, .xlsx, .xls, .mdb):", type=["csv", "xlsx", "xls", "mdb"])
 
 if uploaded_report is not None:
-if uploaded_report is not None:
     file_name = uploaded_report.name
     
     # --- ИНТЕЛЛЕКТУАЛЬНЫЙ ШЛЮЗ БУРСОФТА ДЛЯ .MDB БАЗ ДАННЫХ ---
