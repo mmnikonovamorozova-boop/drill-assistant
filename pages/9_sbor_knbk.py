@@ -459,7 +459,10 @@ if st.session_state.get("parsed_bha_df") is not None:
         st.divider()
 
         st.session_state["bad_joints_log"] = bad_joints_log
-    
+
+    st.session_state["is_thread_warning"] = is_thread_warning
+    st.session_state["is_rotor_critical"] = is_rotor_critical
+
     conn_audit.close()
     st.session_state["active_bha_elements"] = elements_list
 
@@ -509,6 +512,10 @@ else:
     current_dls = float(st.session_state.get("forecast_dls_deg10m", 0.0))
     context_banner = f"🔄 ОНЛАЙН ПЕРЕСЧЕТ: ПОДХВАЧЕН ФАКТ РАСТВОРА ({current_density} г/см³) И ИНКЛИНОМЕТРИИ (DLS: {current_dls} °/10м)"
 st.caption(context_banner)
+
+# Защитная инициализация флагов аварийности СМК для предотвращения NameError
+is_thread_warning = st.session_state.get("is_thread_warning", False)
+is_rotor_critical = st.session_state.get("is_rotor_critical", False)
 
 
 # --- ИНИЦИАЛИЗАЦИЯ СТРОК ДЛЯ МАТРИЦЫ СМК ---
