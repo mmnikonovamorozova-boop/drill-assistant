@@ -363,13 +363,16 @@ if bha_df is not None and not bha_df.empty:
         if delta_D > 15.0:
             st.error(f"❌ КРИТИЧЕСКИЙ ПЕРЕПАД ГАБАРИТОВ: Разница OD составляет {delta_D:.1f} мм! Высокий риск уступа при подъеме.")
             is_rotor_critical = True
-        else:
-            st.info(f"📐 Геометрический перепад в допуске СТО ИНТИ (ΔD: {delta_D:.1f} мм)")
-
-        st.divider()
+            else:
+                st.info(f"📐 Геометрический перепад в допуске СТО ИНТИ (ΔD: {delta_D:.1f} мм)")
+            st.divider()
+else:
+    # Если файл рапорта бурового мастера не загружен, создаем пустой список для стабильности ИИ-ядра
+    elements_list = []
+    st.info("ℹ Ожидание загрузки полевого рапорта КНБК. Расчет ИИ-комплаенса выполняется по проектным данным ГГИ.")
 
 st.markdown("<div style='font-weight: bold; color: #9CA3AF; font-size: 18px; margin-bottom: 10px;'>📋 СИЛОВОЙ ЧЕК-ЛИСТ ДЕФЕКТОСКОПИИ ПЕРЕВОДНИКА (КОНТРОЛЬ ИЗНОСА)</div>", unsafe_allow_html=True)
-col_chk1, col_chk2 = st.columns(2)
+   
 with col_chk1:
     defect_wear = st.radio("Состояние витков и упорных уступов (Замер калибром):", ["🟢 Витки чистые (Износ в норме)", "🟡 Зализывание/смятие витков резьбы", "🔴 Промоины / Критический вынос конуса резьбы"])
 with col_chk2:
