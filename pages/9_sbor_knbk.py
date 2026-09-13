@@ -450,15 +450,15 @@ fatigue_select = "В пределах нормы (< 250 роторных час�
 vibration_select = "Низкий уровень вибраций"
 region_select = "Западная Сибирь / Ямал"
 
-    # Системные переменные для сбора логов ЛНК по всей пачке документов
-    recognized_items_html = ""
-    passport_count = 0
+# Системные переменные для сбора логов ЛНК по всей пачке документов
+recognized_items_html = ""
+passport_count = 0
 
-    for uploaded_file in uploaded_passports:
-        passport_count += 1
-        if passport_count == 1:
+for uploaded_file in uploaded_passports:
+    passport_count += 1
 
-        st.info("📦 ИИ-ЯДРО: Обнаружен пакет документов. Запущено параллельное OCR-сканирование пачки...")
+
+    st.info("📦 ИИ-ЯДРО: Обнаружен пакет документов. Запущено параллельное OCR-сканирование пачки...")
     p_name = uploaded_file.name.lower()
            
         # 1. Интеллектуальное определение Завода/Поставщика
