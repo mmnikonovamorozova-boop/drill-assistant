@@ -341,38 +341,13 @@ if bha_df is not None and not bha_df.empty:
         st.markdown(f"🔗 **Стык №{idx+1}:** {el_top} ↔ {el_bot}")
         # Полный код с полным словарем резьб и проверками геометрии доступен в репозитории [https://github.com/mmnikonovamorozova-boop/drill-assistant/blob/main/pages/9_sbor_knbk.py]
         st.divider()
-else:
-    elements_list = []
-    st.info("ℹ Ожидание загрузки полевого рапорта КНБК. Расчет ИИ-комплаенса выполняется по проектным данным ГГИ.")
 
-        thread_dims = {
-            "З-86": (108.0, 57.0), "З-102": (127.0, 71.4), "З-117": (146.0, 76.2),
-            "З-122": (155.0, 80.0), "З-133": (162.0, 83.0), "З-147": (177.8, 91.0),
-            "З-161": (196.8, 100.0), "NC38": (127.0, 71.4), "NC50": (165.1, 76.2)
-        }
-
-        top_D, top_d = thread_dims.get(el_top, (177.8, 91.0))
-        bot_D, bot_d = thread_dims.get(el_bot, (162.0, 83.0))
-        delta_D = abs(top_D - bot_D)
-
-        is_thread_mismatch = el_top != el_bot
-        if not is_thread_mismatch:
-            st.success(f"🟢 РЕЗЬБЫ ОДНОТИПНЫ: Прямое соединение разрешено ({el_top} ↔ {el_bot})")
-        else:
-            st.warning(f"🟡 ВНИМАНИЕ МАСТЕРА: Требуется переводник ПП (разнородные резьбы {el_top} ↔ {el_bot})")
-            is_thread_warning = True
-
-        if delta_D > 15.0:
-            st.error(f"❌ КРИТИЧЕСКИЙ ПЕРЕПАД ГАБАРИТОВ: Разница OD составляет {delta_D:.1f} мм! Высокий риск уступа при подъеме.")
-            is_rotor_critical = True
-            else:
-                st.info(f"📐 Геометрический перепад в допуске СТО ИНТИ (ΔD: {delta_D:.1f} мм)")
-            st.divider()
-else:
-    # Если файл рапорта бурового мастера не загружен, создаем пустой список для стабильности ИИ-ядра
-    elements_list = []
-    st.info("ℹ Ожидание загрузки полевого рапорта КНБК. Расчет ИИ-комплаенса выполняется по проектным данным ГГИ.")
-
+thread_dims = {
+    "З-86": (108.0, 57.0), "З-102": (127.0, 71.4), "З-117": (146.0, 76.2),
+    "З-122": (155.0, 80.0), "З-133": (162.0, 83.0), "З-147": (177.8, 91.0),
+    "З-161": (196.8, 100.0), "NC38": (127.0, 71.4), "NC50": (165.1, 76.2)
+}
+col_chk1, col_chk2 = st.columns(2)
 st.markdown("<div style='font-weight: bold; color: #9CA3AF; font-size: 18px; margin-bottom: 10px;'>📋 СИЛОВОЙ ЧЕК-ЛИСТ ДЕФЕКТОСКОПИИ ПЕРЕВОДНИКА (КОНТРОЛЬ ИЗНОСА)</div>", unsafe_allow_html=True)
    
 with col_chk1:
