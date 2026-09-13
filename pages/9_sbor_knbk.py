@@ -331,11 +331,11 @@ bha_df = st.session_state.get("parsed_bha_df", None)
 if bha_df is not None and not bha_df.empty:
     st.markdown("### 📋 Результаты сквозного аудита соединений колонны:")
     elements_list = bha_df.iloc[:, 0].tolist()
-    
+
     # Инициализируем флаги для ИИ-ядра
     is_thread_warning = False
     is_rotor_critical = False
-    
+
     # Запускаем сквозной перебор всех стыков колонны сверху вниз
     for idx in range(len(elements_list) - 1):
 
