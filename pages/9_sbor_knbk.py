@@ -594,6 +594,24 @@ for uploaded_file in uploaded_passports:
     </tr>
     """
 
+# --- КОД НИЖЕ ПРИЖАТЬ К ЛЕВУМУ КРАЮ (ВЫХОДИМ ИЗ ЦИКЛА FOR) ---
+
+if passport_count > 0:
+    st.markdown(f"""
+    <table style="width: 100%; border-collapse: collapse; text-align: left; background-color: #111827; border: 1px solid #374151; border-radius: 8px;">
+        <thead>
+            <tr style="background-color: #1F2937; border-bottom: 2px solid #374151;">
+                <th style="padding: 12px; color: #F3F4F6;">Тип оборудования</th>
+                <th style="padding: 12px; color: #F3F4F6;">Завод / Поставщик</th>
+                <th style="padding: 12px; color: #F3F4F6;">Спецификация (OCR паспорта)</th>
+                <th style="padding: 12px; color: #F3F4F6;">Статус ЛНК</th>
+            </tr>
+        </thead>
+        <tbody>
+            {recognized_items_html}
+        </tbody>
+    </table>
+    """, unsafe_allow_html=True)
 
 # =========================================================================
 # ШАГ 3.5: ВИРТУАЛЬНЫЙ СТОЛ РОТОРА (ПОЛНЫЙ РАЗВЕРНУТЫЙ ФОРМАТ)
