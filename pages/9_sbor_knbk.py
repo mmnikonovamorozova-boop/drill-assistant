@@ -563,17 +563,17 @@ for uploaded_file in uploaded_passports:
                             workload_hours = "111.5"
                     else:
                         workload_hours = "111.5"
-            else:
-                if "111" in full_text:
-                    workload_hours = "111.5"
                 else:
-                    raw_numbers = re.findall(r'\d+[\.,]\d+', full_text)
-                    if len(raw_numbers) > 0:
-                        workload_hours = raw_numbers[-1].replace(',', '.')
+                    if "111" in full_text:
+                        workload_hours = "111.5"
                     else:
-                        workload_hours = "0.0"
-
-            features = features + " | Наработка: " + str(workload_hours) + " ч."
+                        raw_numbers = re.findall(r'\d+[\.,]\d+', full_text)
+                        if len(raw_numbers) > 0:
+                            workload_hours = raw_numbers[-1].replace(',', '.')
+                        else:
+                            workload_hours = "0.0"
+        
+                features = features + " | Наработка: " + str(workload_hours) + " ч."
 
     # Сохраняем критические триггеры для Виртуального стола ротора
     if "vzd" in p_name or "друз" in p_name:
