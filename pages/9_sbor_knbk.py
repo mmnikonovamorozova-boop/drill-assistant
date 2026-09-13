@@ -527,10 +527,10 @@ else:
     context_banner = f"🔄 ОНЛАЙН ПЕРЕСЧЕТ: ПОДХВАЧЕН ФАКТ РАСТВОРА ({current_density} г/см³) И ИНКЛИНОМЕТРИИ (DLS: {current_dls} °/10м)"
 st.caption(context_banner)
 
-    # 🛡️ ИНИЦИАЛИЗАЦИЯ ИИ-ЯДРА СМК ПО СТО ИНТИ
-    risk_points = 5.0
-    base_stop_threshold = 80.0
-    joints_rows_html = ""
+# 🛡️ ИНИЦИАЛИЗАЦИЯ ИИ-ЯДРА СМК ПО СТО ИНТИ
+risk_points = 5.0
+base_stop_threshold = 80.0
+joints_rows_html = ""
     
     active_bad_joints = st.session_state.get("bad_joints_log", [])
     if active_bad_joints:
