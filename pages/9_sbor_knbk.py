@@ -342,15 +342,16 @@ if bha_df is not None and not bha_df.empty:
         # Полный код с полным словарем резьб и проверками геометрии доступен в репозитории [https://github.com/mmnikonovamorozova-boop/drill-assistant/blob/main/pages/9_sbor_knbk.py]
         st.divider()
 
-thread_dims = {
-    "З-86": (108.0, 57.0), "З-102": (127.0, 71.4), "З-117": (146.0, 76.2),
-    "З-122": (155.0, 80.0), "З-133": (162.0, 83.0), "З-147": (177.8, 91.0),
-    "З-161": (196.8, 100.0), "NC38": (127.0, 71.4), "NC50": (165.1, 76.2)
-}
 else:
     # Конструктор активируется, если полевой файл рапорта КНБК не загружен
     st.info("ℹ Полевой рапорт КНБК не загружен. Переход в режим интерактивного конструктора СМК.")
     
+    thread_dims = {
+        "З-86": (108.0, 57.0), "З-102": (127.0, 71.4), "З-117": (146.0, 76.2),
+        "З-122": (155.0, 80.0), "З-133": (162.0, 83.0), "З-147": (177.8, 91.0),
+        "З-161": (196.8, 100.0), "NC38": (127.0, 71.4), "NC50": (165.1, 76.2)
+    }
+
     # Достаем модели кубиков из базы ТЭК
     bha_models = st.session_state.get("bha_models_list", ["З-147"])
     
@@ -392,6 +393,17 @@ st.caption(context_banner)
 is_thread_warning = False
 is_thread_damaged = False
 is_rotor_critical = False
+
+# Автоматически вытягиваем крайние элементы гирлянды для ИИ-комплаенса
+if len(elements_list) >= 2:
+    top_thread = elements_list[0]
+    bottom_thread = elements_list[-1]
+elif len(elements_list) == 1:
+    top_thread = elements_list[0]
+    bottom_thread = elements_list[0]
+else:
+    top_thread = "З-147"
+    bottom_thread = "З-147"
 
 risk_points = 5.0
 base_stop_threshold = 80.0
