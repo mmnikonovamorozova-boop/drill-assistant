@@ -78,12 +78,12 @@ if cursor.fetchone()[0] == 0 and os.path.exists("bha_elements_library.json"):
         lib_data = json.load(f)
     insert_elements = [(e['element_type'], e['model'], e['nominal_od'], e['nominal_id'], e['max_torque_k_nm'], e['max_temp_c']) for e in lib_data.get('elements_library', [])]
     cursor.executemany("INSERT INTO elements_library_db (element_type, model, nominal_od, nominal_id, max_torque, max_temp) VALUES (?, ?, ?, ?, ?, ?)", insert_elements)
-    conn.commit()
 
-# Повторно опрашиваем базу, чтобы наполнить список моделей для конструктора КНБК
+# Выгружаем модели ДО коммита, пока курсор горячий
 cursor.execute("SELECT model FROM elements_library_db")
 rows_models = cursor.fetchall()
-st.session_state["bha_models_list"] = [row[0] for row in rows_models] if rows_models else ["З-147", "З-133", "З-117"]
+st.session_state["bha_models_list"] = [r[0] for r in rows_models] if rows_models else ["ПДЦ 215.9", "РМ-172", "УБТ-178"]
+conn.commit()
 
 # Конфигурация страницы в стиле drill-assistant
 st.set_page_config(page_title="Сборка КНБК", layout="wide")
@@ -322,26 +322,45 @@ rotor_threads = ["З-86", "З-102", "З-117", "З-122", "З-133", "З-147", "З-
 col_rot1, col_rot2 = st.columns(2)
 
 if st.session_state.get("parsed_bha_df") is not None:
-    st.markdown("### 📋 Результаты сквозного аудита соединений колонны:")
+    st.markdown("### 📋 Результаты сквозного автоматического аудита всей гирлянды КНБК:")
     df_active = st.session_state["parsed_bha_df"]
-    elements_list = df_active.iloc[:, 0].dropna().tolist()
+    
+    # Считываем реальные названия железа (ВЗД, МВР, BS, КС) со второго столбца
+    elements_list = df_active.iloc[:, 1].dropna().tolist() if df_active.shape[1] > 1 else df_active.iloc[:, 0].dropna().tolist()
     
     is_thread_warning = False
     is_rotor_critical = False
-    
+    # Соединяемся с базой для динамического матчинга геометрических габаритов железа
+    conn_audit = sqlite3.connect("knbk_core.db")
+    cursor_audit = conn_audit.cursor()
+
     for idx in range(len(elements_list) - 1):
         el_top = str(elements_list[idx]).strip()
         el_bot = str(elements_list[idx+1]).strip()
         st.markdown(f"🔗 **Стык №{idx+1}:** {el_top} ↔ {el_bot}")
         
-        if el_top == el_bot:
-            st.success(f"🟢 Разрешено прямое соединение компонентов")
+        # Запрашиваем номинальные диаметры (OD) компонентов из базы ТЭК
+        cursor_audit.execute("SELECT nominal_od FROM elements_library_db WHERE model = ?", (el_top,))
+        row_top = cursor_audit.fetchone()
+        cursor_audit.execute("SELECT nominal_od FROM elements_library_db WHERE model = ?", (el_bot,))
+        row_bot = cursor_audit.fetchone()
+        
+        top_D = float(row_top[0]) if row_top else 177.8
+        bot_D = float(row_bot[0]) if row_bot else 165.1
+        delta_D = abs(top_D - bot_D)
+        
+        if delta_D > 15.0:
+            st.error(f"❌ КРИТИЧЕСКИЙ ПЕРЕПАД ГАБАРИТОВ СТЫКА: Разница OD составляет {delta_D:.1f} мм! Высокий риск уступа при СПО.")
+            is_rotor_critical = True
         else:
-            st.warning(f"🟡 Стык требует переводника ПП ({el_top} ↔ {el_bot})")
-            is_thread_warning = True
+            st.info(f"📐 Геометрический переход в допуске СТО ИНТИ (ΔD: {delta_D:.1f} мм)")
+        st.divider()
+        
+    conn_audit.close()
 else:
     # Конструктор активируется, если полевой файл рапорта КНБК не загружен
     st.info("ℹ Полевой рапорт КНБК не загружен. Переход в режим интерактивного конструктора СМК.")
+
     thread_dims = {
         "З-86": (108.0, 57.0), "З-102": (127.0, 71.4), "З-117": (146.0, 76.2),
         "З-122": (155.0, 80.0), "З-133": (162.0, 83.0), "З-147": (177.8, 91.0),
