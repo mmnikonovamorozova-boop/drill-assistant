@@ -191,19 +191,19 @@ def parse_field_bha_report(uploaded_file):
     clean_headers = [str(h).strip().replace('\n', ' ') for h in raw_headers]
     df_bha_raw.columns = clean_headers
     df_bha_raw = df_bha_raw.iloc[1:]
-    # Автоматически находим индекс столбца "Элемент" с учетом сдвига холста Михалыча
-    element_col_idx = 9  # Дефолтный сдвиг под 10-й столбец рапорта
+    element_col_idx = 9
     for i, col in enumerate(df_bha_raw.columns):
         if "элемент" in str(col).lower():
             element_col_idx = i
             break
-            
-    # Вырезаем только живые строки оборудования, отсекая пустые холсты
     df_bha_clean = df_bha_raw[df_bha_raw.iloc[:, element_col_idx].astype(str).str.contains(
         "ВР|ВЗД|УБТ|ТБТ|СБТ|П-|М-|долото|клапан|теле|mwd|рус|bs|дру|мвр|кс|яс|sub|нубт|фильтр", 
         case=False, na=False
     )].copy()
-    
+    st.session_state["raw_bha_names"] = df_bha_clean.iloc[:, element_col_idx].dropna().tolist()
+    return meta, df_bha_clean
+
+   
     # Сохраняем очищенные столбцы в сессию для Шага 3.5 и 3.6
     st.session_state["raw_bha_names"] = df_bha_clean.iloc[:, element_col_idx].dropna().tolist()
    
@@ -224,7 +224,7 @@ def parse_field_bha_report(uploaded_file):
             except: pass
         else: df_bha_clean.at[idx, "Статус СМК"] = "静态 НЕТ В БАЗЕ ПАСПОРТОВ"
     
-    return meta, df_bha_clean[keep_cols].copy()
+    return meta, df_bha_clean
 
 # =========================================================================
 # ШАГ 1: ПРОЦЕССНЫЙ ТУМБЛЕР
