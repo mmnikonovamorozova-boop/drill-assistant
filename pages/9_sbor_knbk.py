@@ -274,8 +274,16 @@ if uploaded_report is not None:
 if st.session_state["parsed_bha_df"] is not None:
     with st.expander("📐 Спецификация геометрии и резьбовых соединений КНБК из файла", expanded=True):
         display_df = st.session_state["parsed_bha_df"].copy()
-        # Тотальное очищение от безымянных столбцов-призраков Excel 'nan'
+        
+        # Переводим всё в чистый текст и зачищаем мусорные текстовые остатки
+        display_df = display_df.astype(str).replace('nan', '').replace('None', '')
+
+        # ✂️ ЖЕСТКИЙ ФИЛЬТР СМК: Удаляем все столбцы, которые полностью состоят из пустоты!
+        display_df = display_df.loc[:, (display_df != '').any(axis=0)]
+        
+        # Очищаем заголовки у оставшихся живых столбцов
         display_df.columns = [f"Параметр_{i}" if pd.isna(c) or str(c).lower() == 'nan' or c == '' else c for i, c in enumerate(display_df.columns)]
+        
         st.dataframe(display_df, use_container_width=True, hide_index=True)
 
 # =========================================================================
