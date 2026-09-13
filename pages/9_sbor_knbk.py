@@ -7,6 +7,18 @@ import json
 import sqlite3
 import subprocess
 import shlex
+import io
+import re
+import easyocr
+import numpy as np
+from PIL import Image
+import pdf2image
+
+# Инициализируем распознаватель (русский + английский). 
+# При первом запуске он сам скачает легкие веса (~30-50 Мб) и будет работать строго локально!
+@st.cache_resource
+def get_local_ocr_reader():
+    return easyocr.Reader(['ru', 'en'], gpu=False) # gpu=False — пашем на обычном процессоре!
 
 def init_knbk_database():
     """Автоматическое создание локальной базы данных комплаенса КНБК СТО ИНТИ"""
