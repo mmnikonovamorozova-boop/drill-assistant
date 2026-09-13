@@ -325,37 +325,48 @@ st.caption("Автоматическая кросс-проверка замко�
 st.markdown("<div style='background-color:#1E293B; padding:10px; border-radius:5px; text-align: center; font-weight: bold; color: #38BDF8; font-size: 22px;'>⚙ ПАРАМЕТРЫ СТЫКОВКИ И ГЕОМЕТРИЧЕСКИЙ КОМПЛАЕНС</div>", unsafe_allow_html= True)
 rotor_threads = ["З-86", "З-102", "З-117", "З-122", "З-133", "З-147", "З-161", "NC38", "NC50"]
 col_rot1, col_rot2 = st.columns(2)
-with col_rot1:
-    bha_models = st.session_state.get("bha_models_list", ["З-147"])
-    top_thread = st.selectbox("Верхний элемент КНБК (МУФТА) из базы ТЭК:", options=bha_models, index=0)
 
-bottom_thread = st.selectbox("Нижний элемент КНБК (НИППЕЛЬ) из базы ТЭК:", options=bha_models, index=min(1, len(bha_models)-1))
-
-thread_dims = {
-    "З-86": (108.0, 57.0), "З-102": (127.0, 71.4), "З-117": (146.0, 76.2),
-    "З-122": (155.0, 80.0), "З-133": (162.0, 83.0), "З-147": (177.8, 91.0),
-    "З-161": (196.8, 100.0), "NC38": (127.0, 71.4), "NC50": (165.1, 76.2)
-}
-top_D, top_d = thread_dims.get(top_thread, (177.8, 91.0))
-bot_D, bot_d = thread_dims.get(bottom_thread, (162.0, 83.0))
-delta_D = abs(top_D - bot_D)
-st.markdown("<br><div style='font-weight: bold; font-size: 18px;'>🚦 ВЕРДИКТ СТЫКОВОЧНОГО КОМПЛАЕНСА:</div>", unsafe_allow_html=True)
-is_thread_mismatch = top_thread != bottom_thread
-if not is_thread_mismatch:
-    st.success(f"🟢 РЕЗЬБЫ ОДНОТИПНЫ: Прямое соединение разрешено ({top_thread} ↔ {bottom_thread})")
+bha_df = st.session_state.get("parsed_bha_df", None)
+if bha_df is not None and not bha_df.empty:
+    st.markdown("### 📋 Результаты сквозного аудита соединений колонны:")
+    elements_list = bha_df.iloc[:, 0].tolist()
+    
+    # Инициализируем флаги для ИИ-ядра
     is_thread_warning = False
-else:
-    st.warning(f"🟡 ВНИМАНИЕ МАСТЕРА: Требуется переводник ПП (разнородные резьбы {top_thread} ↔ {bottom_thread})")
-    is_thread_warning = True
-
-if delta_D > 15.0:
-    st.error(f"❌ КРИТИЧЕСКИЙ ПЕРЕПАД ГАБАРИТОВ: Разница OD составляет {delta_D:.1f} мм! Высокий риск уступа и заклинивания КНБК при подъеме.")
-    is_rotor_critical = True
-else:
-    st.info(f"📐 Геометрический перепад в допуске СТО ИНТИ (ΔD: {delta_D:.1f} мм)")
     is_rotor_critical = False
+    
+    # Запускаем сквозной перебор всех стыков колонны сверху вниз
+    for idx in range(len(elements_list) - 1):
+        el_top = elements_list[idx]
+        el_bot = elements_list[idx+1]
+        st.markdown(f"🔗 **Стык №{idx+1}:** {el_top} ↔ {el_bot}")
 
-st.divider()
+
+        thread_dims = {
+            "З-86": (108.0, 57.0), "З-102": (127.0, 71.4), "З-117": (146.0, 76.2),
+            "З-122": (155.0, 80.0), "З-133": (162.0, 83.0), "З-147": (177.8, 91.0),
+            "З-161": (196.8, 100.0), "NC38": (127.0, 71.4), "NC50": (165.1, 76.2)
+        }
+
+        top_D, top_d = thread_dims.get(el_top, (177.8, 91.0))
+        bot_D, bot_d = thread_dims.get(el_bot, (162.0, 83.0))
+        delta_D = abs(top_D - bot_D)
+
+        is_thread_mismatch = el_top != el_bot
+        if not is_thread_mismatch:
+            st.success(f"🟢 РЕЗЬБЫ ОДНОТИПНЫ: Прямое соединение разрешено ({el_top} ↔ {el_bot})")
+        else:
+            st.warning(f"🟡 ВНИМАНИЕ МАСТЕРА: Требуется переводник ПП (разнородные резьбы {el_top} ↔ {el_bot})")
+            is_thread_warning = True
+
+        if delta_D > 15.0:
+            st.error(f"❌ КРИТИЧЕСКИЙ ПЕРЕПАД ГАБАРИТОВ: Разница OD составляет {delta_D:.1f} мм! Высокий риск уступа при подъеме.")
+            is_rotor_critical = True
+        else:
+            st.info(f"📐 Геометрический перепад в допуске СТО ИНТИ (ΔD: {delta_D:.1f} мм)")
+
+        st.divider()
+
 st.markdown("<div style='font-weight: bold; color: #9CA3AF; font-size: 18px; margin-bottom: 10px;'>📋 СИЛОВОЙ ЧЕК-ЛИСТ ДЕФЕКТОСКОПИИ ПЕРЕВОДНИКА (КОНТРОЛЬ ИЗНОСА)</div>", unsafe_allow_html=True)
 col_chk1, col_chk2 = st.columns(2)
 with col_chk1:
