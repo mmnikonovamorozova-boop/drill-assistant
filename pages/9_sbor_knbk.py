@@ -300,19 +300,26 @@ with col_p3:
                                   "Эксплуатационная колонна (1000 - 2500 м) [СПО: 12-18 часов]",
                                   "Техническая колонна (2500 - 3500 м) [СПО: ~24 часа]",
                                   "Бурение хвостовика / Зарезка БС (> 3500 м) [СПО: 1.5 - 2 суток!]"])
-
+    st.markdown("**🔄 Дополнительные факторы КНБК**")
+    fatigue_select = st.selectbox("Наработка элементов КНБК (Усталость стали):", [
+        "В пределах нормы (< 250 роторных часов)",
+        "Роснефть: Запрет наработки элементов КНБК > 250 ч без УЗК/МПК на устье"
+    ])
+    vibration_select = st.selectbox("Уровень забойной вибрации (Прогноз Stick-Slip):", [
+        "Низкий уровень вибраций (Стабильное разрушение)",
+        "Газпром нефть: Запрет бурения интервалов DLS > 3.5°/10м без MWD онлайн"
+    ])
 # =========================================================================
 # ШАГ 3.5: ВИРТУАЛЬНЫЙ СТОЛ РОТОРА (ПОЛНЫЙ РАЗВЕРНУТЫЙ ФОРМАТ)
 # =========================================================================
 st.markdown("---")
-st.markdown("<h2 style='font-size:26px;'>🔄 Шаг 3.5: Виртуальный стол ротора (Контроль переводников)</h2>", unsafe_allow_html=True)
+st.markdown("<h2 style='font-size:26px;'>🔄 Шаг 3.5: Виртуальный стол ротора (Контроль переводников)</h2>", unsafe_allow_html= True)
 st.caption("Автоматическая кросс-проверка замковых резьб переводников на совместимость и геометрический износ по СТО ИНТИ")
-
-st.markdown("<div style='background-color:#1E293B; padding:10px; border-radius:5px; text-align: center; font-weight: bold; color: #38BDF8; font-size: 22px;'>⚙ ПАРАМЕТРЫ СТЫКОВКИ И ГЕОМЕТРИЧЕСКИЙ КОМПЛАЕНС</div>", unsafe_allow_html=True)
+st.markdown("<div style='background-color:#1E293B; padding:10px; border-radius:5px; text-align: center; font-weight: bold; color: #38BDF8; font-size: 22px;'>⚙ ПАРАМЕТРЫ СТЫКОВКИ И ГЕОМЕТРИЧЕСКИЙ КОМПЛАЕНС</div>", unsafe_allow_html= True)
 rotor_threads = ["З-86", "З-102", "З-117", "З-122", "З-133", "З-147", "З-161", "NC38", "NC50"]
 col_rot1, col_rot2 = st.columns(2)
 with col_rot1:
-        top_thread = st.selectbox("Верхнее соединение КНБК (МУФТА) на роторе:", options=rotor_threads, index=5)
+    top_thread = st.selectbox("Верхнее соединение КНБК (МУФТА) на роторе:", options=rotor_threads, index=5)
 with col_rot2:
     bottom_thread = st.selectbox("Нижнее соединение КНБК (НИППЕЛЬ) под ротором:", options=rotor_threads, index=4)
 thread_dims = {
@@ -320,38 +327,34 @@ thread_dims = {
     "З-122": (155.0, 80.0), "З-133": (162.0, 83.0), "З-147": (177.8, 91.0),
     "З-161": (196.8, 100.0), "NC38": (127.0, 71.4), "NC50": (165.1, 76.2)
 }
-
 top_D, top_d = thread_dims.get(top_thread, (177.8, 91.0))
 bot_D, bot_d = thread_dims.get(bottom_thread, (162.0, 83.0))
 delta_D = abs(top_D - bot_D)
 st.markdown("<br><div style='font-weight: bold; font-size: 18px;'>🚦 ВЕРДИКТ СТЫКОВОЧНОГО КОМПЛАЕНСА:</div>", unsafe_allow_html=True)
+is_thread_mismatch = top_thread != bottom_thread
+if not is_thread_mismatch:
+    st.success(f"🟢 РЕЗЬБЫ ОДНОТИПНЫ: Прямое соединение разрешено ({top_thread} ↔ {bottom_thread})")
+    is_thread_warning = False
+else:
+    st.warning(f"🟡 ВНИМАНИЕ МАСТЕРА: Требуется переводник ПП (разнородные резьбы {top_thread} ↔ {bottom_thread})")
+    is_thread_warning = True
 
-    is_thread_mismatch = top_thread != bottom_thread
-    if not is_thread_mismatch:
-        st.success(f"🟢 РЕЗЬБЫ ОДНОТИПНЫ: Прямое соединение разрешено ({top_thread} ↔ {bottom_thread})")
-    else:
-        st.warning(f"🟡 ВНИМАНИЕ МАС ТЕРА: Требуется переводник ПП (разнородные резьбы {top_thread} ↔ {bottom_thread})")
-    if delta_D > 15.0:
-        st.error(f"❌ КРИТИЧЕСКИЙ ПЕРЕПАД ГАБАРИТОВ: Разница OD составляет {delta_D:.1f} мм! Высокий риск уступа и заклинивания КНБК при подъеме.")
-        is_rotor_critical = True
-    else:
-        st.info(f"📐 Геометрический перепад в допуске СТО ИНТИ (ΔD: {delta_D:.1f} мм)")
-        is_rotor_critical = False
-    st.divider()
-    st.markdown("<div style='font-weight: bold; color: #9CA3AF; font-size: 18px; margin-bottom: 10px;'>📋 СИЛОВОЙ ЧЕК-ЛИСТ ДЕФЕКТОСКОПИИ ПЕРЕВОДНИКА (КОНТРОЛЬ ИЗНОСА)</div>", unsafe_allow_html=True)
-    col_chk1, col_chk2 = st.columns(2)
-    with col_chk1:
-        defect_wear = st.radio(
-            "Состояние витков и упорных уступов (Замер калибром):", 
-            ["🟢 Витки чистые (Износ в норме)", "🟡 Зализывание/смятие витков резьбы", "🔴 Промоины / Критический вынос конуса резьбы"]
-        )
-    with col_chk2:
-        defect_geometry = st.radio(
-            "Линейная геометрия торцев и трещины:", 
-            ["🟢 Торцы параллельны, задиров нет", "🔴 Выявлено смятие торца муфты / Трещины корпуса переводника"]
-        )
-    is_thread_damaged = ("🔴" in defect_wear) or ("🔴" in defect_geometry)
+if delta_D > 15.0:
+    st.error(f"❌ КРИТИЧЕСКИЙ ПЕРЕПАД ГАБАРИТОВ: Разница OD составляет {delta_D:.1f} мм! Высокий риск уступа и заклинивания КНБК при подъеме.")
+    is_rotor_critical = True
+else:
+    st.info(f"📐 Геометрический перепад в допуске СТО ИНТИ (ΔD: {delta_D:.1f} мм)")
+    is_rotor_critical = False
 
+st.divider()
+st.markdown("<div style='font-weight: bold; color: #9CA3AF; font-size: 18px; margin-bottom: 10px;'>📋 СИЛОВОЙ ЧЕК-ЛИСТ ДЕФЕКТОСКОПИИ ПЕРЕВОДНИКА (КОНТРОЛЬ ИЗНОСА)</div>", unsafe_allow_html=True)
+col_chk1, col_chk2 = st.columns(2)
+with col_chk1:
+    defect_wear = st.radio("Состояние витков и упорных уступов (Замер калибром):", ["🟢 Витки чистые (Износ в норме)", "🟡 Зализывание/смятие витков резьбы", "🔴 Промоины / Критический вынос конуса резьбы"])
+with col_chk2:
+    defect_geometry = st.radio("Линейная геометрия торцев и трещины:", ["🟢 Торцы параллельны, задиров нет", "🔴 Выявлено смятие торца муфты / Трещины корпуса переводника"])
+
+is_thread_damaged = ("🔴" in defect_wear) or ("🔴" in defect_geometry)
 
 # =========================================================================
 # ШАГ 4: ДИНАМИЧЕСКИЙ СКВОЗНОЙ ИНТЕГРАТОР И РАСЧЕТ РИСКОВ (ИИ-ЯДРО)
@@ -359,188 +362,112 @@ st.markdown("<br><div style='font-weight: bold; font-size: 18px;'>🚦 ВЕРД�
 st.markdown("---")
 st.markdown("### 📊 Шаг 4: Адаптивный ИИ-комплаенс и вердикт СМК")
 
-# Реализация Процессного подхода: сбор сквозных данных
 if "📌 ФАЗА 1" in operation_phase:
-    current_density = 1.18  # Проектная плотность по ГГИ
-    current_dls = 1.5       # Проектная плановая интенсивность искривления
+    current_density = 1.18
+    current_dls = 1.5
     context_banner = "📋 РАСЧЕТ ВЫПОЛНЕН ПО ПРОЕКТНЫМ ДАННЫМ ГГИ И ТЗ ЗАКАЗЧИКА"
 else:
-    # СКВОЗНАЯ СИНХРОНИЗАЦИЯ: забираем живой поток из ваших модулей растворов и траекторий
     current_density = float(st.session_state.get("shared_buoyancy_factor", 1.18))
     current_dls = float(st.session_state.get("forecast_dls_deg10m", 0.0))
-    context_banner = f"🔄 ОНЛАЙН ПЕРЕСЧЕТ: ПОДХВАЧЕН ФАКТ РАСТВОРА ({current_density} г/см³) И ИНКЛИНОМЕТРИИ (DLS: {current_dls}°/10м)"
-
+    context_banner = f"🔄 ОНЛАЙН ПЕРЕСЧЕТ: ПОДХВАЧЕН ФАКТ РАСТВОРА ({current_density} г/см³) И ИНКЛИНОМЕТРИИ (DLS: {current_dls} °/10м)"
 st.caption(context_banner)
 
 import sqlite3
-
-# Инициализируем расчеты
 risk_points = 5.0
 base_stop_threshold = 80.0
-
-# Тянем веса факторов из нашей базы knbk_core.db
 conn = sqlite3.connect("knbk_core.db")
 cursor = conn.cursor()
-
-# Опрашиваем базу по выбранной химии сред и региону
 cursor.execute("SELECT penalty_points, stop_threshold_modifier FROM risk_matrix WHERE factor_name IN (?, ?)", (acid_history, region_select))
 db_rows = cursor.fetchall()
-
 for row in db_rows:
-    risk_points += float(row[0])          # Первое поле — penalty_points
-    base_stop_threshold += float(row[1])  # Второе поле — stop_threshold_modifier
-
-# Опрашиваем базу по конфигурации винтовой пары и интервалу глубин
-cursor.execute("SELECT penalty_points, stop_threshold_modifier FROM risk_matrix WHERE factor_name IN (?, ?)", (vzd_lobes, well_interval))
-db_rows_2 = cursor.fetchall()
-
-for row in db_rows_2:
-    risk_points += float(row[0])          # Первое поле — penalty_points
-    base_stop_threshold += float(row[1])  # Второе поле — stop_threshold_modifier
-
-conn.close()
-
-# Опрашиваем базу по усталости стали и забойной вибрации
-cursor.execute("SELECT penalty_points, stop_threshold_modifier FROM risk_matrix WHERE factor_name IN (?, ?)", (fatigue_select, vibration_select))
-db_rows_fatigue = cursor.fetchall()
-
-for row in db_rows_fatigue:
     risk_points += float(row[0])
     base_stop_threshold += float(row[1])
-
-# Износ муфты замка труб (геометрия из кузова)
+cursor.execute("SELECT penalty_points, stop_threshold_modifier FROM risk_matrix WHERE factor_name IN (?, ?)", (vzd_lobes, well_interval))
+db_rows_2 = cursor.fetchall()
+for row in db_rows_2:
+    risk_points += float(row[0])
+    base_stop_threshold += float(row[1])
+cursor.execute("SELECT penalty_points, stop_threshold_modifier FROM risk_matrix WHERE factor_name IN (?, ?)", (fatigue_select, vibration_select))
+for row in cursor.fetchall():
+    risk_points += float(row[0])
+    base_stop_threshold += float(row[1])
+conn.close()
 if actual_od_lock < 168.0: risk_points += 30.0
 if actual_od_lock < 164.0: risk_points += 15.0
 
-# Сигналы с Виртуального стола ротора
 if is_thread_damaged:
     risk_points += 40.0
     base_stop_threshold -= 15.0
 elif is_thread_warning:
     risk_points += 15.0
-
 if is_rotor_critical:
     risk_points += 20.0
     base_stop_threshold -= 10.0
 
-# Профиль скважины (интенсивность искривления DLS)
 base_stop_threshold -= (current_dls * 2.5)
 
-# Накладываем штраф за критический износ элементов из файла Бурсофт
 if st.session_state.get("bha_wear_critical", False):
     risk_points += 35.0
     base_stop_threshold -= 10.0
 
-# Фиксируем итоговые значения ИИ-комплаенса
 calculated_total_risk = min(99.2, risk_points)
-dynamic_stop_threshold = max(45.0, base_stop_threshold)
-
-
-# ВЫЧИСЛЕНИЕ ДИНАМИЧЕСКОГО ПОРОГА БЛОКИРОВКИ СТОП (Самообучающаяся логика СМК)
 base_stop_threshold = 80.0
-
-# Штрафной вычет за интенсивность пространственного искривления (DLS)
 base_stop_threshold -= (current_dls * 2.5)
 
-# Штрафной вычет за химическую хрупкость металла после ванн
 if "HCl" in acid_history: base_stop_threshold -= 5.0
 if "Термит" in acid_history: base_stop_threshold -= 12.0
-
-# Штрафной вычет за Сибирь (температурный шок разбурки холодного корпуса)
 if "Сибирь" in region_select: base_stop_threshold -= 5.0
-# Штрафной вычет динамического порога за аварийную резьбу переводника
-if is_thread_damaged:
-    base_stop_threshold -= 15.0
-if is_rotor_critical:
-    base_stop_threshold -= 10.0
-
-# Штрафной вычет за целевой интервал и цену времени СПО (Хвостовик на 3500м)
+if is_thread_damaged: base_stop_threshold -= 15.0
+if is_rotor_critical: base_stop_threshold -= 10.0
 if "Эксплуатационная" in well_interval: base_stop_threshold -= 5.0
 elif "Техническая" in well_interval: base_stop_threshold -= 12.0
-elif "хвостовика" in well_interval: base_stop_threshold -= 20.0  # Цена 1.5 суток гоняния концов туда-сюда
-
+elif "хвостовика" in well_interval: base_stop_threshold -= 20.0
 dynamic_stop_threshold = max(45.0, base_stop_threshold)
-
-# ЭРГОНОМИКА ВЫВОДА: Два крупных контрастных блока результатов для ночной смены
 col_res1, col_res2 = st.columns(2)
-
 with col_res1:
-    st.markdown(f"""
-    <div style="background-color:#111827; padding:20px; border-radius:10px; text-align:center; border: 1px solid #374151;">
-        <span style="color:#9CA3AF; font-size:14px;">РАСЧЕТНЫЙ РИСК АВАРИЙНОСТИ КНБК</span><br>
-        <span style="color:#F3F4F6; font-size:48px; font-weight:bold;">{calculated_total_risk:.1f}%</span>
-    </div>
-    """, unsafe_allow_html=True)
-
+    st.markdown(f"""<div style="background-color:#111827; padding:20px; border-radius:10px; text-align:center; border: 1px solid #374151;"><span style="color:#9CA3AF; font-size:14px;">РАСЧЕТНЫЙ РИСК АВАРИЙНОСТИ КНБК</span><br><span style="color:#F3F4F6; font-size:48px; font-weight:bold;">{calculated_total_risk:.1f}%</span></div>""", unsafe_allow_html=True)
 with col_res2:
-    st.markdown(f"""
-    <div style="background-color:#111827; padding:20px; border-radius:10px; text-align:center; border: 1px solid #374151;">
-        <span style="color:#9CA3AF; font-size:14px;">ДИНАМИЧЕСКИЙ ПОРОГ БЛОКИРОВКИ СТОП</span><br>
-        <span style="color:#6EE7B7; font-size:48px; font-weight:bold;">{dynamic_stop_threshold:.1f}%</span>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f"""<div style="background-color:#111827; padding:20px; border-radius:10px; text-align:center; border: 1px solid #374151;"><span style="color:#9CA3AF; font-size:14px;">ДИНАМИЧЕСКИЙ ПОРОГ БЛОКИРОВКИ СТОП</span><br><span style="color:#6EE7B7; font-size:48px; font-weight:bold;">{dynamic_stop_threshold:.1f}%</span></div>""", unsafe_allow_html=True)
 
-# СВЕТОФОР СМК И ЭКСПЕРТНАЯ РЕКОМЕНДАЦИЯ
 st.markdown("#### 🔬 Экспертное заключение ИИ-системы:")
-
 is_blocked = calculated_total_risk >= dynamic_stop_threshold
-
-# Интеллектуальный синтез текста рекомендации на основе комбинации полевых факторов
 recommendation_text = ""
-# ФИНАЛЬНЫЙ СИНТЕЗ ТЕКСТА РЕКОМЕНДАЦИЙ СМК
 if "хвостовика" in well_interval and is_blocked:
     recommendation_text += f"🚨 **КРИТИЧЕСКАЯ ЗОНА НПВ!** Спуск инструмента (OD {actual_od_lock} мм) глубже 3500 м сопряжен с риском аварии на 1.5-2 суток. "
-
 if "Термит" in acid_history:
     recommendation_text += "Обнаружен риск водородного хрупчения стали после агрессивной химии HCl+HF. "
-
-# ГЕОГРАФИЧЕСКИЙ СВЕТОФОР (УБИРАЕМ ЛОЖНЫЙ ЯМАЛ ДЛЯ ВОЛГОГРАДА)
 if "Ямал" in region_select and is_blocked:
     recommendation_text += "Внимание: при низких температурах устья прогнозируется термический самозатяг резьбы на забое. "
 elif "Поволжье" in region_select:
     recommendation_text += "Региональный тепловой баланс Поволжья стабилен, температурные риски устья отсутствуют. "
-
-# ВЕРДИКТ ДЛЯ СТОЛА РОТОРА
 if is_thread_damaged:
     recommendation_text += f"🚨 **БРАК РЕЗЬБЫ ПЕРЕВОДНИКА!** Спуск КНБК запрещен согласно СТО ИНТИ S.QS.7 из-за дефектов {top_thread}/{bottom_thread}. "
 elif is_thread_warning:
     recommendation_text += "⚠ Предупреждение по резьбе: требуется калибровка витков шаблоном. "
-
 if is_rotor_critical:
     recommendation_text += f"⚠ Перепад замков превышает 15 мм. Контролируйте посадки инструмента при СПО. "
-
 if st.session_state.get("bha_wear_critical", False):
-    recommendation_text += "🚨 **КРИТИЧЕСКИЙ ИЗНОС ГЕОМЕТРИИ КНБК!** В загруженном файле Бурсофт обнаружены элементы, наружный диаметр которых изношен более чем на 4.5 мм от паспортного номинала СТО ИНТИ. Спуск компоновки заблокирован из-за риска потери калибра ствола! "
-
+    recommendation_text += "🚨 **КРИТИЧЕСКИЙ ИЗНОС ГЕОМЕТРИИ КНБК!** В загруженном файле обнаружены изношенные элементы. "
 if not recommendation_text:
     recommendation_text = "🟢 Компоновка полностью соответствует прочностным характеристикам. Бурение разрешено в штатном режиме."
-
 if is_blocked:
     st.error(recommendation_text)
     st.markdown("### 🔐 Процедура принудительной авторизации риска (Черный ящик СМК)")
     st.warning("Блокировка СМК! КНБК не рекомендована к спуску. Для разблокировки шлюза данных требуется ввод личной ответственности инженера.")
-    
     override_check = st.checkbox("🔥 Я беру на себя персональную ответственность за спуск данной КНБК вопреки блокировке ИИ-системы.")
     override_reason = st.text_input("📝 Введите обязательное инженерное обоснование (номер распоряжения ЦИТС, подпись супервайзера):")
-    
     button_disabled = not (override_check and len(override_reason) > 5)
 else:
     st.success(recommendation_text)
     override_reason = ""
     button_disabled = False
-
-# АВТОМАТИЧЕСКИЙ ШЛЮЗ В МОДУЛЬ УМК (2_raschet_umk.py)
 if actual_od_lock < 168.0 or "Термит" in acid_history:
-    # Записываем скорректированный безопасный момент в сессию, чтобы модуль 2 подхватил его автоматически
     st.session_state["p_moment_corrected"] = 21.5
     st.info("🔗 **Шлюз СМК:** Информация об истончении муфт замков труб передана в Модуль УМК. Паспортный момент затяжки на ключах автоматически занижен до **21.5 кН·м** для предотвращения среза резьбы.")
 
-# Кнопка сохранения результатов и лога в локальную базу данных
 st.markdown("---")
 if st.button("💾 Утвердить сборку КНБК и записать лог СМК", disabled=button_disabled):
     log_status = "OVERRIDE_BY_USER" if is_blocked else "APPROVED_BY_AI"
     st.toast(f"💾 Запись успешно внесена в локальный реестр `knbk_core.db` со статусом {log_status}!")
     st.success("✔ Данные КНБК успешно верифицированы и зафиксированы в цифровом следе проекта.")
-
-# Подвал в стиле автора СМК компании
 st.markdown("<div style='text-align: center; color: #6B7280; font-size: 11px; margin-top: 50px;'><b>Разработчик экосистемы:</b> Старший инженер по качеству ОСМК Никонова-Morozova М.М. • СТО ИНТИ • ООО «Траектория-СЕРВИС» © 2026</div>", unsafe_allow_html=True)
