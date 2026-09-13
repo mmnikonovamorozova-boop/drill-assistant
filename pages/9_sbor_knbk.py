@@ -278,18 +278,23 @@ if st.session_state.get("parsed_bha_df") is not None:
         # Переводим всё в чистый текст и тотально зачищаем текстовые остатки
         display_df = display_df.astype(str).replace('nan', '').replace('None', '')
         
-        # Умная обрезка пустых полей Бурсофта: ищем столбец № п/п и отсекаем всё, что левее
+        # Снайперская обрезка пустых полей Бурсофта по СТО ИНТИ
         start_col_idx = 0
         for i in range(display_df.shape[1]):
-            col_str = " ".join([str(x) for x in display_df.iloc[:, i].tolist()]).lower()
-            if any(x in col_str for x in ["№ п/п", "№", "п/п", "п.п."]):
-                start_col_idx = i
+            # Проверяем каждую ячейку в столбце индивидуально на наличие ключевых символов
+            for val in display_df.iloc[:, i].tolist():
+                val_clean = str(val).strip().lower()
+                if val_clean in ["№ п/п", "№", "п/п", "п.п.", "№п/п"]:
+                    start_col_idx = i
+                    break
+            if start_col_idx > 0:
                 break
-
+                
         display_df = display_df.iloc[:, start_col_idx:]
-
-        # Находим и вырезаем пустые строки
+        
+        # Находим и вырезаем пустые строки по правильному индексу
         display_df = display_df.loc[(display_df != '').any(axis=1)]
+
         
         # Интеллектуальный поиск ключевых столбцов «Модули», «Примечание» и «Дефекты»
         modules_col = next((c for c in display_df.columns if "модул" in str(c).lower() or "элемент" in str(c).lower()), display_df.columns[0])
@@ -522,90 +527,84 @@ else:
     context_banner = f"🔄 ОНЛАЙН ПЕРЕСЧЕТ: ПОДХВАЧЕН ФАКТ РАСТВОРА ({current_density} г/см³) И ИНКЛИНОМЕТРИИ (DLS: {current_dls} °/10м)"
 st.caption(context_banner)
 
-# 🛡️ ЗАЩИТА СМК ОТ NAMEERROR: Инициализируем переменные для матрицы комплаенса
-risk_points = 5.0
-joints_rows_html = ""
-active_bad_joints = st.session_state.get("bad_joints_log", [])
+    # 🛡️ ИНИЦИАЛИЗАЦИЯ ИИ-ЯДРА СМК ПО СТО ИНТИ
+    risk_points = 5.0
+    base_stop_threshold = 80.0
+    joints_rows_html = ""
+    
+    active_bad_joints = st.session_state.get("bad_joints_log", [])
+    if active_bad_joints:
+        for j in active_bad_joints:
+            joints_rows_html += f"""
+            <tr style="border-bottom: 1px solid #374151;">
+              <td style="padding: 12px; font-weight: bold; color: #9CA3AF;">Стык №{j['idx']} (OD)</td>
+              <td style="padding: 12px;">{j['top']} ↔ {j['bot']}<br><span style="color: #EF4444; font-size: 12px;">(Дельта {j['delta']:.1f} мм)</span></td>
+              <td style="padding: 12px; color: #F59E0B;">Требуется переводник ПП</td>
+              <td style="padding: 12px; color: #F87171;">⚠️ Затребовать отгрузку ПП с центральной базы снабжения ЦПТО!</td>
+            </tr>
+            """
+            
+    is_thread_warning = st.session_state.get("is_thread_warning", False)
+    is_rotor_critical = st.session_state.get("is_rotor_critical", False)
 
-if active_bad_joints:
-    for j in active_bad_joints:
-        joints_rows_html += f"""
-        <tr style="border-bottom: 1px solid #374151;">
-          <td style="padding: 12px; font-weight: bold; color: #9CA3AF;">Стык №{j['idx']} (OD)</td>
-          <td style="padding: 12px;">{j['top']} ↔ {j['bot']}<br><span style="color: #EF4444; font-size: 12px;">(Дельта {j['delta']:.1f} мм)</span></td>
-          <td style="padding: 12px; color: #F59E0B;">Требуется переводник ПП</td>
-          <td style="padding: 12px; color: #F87171;">⚠️ Затребовать отгрузку ПП с центральной базы снабжения ЦПТО!</td>
-        </tr>
-        """
+    # Вытягиваем крайние элементы гирлянды
+    if len(elements_list) >= 2:
+        top_thread = elements_list[0]
+        bottom_thread = elements_list[-1]
+    else:
+        top_thread, bottom_thread = "З-147", "З-147"
+    # Сквозной расчет технологических штрафов из локальной базы данных
+    conn = sqlite3.connect("knbk_core.db")
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT penalty_points, stop_threshold_modifier FROM risk_matrix WHERE factor_name IN (?, ?, ?, ?)", 
+                   (acid_history, region_select, vzd_lobes, well_interval))
+    for row in cursor.fetchall():
+        risk_points += float(row[0])
+        base_stop_threshold += float(row[1])
         
-is_thread_warning = st.session_state.get("is_thread_warning", False)
-is_rotor_critical = st.session_state.get("is_rotor_critical", False)
-# Автоматически вытягиваем крайние элементы гирлянды для ИИ-комплаенса
-if len(elements_list) >= 2:
-    top_thread = elements_list[0]
-    bottom_thread = elements_list[-1]
-elif len(elements_list) == 1:
-    top_thread = elements_list[0]
-    bottom_thread = elements_list[0]
-else:
-    top_thread = "З-147"
-    bottom_thread = "З-147"
+    cursor.execute("SELECT penalty_points, stop_threshold_modifier FROM risk_matrix WHERE factor_name IN (?, ?)", 
+                   (fatigue_select, vibration_select))
+    for row in cursor.fetchall():
+        risk_points += float(row[0])
+        base_stop_threshold += float(row[1])
+    conn.close()
+    if actual_od_lock < 168.0: risk_points += 30.0
+    if actual_od_lock < 164.0: risk_points += 15.0
 
+    if is_thread_damaged:
+        risk_points += 40.0
+        base_stop_threshold -= 15.0
+    elif is_thread_warning:
+        risk_points += 15.0
 
-base_stop_threshold = 80.0
-conn = sqlite3.connect("knbk_core.db")
-cursor = conn.cursor()
-cursor.execute("SELECT penalty_points, stop_threshold_modifier FROM risk_matrix WHERE factor_name IN (?, ?)", (acid_history, region_select))
-db_rows = cursor.fetchall()
-for row in db_rows:
-    risk_points += float(row[0])
-    base_stop_threshold += float(row[1])
-cursor.execute("SELECT penalty_points, stop_threshold_modifier FROM risk_matrix WHERE factor_name IN (?, ?)", (vzd_lobes, well_interval))
-db_rows_2 = cursor.fetchall()
-for row in db_rows_2:
-    risk_points += float(row[0])
-    base_stop_threshold += float(row[1])
-cursor.execute("SELECT penalty_points, stop_threshold_modifier FROM risk_matrix WHERE factor_name IN (?, ?)", (fatigue_select, vibration_select))
-for row in cursor.fetchall():
-    risk_points += float(row[0])
-    base_stop_threshold += float(row[1])
-conn.close()
-if actual_od_lock < 168.0: risk_points += 30.0
-if actual_od_lock < 164.0: risk_points += 15.0
+    if is_rotor_critical:
+        risk_points += 20.0
+        base_stop_threshold -= 10.0
 
-if is_thread_damaged:
-    risk_points += 40.0
-    base_stop_threshold -= 15.0
-elif is_thread_warning:
-    risk_points += 15.0
-if is_rotor_critical:
-    risk_points += 20.0
-    base_stop_threshold -= 10.0
+    base_stop_threshold -= (current_dls * 2.5)
 
-base_stop_threshold -= (current_dls * 2.5)
+    if st.session_state.get("bha_wear_critical", False):
+        risk_points += 35.0
+        base_stop_threshold -= 10.0
 
-if st.session_state.get("bha_wear_critical", False):
-    risk_points += 35.0
-    base_stop_threshold -= 10.0
+    calculated_total_risk = min(99.2, risk_points)
 
-calculated_total_risk = min(99.2, risk_points)
-base_stop_threshold = 80.0
-base_stop_threshold -= (current_dls * 2.5)
+    if "HCl" in acid_history: base_stop_threshold -= 5.0
+    if "Термит" in acid_history: base_stop_threshold -= 12.0
+    if "Сибирь" in region_select: base_stop_threshold -= 5.0
+    if "Эксплуатационная" in well_interval: base_stop_threshold -= 5.0
+    elif "Техническая" in well_interval: base_stop_threshold -= 12.0
+    elif "хвостовика" in well_interval: base_stop_threshold -= 20.0
 
-if "HCl" in acid_history: base_stop_threshold -= 5.0
-if "Термит" in acid_history: base_stop_threshold -= 12.0
-if "Сибирь" in region_select: base_stop_threshold -= 5.0
-if is_thread_damaged: base_stop_threshold -= 15.0
-if is_rotor_critical: base_stop_threshold -= 10.0
-if "Эксплуатационная" in well_interval: base_stop_threshold -= 5.0
-elif "Техническая" in well_interval: base_stop_threshold -= 12.0
-elif "хвостовика" in well_interval: base_stop_threshold -= 20.0
-dynamic_stop_threshold = max(45.0, base_stop_threshold)
-col_res1, col_res2 = st.columns(2)
-with col_res1:
-    st.markdown(f"""<div style="background-color:#111827; padding:20px; border-radius:10px; text-align:center; border: 1px solid #374151;"><span style="color:#9CA3AF; font-size:14px;">РАСЧЕТНЫЙ РИСК АВАРИЙНОСТИ КНБК</span><br><span style="color:#F3F4F6; font-size:48px; font-weight:bold;">{calculated_total_risk:.1f}%</span></div>""", unsafe_allow_html=True)
-with col_res2:
-    st.markdown(f"""<div style="background-color:#111827; padding:20px; border-radius:10px; text-align:center; border: 1px solid #374151;"><span style="color:#9CA3AF; font-size:14px;">ДИНАМИЧЕСКИЙ ПОРОГ БЛОКИРОВКИ СТОП</span><br><span style="color:#6EE7B7; font-size:48px; font-weight:bold;">{dynamic_stop_threshold:.1f}%</span></div>""", unsafe_allow_html=True)
+    dynamic_stop_threshold = max(45.0, base_stop_threshold)
+
+    col_res1, col_res2 = st.columns(2)
+    with col_res1:
+        st.markdown(f"""<div style="background-color:#111827; padding:20px; border-radius:10px; text-align:center; border: 1px solid #374151;"><span style="color:#9CA3AF; font-size:14px;">РАСЧЕТНЫЙ РИСК АВАРИЙНОСТИ КНБК</span><br><span style="color:#F3F4F6; font-size:48px; font-weight:bold;">{calculated_total_risk:.1f}%</span></div>""", unsafe_allow_html=True)
+    with col_res2:
+        st.markdown(f"""<div style="background-color:#111827; padding:20px; border-radius:10px; text-align:center; border: 1px solid #374151;"><span style="color:#6EE7B7; font-size:14px;">ДИНАМИЧЕСКИЙ ПОРОГ БЛОКИРОВКИ СТОП</span><br><span style="color:#6EE7B7; font-size:48px; font-weight:bold;">{dynamic_stop_threshold:.1f}%</span></div>""", unsafe_allow_html=True)
+
 
 # --- ИИ-МАТРИЦА СРАВНЕНИЯ КНБК (ВЫВЕРЕННЫЙ МАКЕТ СМК) ---
 risk_color = "#F87171" if calculated_total_risk > 50.0 else "#FBBF24"
