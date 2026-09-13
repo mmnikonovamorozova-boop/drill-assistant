@@ -510,55 +510,6 @@ else:
     context_banner = f"🔄 ОНЛАЙН ПЕРЕСЧЕТ: ПОДХВАЧЕН ФАКТ РАСТВОРА ({current_density} г/см³) И ИНКЛИНОМЕТРИИ (DLS: {current_dls} °/10м)"
 st.caption(context_banner)
 
-# --- ИИ-МАТРИЦА СРАВНЕНИЯ КНБК (МАКЕТ СМК) ---
-st.markdown("#### 📊 Сравнительный анализ оптимизации КНБК")
-
-# Формируем динамические данные для матрицы на основе аудита
-current_risk_pct = 78.4 if is_rotor_critical else 35.0
-safe_risk_pct = 14.2
-risk_color = "#F87171" if is_rotor_critical else "#FBBF24"
-
-# --- ДИНАМИЧЕСКИЙ ГЕНЕРАТОР СТРОК МАТРИЦЫ ---
-joints_rows_html = ""
-active_bad_joints = st.session_state.get("bad_joints_log", [])
-
-if active_bad_joints:
-    for j in active_bad_joints:
-        joints_rows_html += f"""
-        <tr style="border-bottom: 1px solid #374151;">
-          <td style="padding: 12px; font-weight: bold; color: #9CA3AF;">Стык №{j['idx']} (OD)</td>
-          <td style="padding: 12px;">{j['top']} ↔ {j['bot']}<br><span style="color: #EF4444; font-size: 12px;">(Дельта {j['delta']:.1f} мм)</span></td>
-          <td style="padding: 12px; color: #F59E0B;">Требуется переводник ПП</td>
-          <td style="padding: 12px; color: #F87171;">⚠️ Затребовать отгрузку ПП с центральной базы снабжения ЦПТО!</td>
-        </tr>
-        """
-else:
-    joints_rows_html = """
-    <tr>
-      <td colspan="4" style="padding: 12px; text-align: center; color: #34D399;">✅ Критических геометрических перепадов в гирлянде не обнаружено</td>
-    </tr>
-    """
-
-# Выводим финальную динамическую таблицу СМК
-st.markdown(f"""
-<table style="width:100%; border-collapse: collapse; background-color: #111827; border: 1px solid #374151; color: #F3F4F6;">
-  <tr style="background-color: #1F2937; border-bottom: 2px solid #4B5563;">
-    <th style="padding: 12px; text-align: left;">Режим ИИ</th>
-    <th style="padding: 12px; text-align: left;">Исходная КНБК (Проект)</th>
-    <th style="padding: 12px; text-align: left;">Оптимизация СМК (Факт)</th>
-    <th style="padding: 12px; text-align: left;">Технологический вердикт</th>
-  </tr>
-  <tr style="border-bottom: 2px solid #4B5563;">
-    <td style="padding: 12px; font-weight: bold; color: #9CA3AF;">Риск аварийности</td>
-    <td style="padding: 12px; color: #F87171; font-weight: bold;">🔴 {calculated_total_risk:.1f}% (Критический)</td>
-    <td style="padding: 12px; color: #34D399; font-weight: bold;">✅ 14.2% (Безопасно)</td>
-    <td style="padding: 12px; color: #6EE7B7;">Снижен при условии устранения уступов!</td>
-  </tr>
-  {joints_rows_html}
-</table>
-<br>
-""", unsafe_allow_html=True)
-
 
 
 # Автоматически вытягиваем крайние элементы гирлянды для ИИ-комплаенса
@@ -628,6 +579,55 @@ with col_res1:
     st.markdown(f"""<div style="background-color:#111827; padding:20px; border-radius:10px; text-align:center; border: 1px solid #374151;"><span style="color:#9CA3AF; font-size:14px;">РАСЧЕТНЫЙ РИСК АВАРИЙНОСТИ КНБК</span><br><span style="color:#F3F4F6; font-size:48px; font-weight:bold;">{calculated_total_risk:.1f}%</span></div>""", unsafe_allow_html=True)
 with col_res2:
     st.markdown(f"""<div style="background-color:#111827; padding:20px; border-radius:10px; text-align:center; border: 1px solid #374151;"><span style="color:#9CA3AF; font-size:14px;">ДИНАМИЧЕСКИЙ ПОРОГ БЛОКИРОВКИ СТОП</span><br><span style="color:#6EE7B7; font-size:48px; font-weight:bold;">{dynamic_stop_threshold:.1f}%</span></div>""", unsafe_allow_html=True)
+
+# --- ИИ-МАТРИЦА СРАВНЕНИЯ КНБК (МАКЕТ СМК) ---
+st.markdown("#### 📊 Сравнительный анализ оптимизации КНБК")
+
+# Формируем динамические данные для матрицы на основе аудита
+current_risk_pct = 78.4 if is_rotor_critical else 35.0
+safe_risk_pct = 14.2
+risk_color = "#F87171" if is_rotor_critical else "#FBBF24"
+# --- ДИНАМИЧЕСКИЙ ГЕНЕРАТОР СТРОК МАТРИЦЫ ---
+joints_rows_html = ""
+active_bad_joints = st.session_state.get("bad_joints_log", [])
+
+if active_bad_joints:
+    for j in active_bad_joints:
+        joints_rows_html += f"""
+        <tr style="border-bottom: 1px solid #374151;">
+          <td style="padding: 12px; font-weight: bold; color: #9CA3AF;">Стык №{j['idx']} (OD)</td>
+          <td style="padding: 12px;">{j['top']} ↔ {j['bot']}<br><span style="color: #EF4444; font-size: 12px;">(Дельта {j['delta']:.1f} мм)</span></td>
+          <td style="padding: 12px; color: #F59E0B;">Требуется переводник ПП</td>
+          <td style="padding: 12px; color: #F87171;">⚠️ Затребовать отгрузку ПП с центральной базы снабжения ЦПТО!</td>
+        </tr>
+        """
+else:
+    joints_rows_html = """
+    <tr>
+      <td colspan="4" style="padding: 12px; text-align: center; color: #34D399;">✅ Критических геометрических перепадов в гирлянде не обнаружено</td>
+    </tr>
+    """
+
+# Выводим финальную динамическую таблицу СМК
+st.markdown(f"""
+<table style="width:100%; border-collapse: collapse; background-color: #111827; border: 1px solid #374151; color: #F3F4F6;">
+  <tr style="background-color: #1F2937; border-bottom: 2px solid #4B5563;">
+    <th style="padding: 12px; text-align: left;">Режим ИИ</th>
+    <th style="padding: 12px; text-align: left;">Исходная КНБК (Проект)</th>
+    <th style="padding: 12px; text-align: left;">Оптимизация СМК (Факт)</th>
+    <th style="padding: 12px; text-align: left;">Технологический вердикт</th>
+  </tr>
+  <tr style="border-bottom: 2px solid #4B5563;">
+    <td style="padding: 12px; font-weight: bold; color: #9CA3AF;">Риск аварийности</td>
+    <td style="padding: 12px; color: #F87171; font-weight: bold;">🔴 {calculated_total_risk:.1f}% (Критический)</td>
+    <td style="padding: 12px; color: #34D399; font-weight: bold;">✅ 14.2% (Безопасно)</td>
+    <td style="padding: 12px; color: #6EE7B7;">Снижен при условии устранения уступов!</td>
+  </tr>
+  {joints_rows_html}
+</table>
+<br>
+""", unsafe_allow_html=True)
+
 
 st.markdown("#### 🔬 Экспертное заключение ИИ-системы:")
 is_blocked = calculated_total_risk >= dynamic_stop_threshold
