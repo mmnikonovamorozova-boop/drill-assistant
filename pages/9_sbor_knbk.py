@@ -503,39 +503,43 @@ is_thread_damaged = ("🔴" in defect_wear) or ("🔴" in defect_geometry)
 st.markdown("---")
 st.markdown("### 📊 Шаг 4: Адаптивный ИИ-комплаенс и вердикт СМК")
 
-if "📌 ФАЗА 1" in operation_phase:
-    current_density = 1.18
-    current_dls = 1.5
-    context_banner = "📋 РАСЧЕТ ВЫПОЛНЕН ПО ПРОЕКТНЫМ ДАННЫМ ГГИ И ТЗ ЗАКАЗЧИКА"
-
+    if "📌 ФАЗА 1" in operation_phase:
+        current_density = 1.18
+        current_dls = 1.5
+        context_banner = "📋 РАСЧЕТ ВЫПОЛНЕН ПО ПРОЕКТНЫМ ДАННЫМ ГГИ И ТЗ ЗАКАЗЧИКА"
     else:
         current_density = float(st.session_state.get("shared_buoyancy_factor", 1.18))
         current_dls = float(st.session_state.get("forecast_dls_deg10m", 0.0))
         context_banner = f"🔄 ОНЛАЙН ПЕРЕСЧЕТ: ПОДХВАЧЕН ФАКТ РАСТВОРА ({current_density} г/см³) И ИНКЛИНОМЕТРИИ (DLS: {current_dls} °/10м)"
-        st.caption(context_banner)
+    st.caption(context_banner)
+    # 🛡️ ЗАЩИТА СМК ОТ NAMEERROR: Инициализируем переменные для матрицы комплаенса
+    joints_rows_html = ""
+    active_bad_joints = st.session_state.get("bad_joints_log", [])
+    
+    if active_bad_joints:
+        for j in active_bad_joints:
+            joints_rows_html += f"""
+            <tr style="border-bottom: 1px solid #374151;">
+              <td style="padding: 12px; font-weight: bold; color: #9CA3AF;">Стык №{j['idx']} (OD)</td>
+              <td style="padding: 12px;">{j['top']} ↔ {j['bot']}<br><span style="color: #EF4444; font-size: 12px;">(Дельта {j['delta']:.1f} мм)</span></td>
+              <td style="padding: 12px; color: #F59E0B;">Требуется переводник ПП</td>
+              <td style="padding: 12px; color: #F87171;">⚠️ Затребовать отгрузку ПП с центральной базы снабжения ЦПТО!</td>
+            </tr>
+            """
+            
+    is_thread_warning = st.session_state.get("is_thread_warning", False)
+    is_rotor_critical = st.session_state.get("is_rotor_critical", False)
+    # Автоматически вытягиваем крайние элементы гирлянды для ИИ-комплаенса
+    if len(elements_list) >= 2:
+        top_thread = elements_list[0]
+        bottom_thread = elements_list[-1]
+    elif len(elements_list) == 1:
+        top_thread = elements_list[0]
+        bottom_thread = elements_list[0]
+    else:
+        top_thread = "З-147"
+        bottom_thread = "З-147"
 
-        # 🛡 ЗАЩИТА СМК ОТ NAMEERROR: Инициализируем переменную дефектов по умолчанию
-        joints_rows_html = ""
-        active_bad_joints = st.session_state.get("bad_joints_log", [])
-
-        # Защитная инициализация флагов аварийности СМК для предотвращения NameError
-        is_thread_warning = st.session_state.get("is_thread_warning", False)
-        is_rotor_critical = st.session_state.get("is_rotor_critical", False)
-
-
-# Автоматически вытягиваем крайние элементы гирлянды для ИИ-комплаенса
-if len(elements_list) >= 2:
-    top_thread = elements_list[0]
-    bottom_thread = elements_list[-1]
-elif len(elements_list) == 1:
-    top_thread = elements_list[0]
-    bottom_thread = elements_list[0]
-else:
-    top_thread = "З-147"
-    bottom_thread = "З-147"
-
-risk_points = 5.0
-base_stop_threshold = 80.0
 
 conn = sqlite3.connect("knbk_core.db")
 cursor = conn.cursor()
