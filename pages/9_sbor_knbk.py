@@ -281,10 +281,11 @@ if st.session_state.get("parsed_bha_df") is not None:
         # Умная обрезка пустых полей Бурсофта: ищем столбец № п/п и отсекаем всё, что левее
         start_col_idx = 0
         for i in range(display_df.shape[1]):
-            col_str = " ".join(display_df.iloc[:, i].astype(str).tolist()).lower()
+            col_str = " ".join([str(x) for x in display_df.iloc[:, i].tolist()]).lower()
             if any(x in col_str for x in ["№ п/п", "№", "п/п", "п.п."]):
                 start_col_idx = i
                 break
+
         display_df = display_df.iloc[:, start_col_idx:]
 
         # Находим и вырезаем пустые строки
