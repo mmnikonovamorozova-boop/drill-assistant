@@ -4,6 +4,7 @@ import numpy as np
 import io
 import os
 import json
+import sqlite3
 
 def init_knbk_database():
     """Автоматическое создание локальной базы данных комплаенса КНБК СТО ИНТИ"""
