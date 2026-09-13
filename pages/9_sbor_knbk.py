@@ -592,11 +592,6 @@ current_risk_pct = calculated_total_risk
 safe_risk_pct = 14.2
 risk_color = "#F87171" if current_risk_pct > 50.0 else "#FBBF24"
 
-# --- ЖИВАЯ ИИ-МАТРИЦА КОМПЛАЕНСА СМК ---
-current_risk_pct = calculated_total_risk
-safe_risk_pct = 14.2
-risk_color = "#F87171" if current_risk_pct > 50.0 else "#FBBF24"
-
 st.markdown(f"""
 <table style="width:100%; border-collapse: collapse; background-color: #111827; border: 1px solid #374151; color: #F3F4F6; font-family: sans-serif;">
   <tr style="background-color: #1F2937; border-bottom: 2px solid #4B5563;">
