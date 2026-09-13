@@ -62,34 +62,27 @@ if "authenticated" not in st.session_state or not st.session_state["authenticate
 
 conn, cursor = init_knbk_database()
 
-# Подгружаем матрицу рисков из внешнего корня bha_risk_matrix.json
-if os.path.exists("bha_risk_matrix.json"):
+# Оптимизированный запуск: наполняем базу только если она пустая
+cursor.execute("SELECT COUNT(*) FROM risk_matrix")
+if cursor.fetchone()[0] == 0 and os.path.exists("bha_risk_matrix.json"):
     with open("bha_risk_matrix.json", "r", encoding="utf-8") as f:
         matrix_data = json.load(f)
-    
-    # Очищаем старую таблицу, чтобы обновить веса
-    cursor.execute("DELETE FROM risk_matrix")
     insert_risks = [(f['type'], f['name'], f['points'], f['stop_mod']) for f in matrix_data.get('risk_matrix', [])]
     cursor.executemany("INSERT INTO risk_matrix (factor_type, factor_name, penalty_points, stop_threshold_modifier) VALUES (?, ?, ?, ?)", insert_risks)
-    # Создаем таблицу реестра оборудования ТЭК РФ
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS elements_library_db (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            element_type TEXT, model TEXT, nominal_od REAL, nominal_id REAL, max_torque REAL, max_temp REAL
-        )
-    """)
-    
-    # Считываем наш огромный конструктор элементов из bha_elements_library.json
-    if os.path.exists("bha_elements_library.json"):
-        with open("bha_elements_library.json", "r", encoding="utf-8") as f:
-            lib_data = json.load(f)
-            
-        cursor.execute("DELETE FROM elements_library_db")
-        insert_elements = [(e['element_type'], e['model'], e['nominal_od'], e['nominal_id'], e['max_torque_k_nm'], e['max_temp_c']) for e in lib_data.get('elements_library', [])]
-        cursor.executemany("INSERT INTO elements_library_db (element_type, model, nominal_od, nominal_id, max_torque, max_temp) VALUES (?, ?, ?, ?, ?, ?)", insert_elements)
-conn.commit()
+
+cursor.execute("CREATE TABLE IF NOT EXISTS elements_library_db (id INTEGER PRIMARY KEY AUTOINCREMENT, element_type TEXT, model TEXT, nominal_od REAL, nominal_id REAL, max_torque REAL, max_temp REAL)")
+
+cursor.execute("SELECT COUNT(*) FROM elements_library_db")
+if cursor.fetchone()[0] == 0 and os.path.exists("bha_elements_library.json"):
+    with open("bha_elements_library.json", "r", encoding="utf-8") as f:
+        lib_data = json.load(f)
+    insert_elements = [(e['element_type'], e['model'], e['nominal_od'], e['nominal_id'], e['max_torque_k_nm'], e['max_temp_c']) for e in lib_data.get('elements_library', [])]
+    cursor.executemany("INSERT INTO elements_library_db (element_type, model, nominal_od, nominal_id, max_torque, max_temp) VALUES (?, ?, ?, ?, ?, ?)", insert_elements)
+    conn.commit()
+
 cursor.execute("SELECT model, element_type, nominal_od FROM elements_library_db")
 st.session_state["bha_models_list"] = [row[0] for row in cursor.fetchall()]
+
 
 # Конфигурация страницы в стиле drill-assistant
 st.set_page_config(page_title="Сборка КНБК", layout="wide")
@@ -203,7 +196,7 @@ def parse_field_bha_report(uploaded_file):
             element_col = col
             break
             
-    df_bha_clean = df_bha_raw[df_bha_raw[element_col].str.contains("ВР|ВЗД|УБТ|ТБТ|СБТ|П-|М-|долото|клапан|теле|mwd|рус|bs|дру", case=False, na=False)].copy()
+    df_bha_clean = df_bha_raw[df_bha_raw[element_col].str.contains("ВР|ВЗД|УБТ|ТБТ|СБТ|П-|М-|долото|клапан|теле|mwd|рус|bs|дру|мвр|кс", case= False, na= False)]. copy()
     keep_cols = [c for c in df_bha_clean.columns if str(c).strip() != '']
    
     st.session_state["bha_wear_critical"] = False
