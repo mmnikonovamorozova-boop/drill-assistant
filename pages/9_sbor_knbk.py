@@ -514,6 +514,7 @@ else:
 st.caption(context_banner)
 
 # 🛡️ ЗАЩИТА СМК ОТ NAMEERROR: Инициализируем переменные для матрицы комплаенса
+risk_points = 5.0
 joints_rows_html = ""
 active_bad_joints = st.session_state.get("bad_joints_log", [])
 
