@@ -338,6 +338,7 @@ if bha_df is not None and not bha_df.empty:
     
     # Запускаем сквозной перебор всех стыков колонны сверху вниз
     for idx in range(len(elements_list) - 1):
+
         el_top = elements_list[idx]
         el_bot = elements_list[idx+1]
         st.markdown(f"🔗 **Стык №{idx+1}:** {el_top} ↔ {el_bot}")
