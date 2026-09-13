@@ -563,7 +563,7 @@ for uploaded_file in uploaded_passports:
                     raw_numbers = re.findall(r'\d+[\.,]\d+', full_text)
                     workload_hours = raw_numbers[-1].replace(',', '.') if raw_numbers else "0.0"
 
-            features += f" | Наработка: {workload_hours} ч."
+            features += f" | Наработка: {workload_hours} ч"
 
     # Сохраняем критические триггеры для Виртуального стола ротора
     if "vzd" in p_name or "друз" in p_name:
