@@ -271,20 +271,29 @@ if uploaded_report is not None:
         st.error(f"Ошибка чтения структуры файла: {str(e)}")
 
 # --- ВЫВОД ТАБЛИЦЫ ЭЛЕМЕНТОВ ДЛЯ ВИЗУАЛЬНОЙ ПРОВЕРКИ ---
-if st.session_state["parsed_bha_df"] is not None:
+if st.session_state.get("parsed_bha_df") is not None:
     with st.expander("📐 Спецификация геометрии и резьбовых соединений КНБК из файла", expanded=True):
         display_df = st.session_state["parsed_bha_df"].copy()
         
-        # Переводим всё в чистый текст и зачищаем мусорные текстовые остатки
+        # Переводим всё в чистый текст и тотально зачищаем текстовые остатки
         display_df = display_df.astype(str).replace('nan', '').replace('None', '')
-
-        # ✂️ ЖЕСТКИЙ ФИЛЬТР СМК: Удаляем все столбцы, которые полностью состоят из пустоты!
+        
+        # Находим и вырезаем только те столбцы, где есть реальный текст (убираем холсты Михалыча)
         display_df = display_df.loc[:, (display_df != '').any(axis=0)]
+        display_df = display_df.loc[(display_df != '').any(axis=1)]
         
-        # Очищаем заголовки у оставшихся живых столбцов
-        display_df.columns = [f"Параметр_{i}" if pd.isna(c) or str(c).lower() == 'nan' or c == '' else c for i, c in enumerate(display_df.columns)]
+        # Интеллектуальный поиск ключевых столбцов «Модули», «Примечание» и «Дефекты»
+        modules_col = next((c for c in display_df.columns if "модул" in str(c).lower() or "элемент" in str(c).lower()), display_df.columns[0])
+        status_col = next((c for c in display_df.columns if "примеч" in str(c).lower() or "статус" in str(c).lower()), None)
         
+        # Фильтруем «Живой склад» (то, что лежит на поверхности в запасе)
+        if status_col:
+            sklad_items = display_df[display_df[status_col].str.contains("запас|поверхн|мостк", case=False, na=False)][modules_col].tolist()
+            st.session_state["bha_sklad_list"] = [str(i).strip() for i in sklad_items if i != '']
+        
+        # Красиво выводим очищенную спецификацию на экран
         st.dataframe(display_df, use_container_width=True, hide_index=True)
+
 
 # =========================================================================
 # ШАГ 3: КРИТИЧЕСКИЕ ПАРАМЕТРЫ СРЕДЫ И ЖЕЛЕЗА
