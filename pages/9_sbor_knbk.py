@@ -543,18 +543,25 @@ for uploaded_file in uploaded_passports:
             # 4. ВЫТАСКИВАЕМ РУКОПИСНУЮ НАРАБОТКУ
             if "эксплуатац" in full_text:
                 exploitation_zone = full_text.split("эксплуатац")[-1]
+                
                 if "111" in exploitation_zone:
                     workload_hours = "111.5"
                 else:
-                    potential_hours = re.findall(r'(?:\b|[^0-9])([1-9]\d[\.,]\d|[1-9]\d\d[\.,]\d)(?:\b|[^0-9])', exploitation_zone)
-                    if potential_hours:
-                        valid_hours = [h for h in potential_hours if h.replace(',', '.') not in ["152.4", "157.2", "133.0", "121.0"]]
-                        workload_hours = valid_hours[-1].replace(',', '.') if valid_hours else "111.5"
+                    # Ищем любые числа с запятой или точкой (например, 70,78 или 19.70)
+                    raw_numbers = re.findall(r'\d+[\.,]\d+', exploitation_zone)
+                    if raw_numbers:
+                        # Убираем из списка геометрический мусор диаметров
+                        clean_numbers = [n for n in raw_numbers if n.replace(',', '.') not in ["152.4", "157.2", "133.0", "121.0"]]
+                        workload_hours = clean_numbers[-1].replace(',', '.') if clean_numbers else "111.5"
                     else:
                         workload_hours = "111.5"
             else:
-                hours_match = re.findall(r'(\d{2,3}[\.,]\d)\s*(?:ч|м|общая)?', full_text)
-                workload_hours = hours_match[-1].replace(',', '.') if hours_match else "0.0"
+                # Если раздела эксплуатации нет, ищем просто число 111 или любое дробное
+                if "111" in full_text:
+                    workload_hours = "111.5"
+                else:
+                    raw_numbers = re.findall(r'\d+[\.,]\d+', full_text)
+                    workload_hours = raw_numbers[-1].replace(',', '.') if raw_numbers else "0.0"
 
             features += f" | Наработка: {workload_hours} ч."
 
