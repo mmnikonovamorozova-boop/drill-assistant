@@ -87,6 +87,9 @@ if os.path.exists("bha_risk_matrix.json"):
         insert_elements = [(e['element_type'], e['model'], e['nominal_od'], e['nominal_id'], e['max_torque_k_nm'], e['max_temp_c']) for e in lib_data.get('elements_library', [])]
         cursor.executemany("INSERT INTO elements_library_db (element_type, model, nominal_od, nominal_id, max_torque, max_temp) VALUES (?, ?, ?, ?, ?, ?)", insert_elements)
 conn.commit()
+cursor.execute("SELECT model, element_type, nominal_od FROM elements_library_db")
+st.session_state["bha_models_list"] = [row[0] for row in cursor.fetchall()]
+
 # Конфигурация страницы в стиле drill-assistant
 st.set_page_config(page_title="Сборка КНБК", layout="wide")
 
