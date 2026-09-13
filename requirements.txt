@@ -14,6 +14,7 @@ streamlit-local-storage
 reportlab>=4.0.0
 requests>=2.31.0
 xlrd>=2.0.1
-easyocr
+pytesseract
 pdf2image
+
 
