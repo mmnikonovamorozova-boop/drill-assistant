@@ -274,7 +274,7 @@ if uploaded_report is not None:
 if st.session_state.get("parsed_bha_df") is not None:
     with st.expander("📐 Спецификация геометрии и резьбовых соединений КНБК из файла", expanded=True):
         display_df = st.session_state["parsed_bha_df"].copy()
-        
+     
         # Переводим всё в чистый текст и тотально зачищаем текстовые остатки
         display_df = display_df.astype(str).replace('nan', '').replace('None', '')
         
@@ -290,10 +290,59 @@ if st.session_state.get("parsed_bha_df") is not None:
         if status_col:
             sklad_items = display_df[display_df[status_col].str.contains("запас|поверхн|мостк", case=False, na=False)][modules_col].tolist()
             st.session_state["bha_sklad_list"] = [str(i).strip() for i in sklad_items if i != '']
+
+        # 🛡️ АНТИ-ДУБЛИКАТОР: Делаем абсолютно все имена колонок уникальными для PyArrow
+        make_unique = []
+        for i, col in enumerate(display_df.columns):
+            if col in make_unique or col == 'nan' or col == '':
+                make_unique.append(f"{col if col not in ['nan', ''] else 'Параметр'}_{i}")
+            else:
+                make_unique.append(col)
+        display_df.columns = make_unique
         
-        # Красиво выводим очищенную спецификацию на экран
+        # Красиво выводим очищенную спецификацию на экран      
         st.dataframe(display_df, use_container_width=True, hide_index=True)
 
+# --- ИНТЕГРАЦИЯ ЖИВОГО СКЛАДА ИЗ ОТЧЕТА ПО ОБОРУДОВАНИЮ ---
+st.markdown("### 📋 Шаг 2.5: Загрузка полевого Отчета по оборудованию (Живой Склад)")
+uploaded_eq_report = st.file_uploader(
+    "Загрузите текущий Отчет по оборудованию для автоподбора переводников с мостков кустовой площадки:",
+    type=["xlsx", "xls", "csv"],
+    key="eq_report_uploader"
+)
+
+if uploaded_eq_report is not None:
+    try:
+        # Читаем строго целевой лист "Оборудование", игнорируя стикеры и акты
+        eq_df = pd.read_excel(uploaded_eq_report, sheet_name="Оборудование", header=None)
+        eq_df = eq_df.astype(str).replace('nan', '').replace('None', '')
+        
+        # Находим столбцы «Модули» и «Примечание» на листе
+        mod_col_idx = 2  # Дефолтный 3-й столбец
+        stat_col_idx = 9 # Дефолтный 10-й столбец (Примечание)
+        
+        for r_idx, row in eq_df.iterrows():
+            row_l = [str(c).lower() for c in row.values]
+            if "модули" in row_l:
+                mod_col_idx = row_l.index("модули")
+                if "примечание" in row_l:
+                    stat_col_idx = row_l.index("примечание")
+                break
+                
+        # Собираем в сессию все элементы со статусом "В запасе" на мостках
+        sklad_found = []
+        for _, row in eq_df.iterrows():
+            status_text = str(row.iloc[stat_col_idx]).lower()
+            if "запас" in status_text or "поверхн" in status_text or "мостк" in status_text:
+                item_name = str(row.iloc[mod_col_idx]).strip()
+                if item_name:
+                    sklad_found.append(item_name)
+                    
+        if sklad_found:
+            st.session_state["bha_sklad_list"] = sklad_found
+            st.success(f"✔ Живой склад мостков успешно считан! Доступно элементов для ИИ-подбора: {len(sklad_found)} шт.")
+    except Exception as e:
+        st.warning(f"ℹ Не удалось прочитать лист 'Оборудование': {str(e)}. Включен стандартный сортамент базы ТЭК.")
 
 # =========================================================================
 # ШАГ 3: КРИТИЧЕСКИЕ ПАРАМЕТРЫ СРЕДЫ И ЖЕЛЕЗА
