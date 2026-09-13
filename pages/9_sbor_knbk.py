@@ -307,7 +307,7 @@ if st.session_state.get("parsed_bha_df") is not None:
 st.markdown("### 📋 Шаг 2.5: Загрузка полевого Отчета по оборудованию (Живой Склад)")
 uploaded_eq_report = st.file_uploader(
     "Загрузите текущий Отчет по оборудованию для автоподбора переводников с мостков кустовой площадки:",
-    type=["xlsx", "xls", "csv"],
+    type=["xlsx", "xls", "csv", "xlsm"],
     key="eq_report_uploader"
 )
 
