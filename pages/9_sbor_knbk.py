@@ -529,11 +529,8 @@ if active_bad_joints:
         </tr>
         """
 else:
-    joints_rows_html = """
-    <tr>
-      <td colspan="4" style="padding: 12px; text-align: center; color: #34D399;">✅ Критических геометрических перепадов в гирлянде не обнаружено</td>
-    </tr>
-    """
+    joints_rows_html = ""
+
 
 
 # Защитная инициализация флагов аварийности СМК для предотвращения NameError
