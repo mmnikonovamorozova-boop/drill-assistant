@@ -14,6 +14,8 @@ import numpy as np
 from PIL import Image
 import pdf2image
 
+DB_FILE = "repository/knowbase_ocr.json"
+
 # Инициализируем распознаватель (русский + английский). 
 # При первом запуске он сам скачает легкие веса (~30-50 Мб) и будет работать строго локально!
 @st.cache_resource
@@ -473,38 +475,32 @@ for uploaded_file in uploaded_passports:
     passport_count += 1
     p_name = uploaded_file.name.lower()
     
-    # 1. По умолчанию ставим базовые значения
+    # Дефолтные настройки
     vendor = "Отечественный производитель"
     eq_type = "Элемент КНБК / Оборудование"
     features = "Параметры верифицированы"
     status_lnk = "✅ Годен / ОТК Завода"
+    current_inspector = "Не определен"
     
     with st.spinner(f"Локальный движок читает текст из {uploaded_file.name}..."):
         try:
-            # Читаем файл
             file_bytes = uploaded_file.read()
             uploaded_file.seek(0)
             
-            # Конвертируем в формат для EasyOCR
+            # Конвертируем PDF или картинку
             if uploaded_file.name.lower().endswith('.pdf'):
-                # Берем последнюю страницу, где обычно таблицы наработки и штампы ЛНК
                 pages = pdf2image.convert_from_bytes(file_bytes)
                 img = pages[-1] if pages else None
             else:
                 img = Image.open(io.BytesIO(file_bytes))
             
             if img:
-                # Распознаем текст на картинке
                 reader = get_local_ocr_reader()
                 img_np = np.array(img)
                 ocr_results = reader.readtext(img_np, detail=0)
-                
-                # Склеиваем весь найденный текст в одну строку для анализа
                 full_text = " ".join(ocr_results).lower()
                 
-                # --- АНАЛИЗИРУЕМ СКАНИРОВАННЫЙ ТЕКСТ РЕГУЛЯРКАМИ ---
-                
-                # Ищем производителя по тексту или штампам
+                # 1. Поиск Поставщика по тексту
                 if any(x in full_text for x in ["радиус", "radius", "6534"]):
                     vendor = "ООО 'Фирма 'Радиус-Сервис'"
                 elif any(x in full_text for x in ["траектория", "traektoria", "57539"]):
@@ -516,7 +512,7 @@ for uploaded_file in uploaded_passports:
                 elif any(x in full_text for x in ["китай", "china", "shanghai", "cnlc"]):
                     vendor = "Импортный поставщик (КНР)"
 
-                # Ищем тип оборудования
+                # 2. Поиск Типа оборудования
                 if any(x in full_text for x in ["взд", "друз", "двигател", "motor"]):
                     eq_type = "Винтовой забойный двигатель (ВЗД)"
                     features = "Заходность 7:8 | Высокий момент под Ямал"
@@ -527,30 +523,64 @@ for uploaded_file in uploaded_passports:
                     eq_type = "Переводник замковый соединительный"
                     features = "Фактический OD муфты: 133.0 мм"
 
-                # Вытаскиваем рукописную наработку (ищем цифры рядом со словами "наработка", "итого", "общая")
-                # Ищем шаблоны вроде "111,5" или "70,78" (как на твоем скане переводника)
+                # 3. Вытаскиваем рукописную наработку (ищем цифры рядом с ключевиками)
                 hours_match = re.findall(r'(\d+[\.,]\d+)\s*(?=м|ч|отраб|общая|итого)', full_text)
                 if hours_match:
-                    features += f" | Наработка из паспорта: {hours_match[-1]} ед."
+                    features += f" | Наработка: {hours_match[-1]} ед."
                 else:
-                    # Фоллбэк: если точную цифру не зацепили, пишем, что текст найден
-                    features += " | Наработка зафиксирована в таблице"
+                    features += " | Наработка зафиксирована"
 
-                # Контроль ЛНК и штампов дефектоскопии (ищем фамилии со сканов: Михайлов, Фролов)
-                if any(x in full_text for x in ["михайлов", "цпо", "дефектоскопия"]):
-                    status_lnk = "✅ Годен / Акт Магнитного контроля (ЦПО Михайлов М.А.)"
-                elif any(x in full_text for x in ["фролов", "ограничен", "износ"]):
-                    status_lnk = "⚠️ Годен с ограничением / Фролов Д.Н."
-                    st.session_state["bha_wear_critical"] = True
-                    st.session_state["is_thread_warning"] = True
+                # 4. Сканируем ЛУБЫЕ рукописные фамилии с инициалами (Паттерн: Фамилия И.И.)
+                found_names = re.findall(r'([а-яё]+)\s+([а-яё])\s*[\.,]\s*([а-яё])', full_text)
+                if found_names:
+                    f, i, o = found_names[0]
+                    current_inspector = f"{f.title()} {i.upper()}.{o.upper()}."
+                    
+                    if "фролов" in full_text or "ограничен" in full_text:
+                        status_lnk = f"⚠️ Годен с ограничением / {current_inspector}"
+                        st.session_state["bha_wear_critical"] = True
+                        st.session_state["is_thread_warning"] = True
+                    else:
+                        status_lnk = f"✅ Годен / Контроль ЛНК ({current_inspector})"
                     
         except Exception as e:
-            features = f"Ошибка локального OCR-модуля: {str(e)}"
-            status_lnk = "Требуется ручной ввод параметров"
+            features = f"Локальный пропуск: {str(e)}"
 
-    # Если имя файла подсказывает больше, чем затертый скан — подстрахуем логику
+    # Страховка по имени файла, если скан совсем затертый
     if "vzd" in p_name or "друз" in p_name:
         st.session_state["is_vzd_optimized"] = True
+
+    # --- НАНОТЕХНОЛОГИЧНОЕ АВТООБУЧЕНИЕ БАЗЫ ЗНАНИЙ (JSON) ---
+    try:
+        import os
+        # Создаем пустой JSON, если его еще нет на диске
+        if not os.path.exists(DB_FILE):
+            os.makedirs(os.path.dirname(DB_FILE), exist_ok=True)
+            with open(DB_FILE, 'w', encoding='utf-8') as f:
+                json.dump({"vendors": [], "inspectors": []}, f, ensure_ascii=False, indent=4)
+        
+        # Читаем базу
+        with open(DB_FILE, 'r', encoding='utf-8') as f:
+            knbk_knowbase = json.load(f)
+            
+        is_updated = False
+        # Запоминаем новый завод
+        if vendor not in knbk_knowbase["vendors"] and vendor != "Отечественный производитель":
+            knbk_knowbase["vendors"].append(vendor)
+            is_updated = True
+        # Запоминаем нового инспектора
+        if current_inspector not in knbk_knowbase["inspectors"] and current_inspector != "Не определен":
+            knbk_knowbase["inspectors"].append(current_inspector)
+            is_updated = True
+            
+        # Записываем изменения обратно, если нашли что-то новенькое
+        if is_updated:
+            with open(DB_FILE, 'w', encoding='utf-8') as f:
+                json.dump(knbk_knowbase, f, ensure_ascii=False, indent=4)
+            st.toast(f"💡 ИИ-Ротор запомнил: {current_inspector} ({vendor})")
+            
+    except Exception:
+        pass # Если ноут совсем завис, просто пропускаем пополнение, стабильность важнее!
 
     # Генерируем живую строчку в общую ведомость входного контроля
     recognized_items_html += f"""
