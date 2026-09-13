@@ -252,17 +252,22 @@ uploaded_report = st.file_uploader(
 if uploaded_report is not None:
     # Заворачиваем вызов в тотальную защиту СМК от падений кода
     try:
-        meta_parsed, table_parsed = parse_field_bha_report(uploaded_report)
-        
-        # Проверяем, что парсер вернул живой датафрейм, а не пустоту
-        if table_parsed is not None and not table_parsed.empty:
-            st.session_state["parsed_bha_df"] = table_parsed
-            st.session_state["field_name"] = meta_parsed["field"]
-            st.session_state["well_number"] = meta_parsed["well"]
-            st.session_state["main_page_company"] = meta_parsed["client"]
-            st.session_state["bha_number"] = meta_parsed["bha_num"]
-            st.success("✔ Рапорт бурового мастера успешно распознан!")
-            st.rerun()
+        parsed_result = parse_field_bha_report(uploaded_report)
+        if parsed_result is not None:
+            meta_parsed, table_parsed = parsed_result
+            
+            # Проверяем, что парсер вернул живой датафрейм, а не пустоту
+            if table_parsed is not None and not table_parsed.empty:
+                st.session_state["parsed_bha_df"] = table_parsed
+                st.session_state["field_name"] = meta_parsed["field"]
+                st.session_state["well_number"] = meta_parsed["well"]
+                st.session_state["main_page_company"] = meta_parsed["client"]
+                st.session_state["bha_number"] = meta_parsed["bha_num"]
+                st.success("✔ Рапорт бурового мастера успешно распознан!")
+                st.rerun()
+    except Exception as e:
+        st.error(f"Ошибка чтения структуры файла: {str(e)}")
+
         else:
             st.error("🚨 Формат файла не распознан. Пожалуйста, откройте этот файл в Excel на компьютере, нажмите 'Сохранить как' -> формат 'CSV (разделители - запятые) (*.csv)' и загрузите его снова.")
     except Exception:
