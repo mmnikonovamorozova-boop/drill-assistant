@@ -456,60 +456,60 @@ passport_count = 0
 
 if uploaded_passports:
     st.info(f"👁️ ИИ-ЯДРО: Обнаружен пакет из {len(uploaded_passports)} документов. Запущено параллельное OCR-сканирование пачки...")
-        # ГЛОБАЛЬНЫЙ ИИ-АНАЛИЗАТОР ПОСТАВЩИКОВ И ТИПОВ ОБОРУДОВАНИЯ (РФ / КИТАЙ)
-        for uploaded_file in uploaded_passports:
-            passport_count += 1
-            p_name = uploaded_file.name.lower()
-            
-            # 1. Интеллектуальное определение Завода/Поставщика
-            vendor = "Отечественный производитель"
-            if any(x in p_name for x in ["renttools", "ренттолз", "рент"]):
-                vendor = "ООО 'РЕНТТОЛЗ' (Ловильный/Специальный инструмент)"
-            elif any(x in p_name for x in ["radius", "радиус", "6534"]):
-                vendor = "ООО 'Фирма 'Радиус-Сервис'"
-            elif any(x in p_name for x in ["traektoria", "траектория", "57539"]):
-                vendor = "ООО 'ТРАЕКТОРИЯ-СЕРВИС'"
-            elif any(x in p_name for x in ["burinteh", "буринтех", "бит"]):
-                vendor = "НПП 'Буринтех'"
-            elif any(x in p_name for x in ["china", "китай", "ch", "shanghai", "tianhe", "hilong", "cnlc"]):
-                vendor = "Импортный поставщик (КНР / Заводской паспорт)"
+# ГЛОБАЛЬНЫЙ ИИ-АНАЛИЗАТОР ПОСТАВЩИКОВ И ТИПОВ ОБОРУДОВАНИЯ (РФ / КИТАЙ)
+for uploaded_file in uploaded_passports:
+    passport_count += 1
+    p_name = uploaded_file.name.lower()
+    
+    # 1. Интеллектуальное определение Завода/Поставщика
+    vendor = "Отечественный производитель"
+    if any(x in p_name for x in ["renttools", "ренттолз", "рент"]):
+        vendor = "ООО 'РЕНТТОЛЗ' (Ловильный/Специальный инструмент)"
+    elif any(x in p_name for x in ["radius", "радиус", "6534"]):
+        vendor = "ООО 'Фирма 'Радиус-Сервис'"
+    elif any(x in p_name for x in ["traektoria", "траектория", "57539"]):
+        vendor = "ООО 'ТРАЕКТОРИЯ-СЕРВИС'"
+    elif any(x in p_name for x in ["burinteh", "буринтех", "бит"]):
+        vendor = "НПП 'Буринтех'"
+    elif any(x in p_name for x in ["china", "китай", "ch", "shanghai", "tianhe", "hilong", "cnlc"]):
+        vendor = "Импортный поставщик (КНР / Заводской паспорт)"
 
-            # 2. Интеллектуальное определение типа Оборудования и параметров
-            eq_type = "Элемент КНБК / Оборудование"
-            features = "Параметры верифицированы по ГОСТ/API"
-            status_lnk = "✅ Годен / ОТК Завода"
-            
-            if any(x in p_name for x in ["vzd", "взд", "друз", "двигател", "motor"]):
-                eq_type = "Винтовой забойный двигатель (ВЗД)"
-                vzd_lobes = "Среднезаходный 7/8 (Оптимальный момент)"
-                features = "Заходность 7:8 | Высокий крутящий момент под Ямал"
-                status_lnk = "✅ Годен / Контроль ЛНК"
-                st.session_state["is_vzd_optimized"] = True
-            elif any(x in p_name for x in ["jar", "ясс", "яс", "гидроясс"]):
-                eq_type = "Ясс гидромеханический буровой"
-                features = "Ударная секция проверена на стеллаже №3 | Нагрузка откалибрована"
-                status_lnk = "✅ Годен / Акт Магнитного контроля"
-            elif any(x in p_name for x in ["oscillator", "осциллятор", "гидроосциллятор"]):
-                eq_type = "Гидромеханический осциллятор ствола"
-                features = "Частота пульсаций настроена под текущую плотность раствора"
-                status_lnk = "✅ Годен / Протокол калибровки клапана"
-            elif any(x in p_name for x in ["subs", "перевод", "пп", "п-"]):
-                eq_type = "Переводник замковый соединительный"
-                actual_od_lock = 133.0  # Автоматический замер износа
-                features = "Фактический OD муфты: 133.0 мм (Предельный износ -5мм)"
-                status_lnk = "⚠️ Годен с ограничением / Фролов Д.Н."
-                st.session_state["bha_wear_critical"] = True
-                st.session_state["is_thread_warning"] = True
+    # 2. Интеллектуальное определение типа Оборудования и параметров
+    eq_type = "Элемент КНБК / Оборудование"
+    features = "Параметры верифицированы по ГОСТ/API"
+    status_lnk = "✅ Годен / ОТК Завода"
+    
+    if any(x in p_name for x in ["vzd", "взд", "друз", "двигател", "motor"]):
+        eq_type = "Винтовой забойный двигатель (ВЗД)"
+        vzd_lobes = "Среднезаходный 7/8 (Оптимальный момент)"
+        features = "Заходность 7:8 | Высокий крутящий момент под Ямал"
+        status_lnk = "✅ Годен / Контроль ЛНК"
+        st.session_state["is_vzd_optimized"] = True
+    elif any(x in p_name for x in ["jar", "ясс", "яс", "гидроясс"]):
+        eq_type = "Ясс гидромеханический буровой"
+        features = "Ударная секция проверена на стеллаже №3 | Нагрузка откалибрована"
+        status_lnk = "✅ Годен / Акт Магнитного контроля"
+    elif any(x in p_name for x in ["oscillator", "осциллятор", "гидроосциллятор"]):
+        eq_type = "Гидромеханический осциллятор ствола"
+        features = "Частота пульсаций настроена под текущую плотность раствора"
+        status_lnk = "✅ Годен / Протокол калибровки клапана"
+    elif any(x in p_name for x in ["subs", "перевод", "пп", "п-"]):
+        eq_type = "Переводник замковый соединительный"
+        actual_od_lock = 133.0  # Автоматический замер износа
+        features = "Фактический OD муфты: 133.0 мм (Предельный износ -5мм)"
+        status_lnk = "⚠️ Годен с ограничением / Фролов Д.Н."
+        st.session_state["bha_wear_critical"] = True
+        st.session_state["is_thread_warning"] = True
 
-            # Генерируем живую строчку в общую ведомость входного контроля
-            recognized_items_html += f"""
-            <tr style='border-bottom: 1px solid #374151;'>
-                <td style='padding: 8px; color: #38BDF8; font-weight: bold;'>{eq_type}</td>
-                <td style='padding: 8px; color: #9CA3AF;'>{vendor}</td>
-                <td style='padding: 8px; font-size: 12px;'>{features}</td>
-                <td style='padding: 8px;'>{status_lnk}</td>
-            </tr>
-            """
+    # Генерируем живую строчку в общую ведомость входного контроля
+    recognized_items_html += f"""
+    <tr style='border-bottom: 1px solid #374151;'>
+        <td style='padding: 8px; color: #38BDF8; font-weight: bold;'>{eq_type}</td>
+        <td style='padding: 8px; color: #9CA3AF;'>{vendor}</td>
+        <td style='padding: 8px; font-size: 12px;'>{features}</td>
+        <td style='padding: 8px;'>{status_lnk}</td>
+    </tr>
+    """
 
 # =========================================================================
 # ШАГ 3.5: ВИРТУАЛЬНЫЙ СТОЛ РОТОРА (ПОЛНЫЙ РАЗВЕРНУТЫЙ ФОРМАТ)
