@@ -164,15 +164,53 @@ with tab_pipe:
     if "p_moment_corrected" in st.session_state:
         calculated_base_moment = float(st.session_state["p_moment_corrected"])
    
-    # Сквозная проверка ИИ-реестра: ищем заводские моменты и износ оборудования
+    # =========================================================================
+    # СМАРТ-МАТРИЦА ИИ: АВТОМАТИЧЕСКИЙ ПОДБОР УЗЛОВ И РЕЖИМОВ СВИНЧИВАНИЯ
+    # =========================================================================
     passport_torque_found = None
+    available_nodes = {}
 
+    # Собираем все доступные резьбовые узлы из распознанных паспортов
     for file_name, data in st.session_state["global_ocr_registry"].items():
-        # 1. Если ИИ-движок нашел в паспортах брак ЛНК или износ — жестко режем момент по СТО ИНТИ
+        if data.get("threads_matrix"):
+            for node_name, torque_info in data.get("threads_matrix").items():
+                available_nodes[f"📄 {data.get('serial_no')} | {node_name}"] = torque_info
+
+    if available_nodes:
+        st.info("💡 ИИ обнаружил в паспортах рейса структурированную матрицу резьбовых соединений!")
+        col_node, col_mode = st.columns(2)
+        
+        with col_node:
+            selected_node = st.selectbox(
+                "Какой резьбовой узел КНБК затягиваем ключом УМК?",
+                options=list(available_nodes.keys())
+            )
+        
+        with col_mode:
+            selected_mode = st.radio(
+                "Технологический режим затяжки резьбы (API / СТО ИНТИ):",
+                options=["Минимальный момент", "Средний номинал", "Максимальный натяг"],
+                horizontal=True,
+                index=2 # По умолчанию стоит максимальный натяг, как просил ИНТИ
+            )
+            
+        # Логика извлечения моментов на основе выбора Михалыча
+        torque_data = available_nodes[selected_node]
+        if selected_mode == "Минимальный момент":
+            calculated_base_moment = torque_data["min_knm"]
+        elif selected_mode == "Средний номинал":
+            calculated_base_moment = round((torque_data["min_knm"] + torque_data["max_knm"]) / 2, 1)
+        else:
+            calculated_base_moment = torque_data["max_knm"]
+            
+        st.success(f"✔ На основе выбора инженера применена уставка завода: {calculated_base_moment} кН·м ({torque_data['label']})")
+        passport_torque_found = calculated_base_moment
+
+    # Сквозная проверка износа и ЛНК (Остается в силе как высший приоритет СМК)
+    for file_name, data in st.session_state["global_ocr_registry"].items():
         if "ограничением" in str(data.get("status_lnk")).lower() or data.get("workload_hours", 0) > 250:
             calculated_base_moment = 21.5  
-            st.warning(f"⚠️ Внимание! В общем реестре паспортов обнаружен изношенный элемент ({data.get('eq_type')}). Рекомендованный СТО ИНТИ момент затяжки снижен до 21.5 кН·м!")
-            passport_torque_found = 21.5
+            st.warning(f"⚠️ Внимание! Обнаружен критический износ элемента ({data.get('eq_type')}). Рекомендованный СТО ИНТИ момент снижен до 21.5 кН·м!")
             break
             
         # 2. Если элемент исправен, но у него в паспорте прописан точный заводской момент затяжки
