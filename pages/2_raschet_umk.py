@@ -212,7 +212,15 @@ with tab_pipe:
             calculated_base_moment = 21.5  
             st.warning(f"⚠️ Внимание! Обнаружен критический износ элемента ({data.get('eq_type')}). Рекомендованный СТО ИНТИ момент снижен до 21.5 кН·м!")
             break
-            
+
+with col_p2:
+    p_moment_safe = st. number_input(
+        "Номинальный момент резьбового соединения, кН· м:",
+        value= float( calculated_base_moment),
+        key="p_moment_manual_input_unique"
+    )
+
+        
         # 2. Если элемент исправен, но у него в паспорте прописан точный заводской момент затяжки
         elif data.get("passport_torque") and data.get("passport_torque") != "Не указан":
             # Вытаскиваем верхнее число диапазона из строки (например, из '39.2 - 44.1 кН·м' берем 44.1)
@@ -224,12 +232,6 @@ with tab_pipe:
     if passport_torque_found and passport_torque_found != 21.5:
         st.info(f"💡 ИИ автоматически применил номинальную уставку момента из паспорта завода: {calculated_base_moment} кН·м")
     
-    with col_p2:
-        p_moment_safe = st. number_input(
-            "Номинальный момент резьбового соединения, кН· м:",
-            value= float( calculated_base_moment),
-            key="p_moment_manual_input_unique"
-        )
 
 with tab_tribology:
     # Строго фиксированный список смазок по СТО ИНТИ S.QS.8
@@ -253,14 +255,6 @@ with tab_tribology:
 # =========================================================================
 st.markdown("---")
 st.markdown("### 📊 Блок 3: Предиктивный расчет параметров свинчивания")
-
-# Жесткий трибологический словарь, полностью зеркальный списку grease_options
-grease_dict = {
-    "Стандартная (API)": 1.0,
-    "Графитовая (K=1.15)": 1.15,
-    "Тефлоновая (K=0.85)": 0.85,
-    "Прочая специальная (K=1.3)": 1.3
-}
 
 # Безопасное извлечение коэффициента смазки без риска опечаток
 k_grease = st.session_state.get("k_grease_live", 1.0)
