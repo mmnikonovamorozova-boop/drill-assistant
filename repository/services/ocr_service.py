@@ -81,10 +81,11 @@ def parse_passport_intellect(file_bytes, file_name):
 
     # 1. Улучшенное распознавание типа оборудования (добавили переводник)
         # 1. Улучшенное распознавание типа оборудования
+    # 1. Улучшенное распознавание типа оборудования
     if "критическая ошибка" in full_text:
         eq_type = "Ошибка системы OCR"
         status_lnk = f"❌ {full_text}"
-    if any(x in full_text for x in ["переводник", "subs", "переводн"]): eq_type = "Переводник КНБК"
+    elif any(x in full_text for x in ["переводник", "subs", "переводн"]): eq_type = "Переводник КНБК"
     elif any(x in full_text for x in ["взд", "двигател", "motor", "дру4", "друз"]): eq_type = "Винтовой забойный двигатель (ВЗД)"
     elif any(x in full_text for x in ["ясс", "яс", "jar"]): eq_type = "Ясс гидравлический"
     elif any(x in full_text for x in ["нубт", "nm_dc"]): eq_type = "Немагнитная УБТ (НУБТ)"
