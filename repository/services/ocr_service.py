@@ -148,7 +148,7 @@ def parse_passport_intellect(file_bytes, file_name):
 
     # ЕСЛИ ТЕКСТ РЕЗЬБЫ НЕ НАЙДЕН (как у нашего калибратора), но есть строчка "момент свинчивания... кНм"
     if not threads_matrix:
-        moment_direct = re.search(r"(?:момент\s*свинчивания|крутящий\s*момент)\s*,?\s*кн\s*[\cdot\*\s]?\s*м\s*(\d+[\.,]\d+)\s*[-–—]\s*(\d+[\.,]\d+)", full_text)
+        moment_direct = re.search(r"(?:момент\s*свинчивания|крутящий\s*момент)\s*,?\s*кн\s*.*?\s*м\s*(\d+[\.,]\d+)\s*[-–—]\s*(\d+[\.,]\d+)", full_text)
         if moment_direct:
             min_v = float(moment_direct.group(1).replace(",", "."))
             max_v = float(moment_direct.group(2).replace(",", "."))
