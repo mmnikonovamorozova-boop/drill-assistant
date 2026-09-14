@@ -20,24 +20,24 @@ def extract_text_from_image(img_input):
 def extract_text_from_pdf(file_bytes):
     """Умное чтение PDF: первая, последняя страницы + страницы со словами 'люфт' или 'зазор'"""
     try:
+        # Для Linux в облаке Streamlit Poppler обычно доступен напрямую без путей.
+        # Но если система капризничает, мы пробуем стандартную конвертацию.
         images = convert_from_bytes(file_bytes)
         total_pages = len(images)
         
         if total_pages == 0:
-            return ""
+            return "ошибка: в pdf файле нет страниц"
             
         pages_to_scan = set()
-        # 1. Всегда берем первую (завод, тип) и последнюю (ЛНК, наработка) страницы
         pages_to_scan.add(0)
         pages_to_scan.add(total_pages - 1)
         
-        # 2. Быстро проверяем промежуточные страницы на маркеры люфтов
+        # Быстрый поиск страниц с люфтами (используем русский язык, как прописано в пакетах)
         for i in range(1, total_pages - 1):
             test_txt = pytesseract.image_to_string(images[i], lang='rus')
             if any(word in test_txt.lower() for word in ["люфт", "зазор", "шпиндель", "осевой"]):
                 pages_to_scan.add(i)
                 
-        # 3. Собираем полный текст с выбранных страниц
         full_pdf_text = []
         for page_idx in sorted(list(pages_to_scan)):
             page_text = pytesseract.image_to_string(images[page_idx], lang='rus+eng')
@@ -45,7 +45,9 @@ def extract_text_from_pdf(file_bytes):
             
         return " ".join(full_pdf_text)
     except Exception as e:
-        return f"ошибка конвертации pdf: {str(e)}"
+        # Вместо скрытого падения возвращаем текст ошибки, чтобы ИИ вывел его на экран
+        return f"критическая ошибка ocr движка: {str(e)}"
+
 
 def parse_passport_intellect(file_bytes, file_name):
     """
@@ -78,6 +80,10 @@ def parse_passport_intellect(file_bytes, file_name):
     threads_matrix = {}
 
     # 1. Улучшенное распознавание типа оборудования (добавили переводник)
+        # 1. Улучшенное распознавание типа оборудования
+    if "критическая ошибка" in full_text:
+        eq_type = "Ошибка системы OCR"
+        status_lnk = f"❌ {full_text}"
     if any(x in full_text for x in ["переводник", "subs", "переводн"]): eq_type = "Переводник КНБК"
     elif any(x in full_text for x in ["взд", "двигател", "motor", "дру4", "друз"]): eq_type = "Винтовой забойный двигатель (ВЗД)"
     elif any(x in full_text for x in ["ясс", "яс", "jar"]): eq_type = "Ясс гидравлический"
