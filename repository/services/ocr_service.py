@@ -93,6 +93,7 @@ def parse_passport_intellect(file_bytes, file_name):
 
     # 2. Распознавание поставщика
     if any(x in full_text for x in ["вниибт", "vniibt"]): vendor = "АО 'НПО 'ВНИИБТ'"
+    elif any(x in full_text for x in ["траектория", "traektoriya", "траектори"]): vendor = "ООО 'ТРАЕКТОРИЯ-СЕРВИС'"
     elif any(x in full_text for x in ["гидробур", "gidrobur"]): vendor = "ООО 'Гидробур-Сервис'"
     elif any(x in full_text for x in ["nov", "national oilwell"]): vendor = "National Oilwell Varco (NOV)"
     elif any(x in full_text for x in ["пзто", "титан"]): vendor = "ООО 'ПЗТО 'Титан'"
@@ -104,8 +105,8 @@ def parse_passport_intellect(file_bytes, file_name):
     # Если в строке есть "предельный" или "срок", мы её игнорируем
     lines = full_text.split('\n')
     for line in lines:
-        if any(w in line for w in ["наработка", "эксплуатац"]) and not any(w in line for w in ["предельный", "срок", "гарант"]):
-            match = re.search(r"(\d+[\.,]\d+|\d{2,})", line)
+        if any(w in line for w in ["наработка", "эксплуатац"]) and not any(w in line for w in ["предельный", "срок", "дата"]):
+            match = re.search(r"\b(\d+[\,]\d+|\d{2,})\b", line)
             if match:
                 try:
                     workload_hours = float(match.group(1).replace(",", "."))
@@ -149,7 +150,7 @@ def parse_passport_intellect(file_bytes, file_name):
 
     # ЕСЛИ ТЕКСТ РЕЗЬБЫ НЕ НАЙДЕН (как у нашего калибратора), но есть строчка "момент свинчивания... кНм"
     if not threads_matrix:
-        moment_direct = re.search(r"(?:момент\s*свинчивания|крутящий\s*момент)\s*,?\s*кн\s*.*?\s*м\s*(\d+[\.,]\d+)\s*[-–—]\s*(\d+[\.,]\d+)", full_text)
+        moment_direct = re.search(r"(?:момент\s*свинчивания|крутящий\s*момент).*?(\d+[\.,]\d+)\s*[-–—]\s*(\d+[\.,]\d+)\s*кн", full_text)
         if moment_direct:
             min_v = float(moment_direct.group(1).replace(",", "."))
             max_v = float(moment_direct.group(2).replace(",", "."))
