@@ -148,9 +148,11 @@ def parse_passport_intellect(file_bytes, file_name):
         "5-1/2 FH (Верхняя резьба корпуса ВЗД)": (r"5-1/2\s*fh|5\s*1/2\s*fh", 4000.0, 4500.0),
         "NC50 / З-133 (Узел соединения КНБК)": (r"nc50|з[-_]?133", 2600.0, 3100.0),
         "З-117 (Резьба переводника/калибратора)": (r"з[-_]?117", 1800.0, 2200.0),
-        "З-102 (Малый замок переводника)": (r"з[-_]?102", 1200.0, 1500.0),
+        "З-102 / NC38 (Малый замок переводника)": (r"з[-_]?102|nc38", 1200.0, 1500.0),
+        "З-108 / NC40 (Новая муфта переводника)": (r"з[-_]?108|nc40", 1400.0, 1800.0),
         "З-147 (Тяжелый замок переводника)": (r"з[-_]?147", 3800.0, 4300.0)
     }
+
 
     # Сначала проверяем классические резьбы
     for node_name, (regex_str, def_min, def_max) in thread_patterns.items():
@@ -159,9 +161,10 @@ def parse_passport_intellect(file_bytes, file_name):
             max_knm = round(def_max / 101.97, 1)
             threads_matrix[node_name] = {"min_knm": min_knm, "max_knm": max_knm, "label": f"{int(def_min)}...{int(def_max)} кгс·м"}
 
-    # ЕСЛИ ТЕКСТ РЕЗЬБЫ НЕ НАЙДЕН (как у нашего калибратора), но есть строчка "момент свинчивания... кНм"
+    # ЕСЛИ ТЕКСТ РЕЗЬБЫ НЕ НАЙДЕН (как у нашего калибратора), но есть строчка с моментом
     if not threads_matrix:
-        moment_direct = re.search(r"(?:момент\s*свинчивания|крутящий\s*момент).*?(\d+[\.,]\d+)\s*[-–—]\s*(\d+[\.,]\d+)\s*кн", full_text)
+        # Ищем ключевые слова, а затем вытаскиваем две пары цифр через дефис
+        moment_direct = re.search(r"(?:момент\s*свинчивания|крутящий\s*момент).*?(\d+[\.,]\d+)\s*[-–—]\s*(\d+[\.,]\d+)", full_text)
         if moment_direct:
             min_v = float(moment_direct.group(1).replace(",", "."))
             max_v = float(moment_direct.group(2).replace(",", "."))
@@ -170,6 +173,7 @@ def parse_passport_intellect(file_bytes, file_name):
                 "max_knm": max_v,
                 "label": f"{min_v}...{max_v} кН·м"
             }
+
     # Ищем в тексте упоминания зазоров или люфтов для будущего модуля Михалыча
     found_clearance = re.search(r"(?:люфт|зазор)\s*(?:осевой|шпинделя)?\s*[:=-]?\s*(\d+[\.,]\d+|\d+)", full_text)
     detected_clearance = found_clearance.group(1) if found_clearance else "Не обнаружен"
