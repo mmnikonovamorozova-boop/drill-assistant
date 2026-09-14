@@ -230,9 +230,8 @@ k_grease = st.session_state.get("k_grease_live", 1.0)
 angle_alpha = st.number_input("Фактический угол натяжения каната (α), град:", min_value=10.0, max_value=180.0, value=90.0, step=1.0)
 
 # 1. Расчет скорректированного целевого момента с учетом трения смазки
-M_required = p_moment_safe * k_grease
+M_required = p_moment * k_grease
 
-p_moment = p_moment_safe
 
 # ====== НАША ДОБАВКА (СТРОКА 237): ЗАЩИТА БЛАНКА СМК ======
 if not p_moment: p_moment = calculated_base_moment
