@@ -18,36 +18,30 @@ def extract_text_from_image(img_input):
     return text.lower()
 
 def extract_text_from_pdf(file_bytes):
-    """Умное чтение PDF: первая, последняя страницы + страницы со словами 'люфт' или 'зазор'"""
+    """Боевой метод склеивания страниц для гарантированного OCR наработки и ЛНК"""
     try:
-        # Для Linux в облаке Streamlit Poppler обычно доступен напрямую без путей.
-        # Но если система капризничает, мы пробуем стандартную конвертацию.
         images = convert_from_bytes(file_bytes)
         total_pages = len(images)
         
         if total_pages == 0:
             return "ошибка: в pdf файле нет страниц"
             
-        pages_to_scan = set()
-        pages_to_scan.add(0)
-        pages_to_scan.add(total_pages - 1)
-        
-        # Быстрый поиск страниц с люфтами (используем русский язык, как прописано в пакетах)
-        for i in range(1, total_pages - 1):
-            test_txt = pytesseract.image_to_string(images[i], lang='rus')
-            if any(word in test_txt.lower() for word in ["люфт", "зазор", "шпиндель", "осевой"]):
-                pages_to_scan.add(i)
-                
-        full_pdf_text = []
-        for page_idx in sorted(list(pages_to_scan)):
-            page_text = pytesseract.image_to_string(images[page_idx], lang='rus+eng')
-            full_pdf_text.append(page_text.lower())
+        # Для анализа склеиваем текст с первой и последней страниц, чтобы зацепить всё!
+        if total_pages > 1:
+            text_first = pytesseract.image_to_string(images[0], lang='rus+eng')
+            text_last = pytesseract.image_to_string(images[-1], lang='rus+eng')
+            full_pdf_text = text_first + " " + text_last
             
-        return " ".join(full_pdf_text)
+            # Если страниц много, подтягиваем еще и предпоследнюю (там часто сидит Таблица эксплуатации)
+            if total_pages > 2:
+                text_pre_last = pytesseract.image_to_string(images[-2], lang='rus+eng')
+                full_pdf_text += " " + text_pre_last
+        else:
+            full_pdf_text = pytesseract.image_to_string(images[0], lang='rus+eng')
+            
+        return full_pdf_text.lower()
     except Exception as e:
-        # Вместо скрытого падения возвращаем текст ошибки, чтобы ИИ вывел его на экран
         return f"критическая ошибка ocr движка: {str(e)}"
-
 
 def parse_passport_intellect(file_bytes, file_name):
     """
@@ -100,26 +94,52 @@ def parse_passport_intellect(file_bytes, file_name):
     elif any(x in full_text for x in ["радиус", "radius"]): vendor = "ООО 'Фирма 'Радиус-Сервис'"
     elif any(x in full_text for x in ["рентулз", "rentools"]): vendor = "ООО 'РенТулз' (Rentools)"
 
-    # 3. Наработка часов (Исключаем слова "предельный", "срок", "гарантийный", чтобы не брать лимиты)
+    # 3. Наработка часов (С жесткой защитой от подтягивания дат вместо наработки)
     workload_hours = 0.0
-    # Если в строке есть "предельный" или "срок", мы её игнорируем
     lines = full_text.split('\n')
+    
     for line in lines:
-        if any(w in line for w in ["наработка", "эксплуатац"]) and not any(w in line for w in ["предельный", "срок", "дата"]):
-            match = re.search(r"\b(\d+[\,]\d+|\d{2,})\b", line)
-            if match:
+        if any(w in line for w in ["наработка", "эксплуатац"]) and not any(w in line for w in ["предельный", "срок", "дата", "гарант"]):
+            # Ищем любые числа с точкой или запятой
+            raw_numbers = re.findall(r'\b\d+[\.,]\d+\b', line)
+            for num in raw_numbers:
+                clean_num = num.replace(',', '.')
+                parts = clean_num.split('.')
+                
+                if len(parts) == 2:
+                    try:
+                        p0 = int(parts[0])
+                        p1 = int(parts[1])
+                        # Если структура похожа на ДД.ММ (день <= 31, месяц <= 12) — это дата дефектоскопии! Пропускаем.
+                        if p0 <= 31 and p1 <= 12:
+                            continue
+                        # Если правая часть похожа на год рейса (24, 25, 26) — это тоже дата. Пропускаем.
+                        if p1 in:
+                            continue
+                    except ValueError:
+                        pass
+                
+                # Если число прошло все фильтры дат — это реальные часы наработки!
                 try:
-                    workload_hours = float(match.group(1).replace(",", "."))
+                    workload_hours = float(clean_num)
                     break
-                except:
+                except ValueError:
                     pass
+            if workload_hours > 0.0:
+                break
 
-    # Если это Приложение 7 Радиус-Сервиса (рукописный журнал), подстрахуем поиск общего времени за рейс
-    if workload_hours == 0.0 or workload_hours < 20.0:
-        total_match = re.search(r"(?:общее|всего|рейс)\s*(\d+[\.,]\d+|\d+)", full_text)
+    # Если автоматика ничего не нашла в тексте (потому что там рукописные каракули),
+    # подстрахуем поиск печатного слова "рейс" или "всего", но с теми же фильтрами дат
+    if workload_hours == 0.0:
+        total_match = re.search(r"(?:общее|всего|рейс)\s*[:=-]?\s*(\d+[\.,]\d+|\d+)", full_text)
         if total_match:
-            try: workload_hours = float(total_match.group(1).replace(",", "."))
-            except: pass
+            try:
+                test_val = float(total_match.group(1).replace(",", "."))
+                # Страхуем от захвата года (например, "рейс 2025 года")
+                if test_val not in:
+                    workload_hours = test_val
+            except ValueError:
+                pass
 
     # 4. Умный поиск серийного номера
     sn_match = re.search(r"(?:заводской|серийный|№|no\.?)\s*[:=-]?\s*([a-zA-Z0-9\-_]+)", full_text)
