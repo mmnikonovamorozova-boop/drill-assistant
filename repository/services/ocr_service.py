@@ -98,7 +98,6 @@ def parse_passport_intellect(file_bytes, file_name):
     
     for line in lines:
         if any(w in line for w in ["наработка", "эксплуатац"]) and not any(w in line for w in ["предельный", "срок", "дата", "гарант"]):
-            # Ищем любые числа с точкой или запятой
             raw_numbers = re.findall(r'\b\d+[\.,]\d+\b', line)
             for num in raw_numbers:
                 clean_num = num.replace(',', '.')
@@ -108,16 +107,13 @@ def parse_passport_intellect(file_bytes, file_name):
                     try:
                         p0 = int(parts[0])
                         p1 = int(parts[1])
-                        # Если структура похожа на ДД.ММ (день <= 31, месяц <= 12) — это дата дефектоскопии! Пропускаем.
                         if p0 <= 31 and p1 <= 12:
                             continue
-                        # Если правая часть похожа на год рейса — это тоже дата. Пропускаем.
-                        if p1 in:
+                        if p1 in [24, 25, 26, 2024, 2025, 2026]:
                             continue
                     except ValueError:
                         pass
                 
-                # Если число прошло все фильтры дат — это реальные часы наработки!
                 try:
                     workload_hours = float(clean_num)
                     break
@@ -126,15 +122,12 @@ def parse_passport_intellect(file_bytes, file_name):
             if workload_hours > 0.0:
                 break
 
-    # Если автоматика ничего не нашла в тексте (потому что там рукописные каракули),
-    # подстрахуем поиск печатного слова "рейс" или "всего", но с теми же фильтрами дат
     if workload_hours == 0.0:
         total_match = re.search(r"(?:общее|всего|рейс)\s*[:=-]?\s*(\d+[\.,]\d+|\d+)", full_text)
         if total_match:
             try:
                 test_val = float(total_match.group(1).replace(",", "."))
-                # Страхуем от захвата года (например, "рейс 2025 года")
-                if test_val not in:
+                if test_val not in [2024, 2025, 2026]:
                     workload_hours = test_val
             except ValueError:
                 pass
