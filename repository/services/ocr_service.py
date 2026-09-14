@@ -98,13 +98,26 @@ def parse_passport_intellect(file_bytes, file_name):
     elif any(x in full_text for x in ["радиус", "radius"]): vendor = "ООО 'Фирма 'Радиус-Сервис'"
     elif any(x in full_text for x in ["рентулз", "rentools"]): vendor = "ООО 'РенТулз' (Rentools)"
 
-    # 3. Наработка часов (ищем число рядом со словом наработка/эксплуатац)
-    workload_match = re.search(r"(?:наработка|эксплуатац\w*)\s*[:=-]?\s*(\d+[\.,]\d+|\d+)", full_text)
-    if workload_match:
-        try:
-            workload_hours = float(workload_match.group(1).replace(",", "."))
-        except:
-            workload_hours = 0.0
+    # 3. Наработка часов (Исключаем слова "предельный", "срок", "гарантийный", чтобы не брать лимиты)
+    workload_hours = 0.0
+    # Если в строке есть "предельный" или "срок", мы её игнорируем
+    lines = full_text.split('\n')
+    for line in lines:
+        if any(w in line for w in ["наработка", "эксплуатац"]) and not any(w in line for w in ["предельный", "срок", "гарант"]):
+            match = re.search(r"(\d+[\.,]\d+|\d{2,})", line)
+            if match:
+                try:
+                    workload_hours = float(match.group(1).replace(",", "."))
+                    break
+                except:
+                    pass
+
+    # Если это Приложение 7 Радиус-Сервиса (рукописный журнал), подстрахуем поиск общего времени за рейс
+    if workload_hours == 0.0 or workload_hours < 20.0:
+        total_match = re.search(r"(?:общее|всего|рейс)\s*(\d+[\.,]\d+|\d+)", full_text)
+        if total_match:
+            try: workload_hours = float(total_match.group(1).replace(",", "."))
+            except: pass
 
     # 4. Умный поиск серийного номера
     sn_match = re.search(r"(?:заводской|серийный|№|no\.?)\s*[:=-]?\s*([a-zA-Z0-9\-_]+)", full_text)
@@ -116,27 +129,34 @@ def parse_passport_intellect(file_bytes, file_name):
         if file_sn:
             serial_no = file_sn.group(1) if file_sn.group(1) else file_sn.group(2)
 
-    # 5. Поэлементный разбор узлов свинчивания
+    # 5. Поэлементный разбор узлов свинчивания + прямой поиск моментов из паспорта в кНм!
     thread_patterns = {
-        "4-1/2 Reg (Нижняя резьба вала шпинделя)": (r"4-1/2\s*reg", 2000.0, 2400.0),
-        "5-1/2 FH (Верхняя резьба корпуса ВЗД)": (r"5-1/2\s*fh", 4000.0, 4500.0),
-        "NC50 / З-133 (Альтернативная верхняя резьба)": (r"nc50|з-133", 2600.0, 3100.0),
-        "З-117 (Резьба переводника малая)": (r"з-117", 1800.0, 2200.0)
+        "4-1/2 Reg (Нижняя резьба вала шпинделя)": (r"4-1/2\s*reg|4\s*1/2\s*reg", 2000.0, 2400.0),
+        "5-1/2 FH (Верхняя резьба корпуса ВЗД)": (r"5-1/2\s*fh|5\s*1/2\s*fh", 4000.0, 4500.0),
+        "NC50 / З-133 (Узел соединения КНБК)": (r"nc50|з[-_]?133", 2600.0, 3100.0),
+        "З-117 (Резьба переводника/калибратора)": (r"з[-_]?117", 1800.0, 2200.0),
+        "З-102 (Малый замок переводника)": (r"з[-_]?102", 1200.0, 1500.0),
+        "З-147 (Тяжелый замок переводника)": (r"з[-_]?147", 3800.0, 4300.0)
     }
 
-    if eq_type == "Немагнитная УБТ (НУБТ)":
-        threads_matrix["Основное тело НУБТ (З-133 / NC50)"] = {"min_knm": 25.5, "max_knm": 30.4, "label": "2600-3100 кгс·м"}
-    else:
-        for node_name, (regex_str, def_min, def_max) in thread_patterns.items():
-            if re.search(regex_str, full_text):
-                min_knm = round(def_min / 101.97, 1)
-                max_knm = round(def_max / 101.97, 1)
-                threads_matrix[node_name] = {
-                    "min_knm": min_knm,
-                    "max_knm": max_knm,
-                    "label": f"{int(def_min)}...{int(def_max)} кгс·м"
-                }
+    # Сначала проверяем классические резьбы
+    for node_name, (regex_str, def_min, def_max) in thread_patterns.items():
+        if re.search(regex_str, full_text):
+            min_knm = round(def_min / 101.97, 1)
+            max_knm = round(def_max / 101.97, 1)
+            threads_matrix[node_name] = {"min_knm": min_knm, "max_knm": max_knm, "label": f"{int(def_min)}...{int(def_max)} кгс·м"}
 
+    # ЕСЛИ ТЕКСТ РЕЗЬБЫ НЕ НАЙДЕН (как у нашего калибратора), но есть строчка "момент свинчивания... кНм"
+    if not threads_matrix:
+        moment_direct = re.search(r"(?:момент\s*свинчивания|крутящий\s*момент)\s*,?\s*кн\s*[\cdot\*\s]?\s*м\s*(\d+[\.,]\d+)\s*[-–—]\s*(\d+[\.,]\d+)", full_text)
+        if moment_direct:
+            min_v = float(moment_direct.group(1).replace(",", "."))
+            max_v = float(moment_direct.group(2).replace(",", "."))
+            threads_matrix["Заводская уставка (Прямой импорт из паспорта)"] = {
+                "min_knm": min_v,
+                "max_knm": max_v,
+                "label": f"{min_v}...{max_v} кН·м"
+            }
     # Ищем в тексте упоминания зазоров или люфтов для будущего модуля Михалыча
     found_clearance = re.search(r"(?:люфт|зазор)\s*(?:осевой|шпинделя)?\s*[:=-]?\s*(\d+[\.,]\d+|\d+)", full_text)
     detected_clearance = found_clearance.group(1) if found_clearance else "Не обнаружен"
