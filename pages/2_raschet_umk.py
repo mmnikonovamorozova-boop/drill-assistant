@@ -162,13 +162,28 @@ with tab_pipe:
     # --- ЗДЕСЬ НАЧИНАЕТСЯ ВАШ СТАРЫЙ ШАГ 6 (ЕГО НЕ ТРОГАЕМ!) ---
     if "p_moment_corrected" in st.session_state:
         calculated_base_moment = float(st.session_state["p_moment_corrected"])
+   
+    # Сквозная проверка ИИ-реестра: ищем заводские моменты и износ оборудования
+    passport_torque_found = None
 
-# Сквозная проверка: если ИИ-движок нашел в паспортах брак ЛНК или износ — занижаем момент затяжки
-for file_name, data in st.session_state["global_ocr_registry"].items():
-    if "ограничением" in str(data.get("status_lnk")).lower() or data.get("workload_hours", 0) > 250:
-        calculated_base_moment = 21.5  
-        st.warning(f"⚠️ Внимание! В общем реестре паспортов обнаружен изношенный элемент ({data.get('eq_type')}). Рекомендованный СТО ИНТИ момент затяжки снижен до 21.5 кН·м!")
-        break
+    for file_name, data in st.session_state["global_ocr_registry"].items():
+        # 1. Если ИИ-движок нашел в паспортах брак ЛНК или износ — жестко режем момент по СТО ИНТИ
+        if "ограничением" in str(data.get("status_lnk")).lower() or data.get("workload_hours", 0) > 250:
+            calculated_base_moment = 21.5  
+            st.warning(f"⚠️ Внимание! В общем реестре паспортов обнаружен изношенный элемент ({data.get('eq_type')}). Рекомендованный СТО ИНТИ момент затяжки снижен до 21.5 кН·м!")
+            passport_torque_found = 21.5
+            break
+            
+        # 2. Если элемент исправен, но у него в паспорте прописан точный заводской момент затяжки
+        elif data.get("passport_torque") and data.get("passport_torque") != "Не указан":
+            # Вытаскиваем верхнее число диапазона из строки (например, из '39.2 - 44.1 кН·м' берем 44.1)
+            raw_torques = re.findall(r'\d+[\.,]\d+', data.get("passport_torque"))
+            if raw_torques:
+                calculated_base_moment = float(raw_torques[-1])
+                passport_torque_found = calculated_base_moment
+
+    if passport_torque_found and passport_torque_found != 21.5:
+        st.info(f"💡 ИИ автоматически применил номинальную уставку момента из паспорта завода: {calculated_base_moment} кН·м")
     
     with col_p2:
         p_moment = st.number_input(
