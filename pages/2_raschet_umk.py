@@ -188,6 +188,8 @@ with tab_tribology:
         "Тип резьбовой смазки (СТО ИНТИ S.QS.8):",
         options=grease_options
     )
+    grease_dict = {"Стандартная (API)": 1.0, "Графитовая (K=1.15)": 1.15, "Тефлоновая (K=0.85)": 0.85, "Прочая специальная (K=1.3)": 1.3}
+    st.session_state["k_grease_live"] = grease_dict.get(grease_type, 1.0)
 
 
 # =========================================================================
@@ -205,7 +207,7 @@ grease_dict = {
 }
 
 # Безопасное извлечение коэффициента смазки без риска опечаток
-k_grease = grease_dict.get(grease_type, 1.0)
+k_grease = st.session_state.get("k_grease_live", 1.0)
 
 # Добавляем ввод угла натяжения каната, который раньше отсутствовал в коде
 angle_alpha = st.number_input("Фактический угол натяжения каната (α), град:", min_value=10.0, max_value=180.0, value=90.0, step=1.0)
