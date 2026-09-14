@@ -3,6 +3,13 @@ import json
 import os
 import numpy as np
 
+# ====== НАША ВСТАВКА №1: Подключаем новый сервис и шину данных ======
+from repository.services.ocr_service import parse_passport_intellect
+
+if "global_ocr_registry" not in st.session_state:
+    st.session_state["global_ocr_registry"] = {}
+# ===================================================================
+
 # --- 1. АППАРАТНАЯ ИНИЦИАЛИЗАЦИЯ СТРИМЛИТ (СТРОГО НА ПЕРВОМ МЕСТЕ) ---
 st.set_page_config(page_title="Расчет ключа УМК", layout="wide")
 
@@ -73,6 +80,31 @@ with st.expander("➕ Регистрация кастомной модели к�
             st.success(f"✔️ Инструмент '{new_key_name}' успешно добавлен в базу данных.")
             st.rerun() # Мгновенное обновление сессии для выпадающего списка
 
+# ========================================================================
+# НАША ВСТАВКА: Блок динамической дозагрузки паспортов EasyOCR
+# ========================================================================
+st.markdown("### 📸 ИИ-дозагрузка паспортов оборудования (EasyOCR)")
+uploaded_passports = st.file_uploader(
+    "Если приехало новое оборудование, перетащите новые сканы/фото паспортов пакетом сюда:", 
+    type=["png", "jpg", "jpeg", "pdf"], 
+    accept_multiple_files=True,
+    key="umk_passport_uploader"
+)
+
+if uploaded_passports:
+    for uploaded_file in uploaded_passports:
+        if uploaded_file.name not in st.session_state["global_ocr_registry"]:
+            with st.spinner(f"ИИ-движок EasyOCR читает {uploaded_file.name}..."):
+                file_bytes = uploaded_file.read()
+                parsed_data = parse_passport_intellect(file_bytes, uploaded_file.name)
+                st.session_state["global_ocr_registry"][uploaded_file.name] = parsed_data
+    st.success(f"✔ Реестр паспортов обновлен. Всего в базе проекта: {len(st.session_state['global_ocr_registry'])} шт.")
+
+if st.session_state["global_ocr_registry"]:
+    with st.expander("📋 Посмотреть текущую сводную таблицу паспортов рейса"):
+        st.dataframe(list(st.session_state["global_ocr_registry"].values()), use_container_width=True)
+# ========================================================================
+
 # ВЫНОСИМ НА ЦЕНТР ЭКРАНА ДЛЯ МИХАЛЫЧА В ТУНДРУ
 st.markdown("### 🛠️ Входные параметры крепления соединений")
 tab_tongs, tab_pipe, tab_tribology = st.tabs(["🔧 Ключ УМК", "🛢 Параметры трубы и замка", "🧴 Смазка и Трибология"])
@@ -130,6 +162,13 @@ with tab_pipe:
     # --- ЗДЕСЬ НАЧИНАЕТСЯ ВАШ СТАРЫЙ ШАГ 6 (ЕГО НЕ ТРОГАЕМ!) ---
     if "p_moment_corrected" in st.session_state:
         calculated_base_moment = float(st.session_state["p_moment_corrected"])
+
+# Сквозная проверка: если ИИ-движок нашел в паспортах брак ЛНК или износ — занижаем момент затяжки
+for file_name, data in st.session_state["global_ocr_registry"].items():
+    if "ограничением" in str(data.get("status_lnk")).lower() or data.get("workload_hours", 0) > 250:
+        calculated_base_moment = 21.5  
+        st.warning(f"⚠️ Внимание! В общем реестре паспортов обнаружен изношенный элемент ({data.get('eq_type')}). Рекомендованный СТО ИНТИ момент затяжки снижен до 21.5 кН·м!")
+        break
     
     with col_p2:
         p_moment = st.number_input(
