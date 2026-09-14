@@ -212,14 +212,6 @@ with tab_pipe:
             calculated_base_moment = 21.5  
             st.warning(f"⚠️ Внимание! Обнаружен критический износ элемента ({data.get('eq_type')}). Рекомендованный СТО ИНТИ момент снижен до 21.5 кН·м!")
             break
-
-with col_p2:
-    p_moment_safe = st. number_input(
-        "Номинальный момент резьбового соединения, кН· м:",
-        value= float( calculated_base_moment),
-        key="p_moment_manual_input_unique"
-    )
-
         
         # 2. Если элемент исправен, но у него в паспорте прописан точный заводской момент затяжки
         elif data.get("passport_torque") and data.get("passport_torque") != "Не указан":
@@ -231,6 +223,14 @@ with col_p2:
 
     if passport_torque_found and passport_torque_found != 21.5:
         st.info(f"💡 ИИ автоматически применил номинальную уставку момента из паспорта завода: {calculated_base_moment} кН·м")
+
+    # Выносим ручной ввод строго ПОСЛЕ завершения всего цикла проверок
+    with col_p2:
+        p_moment_safe = st.number_input(
+            "Номинальный момент резьбового соединения, кН·м:",
+            value=float(calculated_base_moment),
+            key="p_moment_manual_input_unique"
+        )
     
 
 with tab_tribology:
