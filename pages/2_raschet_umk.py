@@ -229,15 +229,11 @@ k_grease = st.session_state.get("k_grease_live", 1.0)
 # Добавляем ввод угла натяжения каната, который раньше отсутствовал в коде
 angle_alpha = st.number_input("Фактический угол натяжения каната (α), град:", min_value=10.0, max_value=180.0, value=90.0, step=1.0)
 
-# Безопасно берем введенный момент из памяти. Если вкладка еще закрыта — берем базовый calculated_base_moment
-p_moment_safe = p_moment if 'p_moment' in locals() else calculated_base_moment
-
 # 1. Расчет скорректированного целевого момента с учетом трения смазки
 M_required = p_moment_safe * k_grease
+
+# Передаем значение в глобальную переменную p_moment для блоков валидации рисков и HTML-отчетов
 p_moment = p_moment_safe
-# Инициализируем глобальную переменную p_moment для блоков валидации и отчетов, если вкладка закрыта
-if 'p_moment' not in locals():
-    p_moment = calculated_base_moment
 
 g_const = 9.80665  # Точная константа ускорения свободного падения по ГОСТ
 
