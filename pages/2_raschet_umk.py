@@ -2,6 +2,7 @@ import streamlit as st
 import json
 import os
 import numpy as np
+import re  
 
 # ====== НАША ВСТАВКА №1: Подключаем новый сервис и шину данных ======
 from repository.services.ocr_service import parse_passport_intellect
