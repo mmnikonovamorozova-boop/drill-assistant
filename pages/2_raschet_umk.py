@@ -234,7 +234,7 @@ p_moment_safe = p_moment if 'p_moment' in locals() else calculated_base_moment
 
 # 1. Расчет скорректированного целевого момента с учетом трения смазки
 M_required = p_moment_safe * k_grease
-
+p_moment = p_moment_safe
 # Инициализируем глобальную переменную p_moment для блоков валидации и отчетов, если вкладка закрыта
 if 'p_moment' not in locals():
     p_moment = calculated_base_moment
