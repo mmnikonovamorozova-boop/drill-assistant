@@ -186,10 +186,12 @@ with tab_pipe:
         st.info(f"💡 ИИ автоматически применил номинальную уставку момента из паспорта завода: {calculated_base_moment} кН·м")
     
     with col_p2:
-        p_moment = st.number_input(
-            "Номинальный момент резьбового соединения, кН·м:",
-            value=float(calculated_base_moment)
+        p_moment = st. number_input(
+            "Номинальный момент резьбового соединения, кН· м:",
+            value= float( calculated_base_moment),
+            key="p_moment_manual_input_unique"
         )
+
 with tab_tribology:
     # Строго фиксированный список смазок по СТО ИНТИ S.QS.8
     grease_options = [
