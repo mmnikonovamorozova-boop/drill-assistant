@@ -112,7 +112,7 @@ else:
     st.sidebar.markdown(f"**Месторождение:** `{st.session_state['field_name']}`")
     st.sidebar.markdown(f"**КНБК №:** `{st.session_state['bha_number']}`")
     st.sidebar.markdown("---")
-    if st.sidebar.button("🚪 Выйти из системы", use_container_width=True):
+    if st. sidebar. button("🚪 Выйти из системы", use_container_width= True, key="btn_exit_system_sidebar"):
         st.session_state.authenticated = False
         st.rerun()
 
