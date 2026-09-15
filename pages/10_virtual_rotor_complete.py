@@ -380,7 +380,9 @@ with col_panel2:
                 # Если в рапорте замера нет — берем проектный номинал из базы
                 cursor_audit.execute("SELECT nominal_od FROM elements_library_db WHERE ? LIKE '%' || model || '%'", (el_bot,))
                 row_db_bot = cursor_audit.fetchone()
-                bot_D = float(row_db_bot) if row_db_bot else 165.1
+                # ИСПРАВЛЕНИЕ БАГА: Извлекаем первый элемент кортежа row_db_bot[0] перед float()
+                bot_D = float(row_db_bot[0]) if row_db_bot else 165.1
+
 
             # Вычисляем фактический перепад габаритов (ступень) на стыке
             delta_D = abs(top_D - bot_D)
