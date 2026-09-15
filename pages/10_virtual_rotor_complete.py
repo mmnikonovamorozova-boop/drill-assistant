@@ -540,12 +540,13 @@ client_limits_db = {
     "ПАО Лукойл": {"малый": 3.5, "средний": 5.0, "большой": 6.0}
 }
 
-# Автоматическое определение группы габарита ВЗД на основе считанной КНБК
+# Автоматическое определение группы габарита ВЗД на основе считанной КНБК (индекс колонки 1)
 parsed_df = st.session_state.get("parsed_bha_df")
-bha_text = "".join(parsed_df.iloc[:, 0].astype(str).tolist()).lower() if parsed_df is not None else ""
+bha_text = "".join(parsed_df.iloc[:, 1].astype(str).tolist()).lower() if parsed_df is not None else ""
+
 if "240" in bha_text or "8''" in bha_text:
     size_group = "большой"
-elif "172" in bha_text or "178" in bha_text or "6.75" in bha_text:
+elif "172" in bha_text or "178" in bha_text or "6.75" in bha_text or "дру3" in bha_text:
     size_group = "средний"
 else:
     size_group = "малый"
