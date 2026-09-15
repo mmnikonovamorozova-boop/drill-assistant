@@ -323,16 +323,24 @@ if uploaded_passports:
             <td style='padding: 12px; color: #10B981;'>✅ Верифицировано ИНТИ</td>
         </tr>
         """
-# Если хотя бы один документ был обработан, выводим сводную таблицу результатов
+# Исправленный вывод таблицы результатов OCR
 if passport_loop_count > 0:
     st.markdown(f"""
     <table style="width: 100%; border-collapse: collapse; text-align: left; background-color: #111827; border: 1px solid #374151; border-radius: 8px;">
-        <!-- Таблица результатов распознавания -->
+        <thead>
+            <tr style='background-color: #1F2937; border-bottom: 2px solid #4B5563;'>
+                <th style='padding: 12px; color: #9CA3AF;'>Файл</th>
+                <th style='padding: 12px; color: #9CA3AF;'>Завод-изготовитель</th>
+                <th style='padding: 12px; color: #9CA3AF;'>Лимит люфта</th>
+                <th style='padding: 12px; color: #9CA3AF;'>Статус ИНТИ</th>
+            </tr>
+        </thead>
         <tbody>
             {recognized_html_rows}
         </tbody>
     </table>
-    """, unsafe_allow_html=True)
+    """, unsafe_allow_html=True)  # <-- ДАННЫЙ ФЛАГ ОБЯЗАТЕЛЕН
+
 st.markdown("---")
 st.markdown("<h2 style='font-size:26px;'>🔄 Шаг 3.5: Виртуальный стол ротора (Контроль переводников)</h2>", unsafe_allow_html=True)
 st.caption("Автоматическая кросс-проверка замковых резьб переводников на совместимость и геометрический износ по СТО ИНТИ")
@@ -361,26 +369,22 @@ with col_panel2:
             el_bot = str(elements_list[idx+1]).strip()
             
             st.markdown(f"🔗 **Стык №{idx+1}:** {el_top} ↔ {el_bot}")
-            
-            # --- ИСПРАВЛЕНИЕ БАГА: ПРИОРИТЕТ РЕАЛЬНОГО ЗАМЕРА (122 мм) НАД БАЗОЙ ---
-            # Извлекаем диаметр верхнего элемента напрямую из считанной таблицы рапорта
+
+            # --- ИСПРАВЛЕНИЕ: ОТКЛЮЧЕНИЕ REGEX С ФЛАГОМ regex=False ---
             try:
-                row_top_data = df_bha[df_bha.iloc[:, 0].astype(str).str.contains(el_top, case=False, na=False)]
-                top_D = float(str(row_top_data.get("НаружныйДиаметр", row_top_data.iloc[0, 2])).replace(",", "."))
+                row_top_data = df_bha[df_bha.iloc[:, 0].astype(str).str.contains(el_top, case=False, na=False, regex=False)]
+                top_D = float(str(row_top_data.iloc[0, 4]).replace(",", "."))
             except Exception:
-                # Если в рапорте замера нет — берем проектный номинал из базы
                 cursor_audit.execute("SELECT nominal_od FROM elements_library_db WHERE ? LIKE '%' || model || '%'", (el_top,))
                 row_db = cursor_audit.fetchone()
                 top_D = float(row_db[0]) if row_db else 177.8
-            # Извлекаем диаметр нижнего элемента напрямую из считанной таблицы рапорта
+
             try:
-                row_bot_data = df_bha[df_bha.iloc[:, 0].astype(str).str.contains(el_bot, case=False, na=False)]
-                bot_D = float(str(row_bot_data.get("НаружныйДиаметр", row_bot_data.iloc)).replace(",", "."))
+                row_bot_data = df_bha[df_bha.iloc[:, 0].astype(str).str.contains(el_bot, case=False, na=False, regex=False)]
+                bot_D = float(str(row_bot_data.iloc[0, 4]).replace(",", "."))
             except Exception:
-                # Если в рапорте замера нет — берем проектный номинал из базы
                 cursor_audit.execute("SELECT nominal_od FROM elements_library_db WHERE ? LIKE '%' || model || '%'", (el_bot,))
                 row_db_bot = cursor_audit.fetchone()
-                # ИСПРАВЛЕНИЕ БАГА: Извлекаем первый элемент кортежа row_db_bot[0] перед float()
                 bot_D = float(row_db_bot[0]) if row_db_bot else 165.1
 
 
