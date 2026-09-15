@@ -132,8 +132,13 @@ spisok_stranic.extend([
     st.Page("pages/7_prognoz_traektorii.py", title="8. Прогноз траектории")
 ])
 
-# Проверяем файл с твоим точным именем из репозитория
 if os.path.exists("pages/9_sbor_knbk.py"):
     spisok_stranic.append(st.Page("pages/9_sbor_knbk.py", title="9. Сборка КНБК"))
 
-st.navigation(spisok_stranic).run()
+# --- ДОБАВЛЯЕМ СТРОГО СЮДА НАШ НОВЫЙ ИНТЕГРАЦИОННЫЙ МОДУЛЬ №10 ---
+if os.path.exists("pages/10_virtual_rotor_complete.py"):
+    spisok_stranic.append(st.Page("pages/10_virtual_rotor_complete.py", title="10. Виртуальный ротор ННБ"))
+
+# Финальный запуск навигационного движка Streamlit
+st.navigation(spisok_stranic). run()
+
