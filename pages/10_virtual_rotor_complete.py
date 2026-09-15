@@ -389,7 +389,7 @@ if "240" in bha_text or "8''" in bha_text: size_group = "большой"
 elif "172" in bha_text or "178" in bha_text or "6.75" in bha_text or "дру3" in bha_text: size_group = "средний"
 else: size_group = "малый"
 
-if selected_client != "Без учета ограничений Заказчика":
+    if selected_client != "Без учета ограничений Заказчика":
         client_rule = client_limits_db[selected_client][size_group]
         effective_max_limit = min(passport_limit, client_rule)
     else:
