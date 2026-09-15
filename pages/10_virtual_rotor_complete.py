@@ -572,10 +572,16 @@ else:
 
 # Вспомогательный коэффициент для расчета усталости вала
 term_a = (calculated_axial_delta / effective_max_limit) * 60.0 if effective_max_limit > 0 else 0.0
-# 2. МАТЕМАТИЧЕСКИЙ РАСЧЕТ ОСТАТОЧНОГО РЕСУРСА И РИСКОВ ПО ISO 281
-estimated_remaining_hours = max(0.0, (base_life - vzd_hours) / (wear_factor_axial * mud_factor)) if wear_factor_axial * mud_factor > 0 else 0.0
-calculated_vibration_g = (radial_ich ** 2) * 4.5 * (mud_density / 1.15)
-fatigue_probability = 100.0 if (calculated_axial_delta >= effective_max_limit or radial_ich > 1.80) else min(100.0, term_a + (radial_ich / 1.80) * 40.0)
+
+            # Корректное обнуление моточасов при критическом износе опор шпинделя
+            if calculated_axial_delta >= effective_max_limit or radial_ich > 1.80:
+                estimated_remaining_hours = 0.0
+                fatigue_probability = 100.0
+            else:
+                estimated_remaining_hours = max(0.0, (base_life - vzd_hours) / (wear_factor_axial * mud_factor)) if wear_factor_axial * mud_factor > 0 else 0.0
+                fatigue_probability = min(100.0, term_a + (radial_ich / 1.80) * 40.0)
+
+            calculated_vibration_g = (radial_ich ** 2) * 4.5 * (mud_density / 1.15)
 
 st.markdown("---")
 st.markdown("##### 🔬 Инженерный СППР-анализ состояния опор (СТО ИНТИ S.QS.7):")
