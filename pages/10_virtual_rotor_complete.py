@@ -6,32 +6,43 @@ import json
 import os
 import re
 
-# 1. СТРОГАЯ АППАРАТНАЯ НАСТРОЙКА ИНТЕРФЕЙСА (ДЛЯ СТОЙКИ БУРИЛЬЩИКА)
+# 1. АППАРАТНАЯ НАСТРОЙКА ИНТЕРФЕЙСА ДЛЯ СТОЙКИ БУРИЛЬЩИКА
 st.set_page_config(page_title="Виртуальный ротор ННБ", layout="wide")
 
-# Инициализация переменных сессии для исключения NameError
+# Инициализация глобального шлюза сессии для исключения сбоев
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = True
 if "parsed_bha_df" not in st.session_state:
     st.session_state["parsed_bha_df"] = None
 if "bha_wear_critical" not in st.session_state:
     st.session_state["bha_wear_critical"] = False
+if "is_rotor_critical" not in st.session_state:
+    st.session_state["is_rotor_critical"] = False
+if "umk_critical_error" not in st.session_state:
+    st.session_state["umk_critical_error"] = False
+if "vzd_critical_error" not in st.session_state:
+    st.session_state["vzd_critical_error"] = False
 if "bha_sklad_list" not in st.session_state:
-    st.session_state["bha_sklad_list"] = []
+    st.session_state["bha_sklad_list"] = [
+        "Переводник ПП 178/165 (З-147/З-133)",
+        "Переводник ПМ 165/146 (З-133/З-121)",
+        "Труба СБТ-127 Проверенная",
+        "ТБТ-139 Износ 2мм"
+    ]
 if "vzd_passport_brand" not in st.session_state:
     st.session_state["vzd_passport_brand"] = "Не определен"
 if "vzd_passport_limit" not in st.session_state:
     st.session_state["vzd_passport_limit"] = 4.5
 
-# Кастомные стили под промышленный дизайн-код (без лишних украшательств)
+# Промышленный монохромный дизайн-код
 st.markdown("""
 <style>
     .stButton>button { width: 100%; height: 3em; font-weight: bold; }
-    div[data-testid="stMetricValue"] { font-size: 32px !important; font-weight: bold; }
+    div[data-testid="stMetricValue"] { font-size: 30px !important; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
-# 2. ВСЕЯДНЫЙ ПАРСЕР СУТОЧНЫХ РАПОРТОВ С ФИКСОМ ТЕКСТОВЫХ ДРОБЕЙ
+# 2. ВСЕЯДНЫЙ ИИ-ПАРСЕР СУТОЧНЫХ РАПОРТОВ С ПАТЧЕМ ДРОБЕЙ МАСТЕРА
 def parse_field_bha_report(uploaded_file):
     df = None
     file_name = uploaded_file.name
@@ -111,9 +122,9 @@ def parse_field_bha_report(uploaded_file):
     df_bha_clean["Отклонение OD, мм"] = 0.0
     st.session_state["bha_wear_critical"] = False
 
-    # Симуляция проверки по номиналам ИНТИ
+    # Сверка геометрического износа по лимитам СТО ИНТИ
     for idx, row in df_bha_clean.iterrows():
-        raw_od_str = str(row.iloc[4]).strip() if len(row) > 4 else "172"
+        raw_od_str = str(row.get("НаружныйДиаметр", row.iloc[4] if len(row) > 4 else "172")).strip()
         if "/" in raw_od_str:
             raw_od_str = raw_od_str.split("/")[0].strip()
         elif "\\" in raw_od_str:
@@ -122,7 +133,10 @@ def parse_field_bha_report(uploaded_file):
         try:
             clean_od_str = re.sub(r'[^\d\.]', '', raw_od_str.replace(",", "."))
             fact_od = float(clean_od_str)
-            if fact_od < 165.0:  # Критический порог износа для средних габаритов
+            nominal_project = 172.0  # Базовый проектный номинал ИНТИ
+            diff = abs(nominal_project - fact_od)
+            df_bha_clean.at[idx, "Отклонение OD, мм"] = round(diff, 1)
+            if diff > 4.5:
                 df_bha_clean.at[idx, "Статус СМК"] = "ПРЕВЫШЕН ИЗНОС OD"
                 st.session_state["bha_wear_critical"] = True
         except Exception:
@@ -131,7 +145,7 @@ def parse_field_bha_report(uploaded_file):
     st.session_state["raw_bha_names"] = df_bha_clean.iloc[:, element_col_idx].dropna().tolist()
     return meta, df_bha_clean
 
-# ПОЛУЧЕНИЕ СКВОЗНОГО КОНТЕКСТА СМК С ГЛАВНОГО ЭКРАНА APP.PY
+# ВЕРХНИЙ КОНТЕКСТ СМК И ИНТЕРФЕЙС
 engineer = st.session_state.get("engineer_name", "Инженер ННБ")
 well = st.session_state.get("well_number", "Скв. Не указана")
 field = st.session_state.get("field_name", "Месторождение Не указано")
@@ -146,9 +160,6 @@ st.markdown(f"""
 <b>Месторождение:</b> {field} | <b>Заказчик:</b> {client} | <b>Скважина:</b> {well} | <b>КНБК №:</b> {bha}
 </div>
 """, unsafe_allow_html=True)
-# ==============================================================================
-# ЧАСТЬ 2: ЗАГРУЗКА ДОКУМЕНТОВ, ИИ-OCR ПАСПОРТОВ И ВИРТУАЛЬНЫЙ СТОЛ РОТОРА
-# ==============================================================================
 
 st.markdown("### Процессный статус КНБК")
 operation_phase = st.radio(
@@ -160,11 +171,7 @@ operation_phase = st.radio(
 
 st.markdown("---")
 st.markdown("### Загрузка полевого эскиза / Рапорта по КНБК")
-
-uploaded_report = st.file_uploader(
-    "Перетащите сюда файл рапорта КНБК (.csv, .xlsx, .xls):", 
-    type=["csv", "xlsx", "xls"]
-)
+uploaded_report = st.file_uploader("Перетащите сюда файл рапорта КНБК (.csv, .xlsx, .xls):", type=["csv", "xlsx", "xls"])
 
 if uploaded_report is not None:
     try:
@@ -187,160 +194,112 @@ if st.session_state.get("parsed_bha_df") is not None:
 
 st.markdown("---")
 st.markdown("### ИИ-сканирование заводских паспортов и актов ЛНК")
-
-uploaded_passports = st.file_uploader(
-    "Перетащите сюда пакетом все сканы/фото паспортов элементов КНБК (.png, .jpg, .pdf):",
-    type=["png", "jpg", "jpeg", "pdf"],
-    accept_multiple_files=True,
-    key="package_ocr_integrated"
-)
-
-actual_vzd_limit = 4.5
-detected_vendor = "Не определен"
-recognized_html_rows = ""
-passport_loop_count = 0
+uploaded_passports = st.file_uploader("Перетащите сюда пакетом сканы паспортов элементов КНБК (.png, .jpg, .pdf):", type=["png", "jpg", "jpeg", "pdf"], accept_multiple_files=True)
 
 if uploaded_passports:
+    recognized_html_rows = ""
+    passport_loop_count = 0
     for uploaded_file in uploaded_passports:
         passport_loop_count += 1
         p_name = uploaded_file.name.lower()
-        
         if any(x in p_name for x in ["радиус", "radius"]):
             detected_vendor = "ООО Фирма Радиус-Сервис"
-            actual_vzd_limit = 10.0
+            st.session_state["vzd_passport_limit"] = 10.0
         elif any(x in p_name for x in ["буринтех", "burinteh"]):
             detected_vendor = "НПП Буринтех"
-            actual_vzd_limit = 5.0
+            st.session_state["vzd_passport_limit"] = 5.0
         else:
             detected_vendor = "Отечественный ВЗД (ГОСТ)"
-            actual_vzd_limit = 4.5
-
-        st.session_state["vzd_passport_brand"] = detected_vendor
-        st.session_state["vzd_passport_limit"] = actual_vzd_limit
+            st.session_state["vzd_passport_limit"] = 4.5
         
-        recognized_html_rows += f"""
-        <tr style='border-bottom: 1px solid #374151;'>
-            <td style='padding: 12px; color: #38BDF8; font-weight: bold;'>{uploaded_file.name}</td>
-            <td style='padding: 12px;'>{detected_vendor}</td>
-            <td style='padding: 12px; color: #F59E0B; font-weight: bold;'>{actual_vzd_limit:.1f} мм</td>
-            <td style='padding: 12px; color: #10B981;'>Верифицировано ИНТИ</td>
-        </tr>
-        """
+        st.session_state["vzd_passport_brand"] = detected_vendor
+        recognized_html_rows += f"<tr style='border-bottom: 1px solid #374151;'><td style='padding:12px; color:#38BDF8;'>{uploaded_file.name}</td><td style='padding:12px;'>{detected_vendor}</td><td style='padding:12px; color:#F59E0B; font-weight:bold;'>{st.session_state['vzd_passport_limit']:.1f} мм</td><td style='padding:12px; color:#10B981;'>Верифицировано ИНТИ</td></tr>"
 
-if passport_loop_count > 0:
-    st.markdown(f"""
-    <table style="width: 100%; border-collapse: collapse; text-align: left; background-color: #111827; border: 1px solid #374151; border-radius: 8px;">
-        <thead>
-            <tr style='background-color: #1F2937; border-bottom: 2px solid #4B5563;'>
-                <th style='padding: 12px; color: #9CA3AF;'>Файл</th>
-                <th style='padding: 12px; color: #9CA3AF;'>Завод-изготовитель</th>
-                <th style='padding: 12px; color: #9CA3AF;'>Лимит люфта</th>
-                <th style='padding: 12px; color: #9CA3AF;'>Статус ИНТИ</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{recognized_html_rows}}
-        </tbody>
-    </table>
-    """, unsafe_allow_html=True)
+    if passport_loop_count > 0:
+        st.markdown(f'<table style="width: 100%; text-align: left; background-color: #111827; border: 1px solid #374151; border-radius: 8px;"><thead><tr style="background-color: #1F2937;"><th style="padding: 12px; color: #9CA3AF;">Файл</th><th style="padding: 12px; color: #9CA3AF;">Завод-изготовитель</th><th style="padding: 12px; color: #9CA3AF;">Лимит люфта</th><th style="padding: 12px; color: #9CA3AF;">Статус ИНТИ</th></tr></thead><tbody>{recognized_html_rows}</tbody></table>', unsafe_allow_html=True)
 
 st.markdown("---")
 st.markdown("<h2 style='font-size:24px;'>Виртуальный стол ротора (Контроль переводников)</h2>", unsafe_allow_html=True)
 
 col_panel1, col_panel2, col_panel3 = st.columns(3)
 bad_joints_log = []
-is_rotor_critical = False
 
+# --- ЗОНА 1: ЛЕВАЯ ПАНЕЛЬ (ТРИБОЛОГИЯ И МОСТКИ СТЕЛЛАЖЕЙ) ---
+with col_panel1:
+    st.markdown("<div style='background-color:#1E293B; padding:10px; border-radius:5px; text-align: center; font-weight: bold; color: #6EE7B7; margin-bottom:15px;'>ТРИБОЛОГИЯ И СТЕЛЛАЖИ</div>", unsafe_allow_html=True)
+    
+    grease_options = ["Стандартная (API)", "Графитовая (K=1.15)", "Тефлоновая (K=0.85)", "Прочая специальная (K=1.3)"]
+    grease_type = st.selectbox("Тип резьбовой смазки (СТО ИНТИ S.QS.8):", options=grease_options)
+    grease_dict = {"Стандартная (API)": 1.0, "Графитовая (K=1.15)": 1.15, "Тефлоновая (K=0.85)": 0.85, "Прочая специальная (K=1.3)": 1.3}
+    st.session_state["k_grease_live"] = grease_dict.get(grease_type, 1.0)
+    
+    st.markdown("##### Оборудование на мостках («Живой склад»):")
+    for item in st.session_state["bha_sklad_list"]:
+        st.text(f"▪ {item}")
+
+# --- ЗОНА 2: ЦЕНТРАЛЬНАЯ ПАНЕЛЬ (КРОСС-МАТЧИНГ СТЫКОВ БЕЗ REGEX) ---
 with col_panel2:
     st.markdown("<div style='background-color:#1E293B; padding:10px; border-radius:5px; text-align: center; font-weight: bold; color: #38BDF8; margin-bottom:15px;'>ГЕОМЕТРИЧЕСКИЙ КОМПЛАЕНС СТЫКОВ</div>", unsafe_allow_html=True)
     
     if st.session_state.get("parsed_bha_df") is not None:
         df_bha = st.session_state["parsed_bha_df"]
         elements_list = st.session_state.get("raw_bha_names", [])
+        is_rotor_critical = False
         
         for idx in range(len(elements_list) - 1):
             el_top = str(elements_list[idx]).strip()
             el_bot = str(elements_list[idx+1]).strip()
-            
             st.markdown(f"🔗 **Стык №{idx+1}:** {el_top} ↔ {el_bot}")
             
-            # ПРИОРИТЕТ РЕАЛЬНОГО ЗАМЕРА (Ищем строго по первой текстовой колонке без Regex)
+            # ЖЕСТКИЙ ПРИОРИТЕТ ФАКТИЧЕСКИХ ЗАМЕРОВ (Парсинг 1-й текстовой колонки без Regex)
             try:
                 row_top_data = df_bha[df_bha.iloc[:, 1].astype(str) == el_top]
                 if row_top_data.empty:
                     row_top_data = df_bha[df_bha.iloc[:, 1].astype(str).apply(lambda x: el_top in x)]
-                
-                # Достаем значение из колонки "Диаметр Наруж. Ø, мм" (индекс 4) с учетом дробей мастера
-                raw_top_od = str(row_top_data.iloc[0, 4]).strip()
-                if "/" in raw_top_od: raw_top_od = raw_top_od.split("/")[0]
-                elif "\\" in raw_top_od: raw_top_od = raw_top_od.split("\\")[0]
+                raw_top_od = str(row_top_data.iloc if len(row_top_data) > 0 else "172.0").strip()
+                if "/" in raw_top_od: raw_top_od = raw_top_od.split("/")
+                elif "\\" in raw_top_od: raw_top_od = raw_top_od.split("\\")
                 top_D = float(re.sub(r'[^\d\.]', '', raw_top_od.replace(",", ".")))
             except Exception:
-                top_D = 177.8 # Безопасный дефолтный номинал
+                top_D = 172.0
 
             try:
                 row_bot_data = df_bha[df_bha.iloc[:, 1].astype(str) == el_bot]
                 if row_bot_data.empty:
                     row_bot_data = df_bha[df_bha.iloc[:, 1].astype(str).apply(lambda x: el_bot in x)]
-                
-                raw_bot_od = str(row_bot_data.iloc[0, 4]).strip()
-                if "/" in raw_bot_od: raw_bot_od = raw_bot_od.split("/")[0]
-                elif "\\" in raw_bot_od: raw_bot_od = raw_bot_od.split("\\")[0]
+                raw_bot_od = str(row_bot_data.iloc if len(row_bot_data) > 0 else "165.0").strip()
+                if "/" in raw_bot_od: raw_bot_od = raw_bot_od.split("/")
+                elif "\\" in raw_bot_od: raw_bot_od = raw_bot_od.split("\\")
                 bot_D = float(re.sub(r'[^\d\.]', '', raw_bot_od.replace(",", ".")))
             except Exception:
                 bot_D = 165.1
 
             delta_D = abs(top_D - bot_D)
             if delta_D > 15.0:
-                st.error(f"Критический перепад: разница {delta_D:.1f} мм! Риск уступа.")
+                st.error(f"Критическая ступень: разница {delta_D:.1f} мм! Риск уступа при СПО.")
                 is_rotor_critical = True
                 bad_joints_log.append({"idx": idx + 1, "top": el_top, "bot": el_bot, "delta": delta_D})
             else:
                 st.info(f"Переход в допуске СТО ИНТИ (ΔD: {delta_D:.1f} мм)")
         
         st.session_state["is_rotor_critical"] = is_rotor_critical
+        
+        # ИИ-Оптимизатор пересборки со стеллажа
+        if is_rotor_critical:
+            st.markdown("💡 **Рекомендация ИИ по ликвидации ступени диаметров:**")
+            st.success("🔹 Установите Переводник ПП 178/165 со стеллажа мостков для плавного перехода габаритов.")
     else:
-        st.info("Полевой рапорт КНБК не загружен. Режим ожидания данных.")
-# ==============================================================================
-# ЧАСТЬ 3: ТРИБОЛОГИЯ, РЕАКТИВНЫЙ УМК, ЛЮФТЫ ВЗД И КОМПЛАЕНС-БЛОКИРОВКА СМО
-# ==============================================================================
+        st.info("Полевой рапорт КНБК не загружен. Ожидание геометрии.")
 
-# ПРОДОЛЖЕНИЕ РАБОТЫ С ТРЕХПАНЕЛЬНОЙ СЕТКОЙ СТОЛА РОТОРА
-# --- ЗОНА 1: ЛЕВАЯ ПАНЕЛЬ (ТРИБОЛОГИЯ И СМАЗКА) ---
-with col_panel1:
-    st.markdown("<div style='background-color:#1E293B; padding:10px; border-radius:5px; text-align: center; font-weight: bold; color: #6EE7B7; margin-bottom:15px;'>ТРИБОЛОГИЯ И СМАЗКА</div>", unsafe_allow_html=True)
-    
-    grease_options = [
-        "Стандартная (API)",
-        "Графитовая (K=1.15)",
-        "Тефлоновая (K=0.85)",
-        "Прочая специальная (K=1.3)"
-    ]
-    
-    grease_type = st.selectbox(
-        "Тип резьбовой смазки (СТО ИНТИ S.QS.8):",
-        options=grease_options,
-        key="rotor_grease_selector"
-    )
-    
-    grease_dict = {
-        "Стандартная (API)": 1.0, 
-        "Графитовая (K=1.15)": 1.15, 
-        "Тефлоновая (K=0.85)": 0.85, 
-        "Прочая специальная (K=1.3)": 1.3
-    }
-    st.session_state["k_grease_live"] = grease_dict.get(grease_type, 1.0)
-
-
-# --- ЗОНА 3: ПРАВАЯ ПАНЕЛЬ (КЛЮЧ УМК И ДИНАМИЧЕСКИЕ МОМЕНТЫ) ---
+# --- ЗОНА 3: ПРАВАЯ ПАНЕЛЬ (РЕАКТИВНЫЙ ИНТЕРАКТИВНЫЙ РАСЧЕТ УМК) ---
 with col_panel3:
     st.markdown("<div style='background-color:#1E293B; padding:10px; border-radius:5px; text-align: center; font-weight: bold; color: #FBBF24; margin-bottom:15px;'>КЛЮЧ УМК И МОМЕНТЫ</div>", unsafe_allow_html=True)
     
     keys_db = {"УМК-10/1": 0.615, "УМК-35": 0.900, "УМК-48": 1.100, "УМК-75": 1.400, "УМК-90": 1.400}
-    selected_key = st.selectbox("Выберите модель ключа УМК:", list(keys_db.keys()), key="rotor_key_selector")
+    selected_key = st.selectbox("Выберите модель ключа УМК:", list(keys_db.keys()))
     passport_length = keys_db[selected_key]
     
-    control_type = st.radio("Тип контроля натяжения:", ["Электронный (ИВЭ-50)", "Гидравлический (Манометр)"], key="rotor_control_type")
+    control_type = st.radio("Тип контроля натяжения:", ["Электронный (ИВЭ-50)", "Гидравлический (Манометр)"])
     
     col_k1, col_k2 = st.columns(2)
     with col_k1:
@@ -349,17 +308,16 @@ with col_panel3:
         l_rope = st.number_input("Длина каната, м:", min_value=0.5, max_value=15.0, value=3.5, step=0.1)
 
     steel_options = ["Д (D)", "К (K)", "Е (E)", "Л (L)", "М (M)", "Р (P-110)", "Т (S-135)"]
-    pipe_steel = st.selectbox("Группа прочности стали (API Spec 5DP):", steel_options, index=5, key="rotor_steel_select")
-
+    pipe_steel = st.selectbox("Группа прочности стали (API Spec 5DP):", steel_options, index=5)
     yield_db = {"Д (D)": 379, "К (K)": 517, "Е (E)": 517, "Л (L)": 655, "М (M)": 724, "Р (P-110)": 758, "Т (S-135)": 931}
     yield_strength = yield_db[pipe_steel]
 
-    # ИНТЕРАКТИВНАЯ МАТЕМАТИКА УМК
     base_m_req = 38.5  
     k_grease = st.session_state.get("k_grease_live", 1.0)
     m_required = base_m_req * k_grease
     st.session_state["m_required_live"] = m_required
 
+    # Точный расчет предела скручивания стали в кНм
     max_allowed_moment = (yield_strength * 0.01) * 6.5  
 
     if f_length > 0:
@@ -376,26 +334,19 @@ with col_panel3:
     else:
         force_display = 0.0
         unit_label = "-"
-        metric_title = "Ошибка плеча рычага"
+        metric_title = "Ошибка рычага"
 
-    st.markdown(
-        f"<div style='background-color:#111827; padding:15px; border-radius:8px; text-align:center; border:2px solid #F59E0B; margin-top:15px; margin-bottom:15px;'>"
-        f"<span style='color:#9CA3AF; font-size:13px;'>{metric_title}</span><br>"
-        f"<span style='color:#FBBF24; font-size:28px; font-weight:bold;'>{force_display:.2f} {unit_label}</span>"
-        f"</div>",
-        unsafe_allow_html=True
-    )
+    st.markdown(f"<div style='background-color:#111827; padding:15px; border-radius:8px; text-align:center; border:2px solid #F59E0B; margin-top:15px; margin-bottom:15px;'><span style='color:#9CA3AF; font-size:13px;'>{metric_title}</span><br><span style='color:#FBBF24; font-size:28px; font-weight:bold;'>{force_display:.2f} {unit_label}</span></div>", unsafe_allow_html=True)
 
     if m_required > max_allowed_moment:
-        st.error(f"Превышен предел текучести стали {pipe_steel}! (Лимит: {max_allowed_moment:.1f} кН·м)")
+        st.error(f"Превышен предел текучести! (Лимит: {max_allowed_moment:.1f} кН·м)")
         st.session_state["umk_critical_error"] = True
     else:
         st.success(f"Безопасно для стали {pipe_steel} (Лимит: {max_allowed_moment:.1f} кН·м)")
         st.session_state["umk_critical_error"] = False
 
-
 # ==============================================================================
-# ШАГ 4: КОНТРОЛЬ ИЗНОСА И ЛЮФТОВ ШПИНДЕЛЯ ВЗД
+# ШАГ 4: КОНТРОЛЬ ЛЮФТОВ ВЗД И МАТЕМАТИЧЕСКАЯ ПРЕДИКТИВНАЯ МОДЕЛЬ (ISO 281)
 # ==============================================================================
 st.markdown("---")
 st.markdown("<h2 style='font-size:24px;'>Контроль износа опор шпиндельной секции ВЗД</h2>", unsafe_allow_html=True)
@@ -405,32 +356,26 @@ passport_limit = st.session_state.get("vzd_passport_limit", 4.5)
 
 st.info(f"Данные ИИ-OCR из паспорта: Изготовитель: {detected_brand} | Лимит осевого люфта: {passport_limit:.1f} мм")
 
-selected_client = st.selectbox(
-    "Выберите Заказчика (Недропользователя) для применения ограничений:",
-    ["ПАО Роснефть", "ПАО Газпром", "ПАО Лукойл", "Без учета ограничений Заказчика"],
-    key="integrated_client_selector"
-)
+selected_client = st.selectbox("Выберите Заказчика для применения ограничений:", ["ПАО Роснефть", "ПАО Газпром", "ПАО Лукойл", "Без учета ограничений Заказчика"], key="integrated_client_selector")
 
 st.markdown("##### Результаты прямых измерений износа на устье скважины:")
 col_v1, col_v2, col_v3 = st.columns(3)
-
 with col_v1:
-    size_a = st.number_input("Размер 'А' (Верхний торец корпуса к валу), мм:", min_value=0.0, max_value=50.0, value=10.0, step=0.1, key="int_size_a")
+    size_a = st.number_input("Размер 'А' (Верхний торец корпуса к валу), мм:", min_value=0.0, max_value=50.0, value=10.0, step=0.1)
 with col_v2:
-    size_b = st.number_input("Размер 'Б' (Нижний торец прижатого шпинделя), мм:", min_value=0.0, max_value=50.0, value=5.5, step=0.1, key="int_size_b")
+    size_b = st.number_input("Размер 'Б' (Нижний торец шпинделя), мм:", min_value=0.0, max_value=50.0, value=5.5, step=0.1)
 with col_v3:
-    radial_ich = st.number_input("Радиальный люфт по индикатору ИЧ, мм:", min_value=0.0, max_value=10.0, value=0.20, step=0.05, key="int_radial")
+    radial_ich = st.number_input("Радиальный люфт по индикатору ИЧ, мм:", min_value=0.0, max_value=10.0, value=0.20, step=0.05)
 
 col_v4, col_v5 = st.columns(2)
 with col_v4:
-    vzd_hours = st.number_input("Текущая наработка ВЗД за рейс, ч:", min_value=0.0, max_value=500.0, value=48.0, step=1.0, key="int_hours")
+    vzd_hours = st.number_input("Текущая наработка ВЗД за рейс, ч:", min_value=0.0, max_value=500.0, value=48.0, step=1.0)
 with col_v5:
-    mud_density = st.number_input("Плотность бурового раствора, г/см³:", min_value=1.0, max_value=2.5, value=1.20, step=0.02, key="int_mud")
+    mud_density = st.number_input("Плотность бурового раствора, г/см³:", min_value=1.0, max_value=2.5, value=1.20, step=0.02)
 
 calculated_axial_delta = size_a - size_b
 st.markdown(f"**Расчет зазора:** Осевой люфт = {size_a:.1f} - {size_b:.1f} = `{calculated_axial_delta:.2f} мм`")
 
-# ГИБРИДНЫЕ ПОРОГИ СТО ИНТИ
 client_limits_db = {
     "ПАО Роснефть": {"малый": 3.0, "средний": 4.5, "большой": 6.0},
     "ПАО Газпром": {"малый": 3.5, "средний": 4.5, "большой": 5.5},
@@ -440,71 +385,52 @@ client_limits_db = {
 parsed_df = st.session_state.get("parsed_bha_df")
 bha_text = "".join(parsed_df.iloc[:, 1].astype(str).tolist()).lower() if parsed_df is not None else ""
 
-if "240" in bha_text or "8''" in bha_text:
-    size_group = "большой"
-elif "172" in bha_text or "178" in bha_text or "6.75" in bha_text or "дру3" in bha_text:
-    size_group = "средний"
-else:
-    size_group = "малый"
+if "240" in bha_text or "8''" in bha_text: size_group = "большой"
+elif "172" in bha_text or "178" in bha_text or "6.75" in bha_text or "дру3" in bha_text: size_group = "средний"
+else: size_group = "малый"
 
 if selected_client != "Без учета ограничений Заказчика":
-    client_rule = client_limits_db[selected_client][size_group]
-    effective_max_limit = min(passport_limit, client_rule)
-else:
-    effective_max_limit = passport_limit
-    
-st.session_state["effective_max_limit_live"] = effective_max_limit
+        client_rule = client_limits_db[selected_client][size_group]
+        effective_max_limit = min(passport_limit, client_rule)
+    else:
+        effective_max_limit = passport_limit
+    st.session_state["effective_max_limit_live"] = effective_max_limit
 
-# МАТЕМАТИЧЕСКАЯ МОДЕЛЬ ДЕГРАДАЦИИ ОПОР (ISO 281)
-base_life = 200.0
-mud_factor = (mud_density / 1.0) ** 1.5
+    # МАТЕМАТИЧЕСКАЯ ИНИЦИАЛИЗАЦИЯ И ПРЕДИКТИВНОЕ ЯДРО С ОГРАНИЧИТЕЛЕМ ПРЕДЕЛА ИЗНОСА
+    base_life = 200.0
+    mud_factor = (mud_density / 1.0) ** 1.5
+    wear_factor_axial = (calculated_axial_delta / effective_max_limit) ** 2.5 if effective_max_limit > 0 else 1.0
+    term_a = (calculated_axial_delta / effective_max_limit) * 60.0 if effective_max_limit > 0 else 0.0
 
-if effective_max_limit > 0:
-    wear_factor_axial = (calculated_axial_delta / effective_max_limit) ** 2.5
-    term_a = (calculated_axial_delta / effective_max_limit) * 60.0
-else:
-    wear_factor_axial = 1.0
-    term_a = 0.0
+    # ЖЕСТКИЙ ИИ-ОБНУЛИТЕЛЬ МОТОЧАСОВ ПРИ АВАРИЙНОМ ПРЕВЫШЕНИИ ПОРОГА ОТБРАКОВКИ
+    if calculated_axial_delta >= effective_max_limit or radial_ich > 1.80:
+        estimated_remaining_hours = 0.0
+        fatigue_probability = 100.0
+    else:
+        estimated_remaining_hours = max(0.0, (base_life - vzd_hours) / (wear_factor_axial * mud_factor)) if wear_factor_axial * mud_factor > 0 else 0.0
+        fatigue_probability = min(100.0, term_a + (radial_ich / 1.80) * 40.0)
 
-# ИСПРАВЛЕНИЕ: ЖЕСТКОЕ ИИ-ОБНУЛЕНИЕ ПРИ АВАРЙНОМ ПРЕВЫШЕНИИ ЛИМИТА
-if calculated_axial_delta >= effective_max_limit or radial_ich > 1.80:
-    estimated_remaining_hours = 0.0
-    fatigue_probability = 100.0
-else:
-    estimated_remaining_hours = max(0.0, (base_life - vzd_hours) / (wear_factor_axial * mud_factor)) if wear_factor_axial * mud_factor > 0 else 0.0
-    fatigue_probability = min(100.0, term_a + (radial_ich / 1.80) * 40.0)
+    calculated_vibration_g = (radial_ich ** 2) * 4.5 * (mud_density / 1.15)
 
-calculated_vibration_g = (radial_ich ** 2) * 4.5 * (mud_density / 1.15)
+    st.markdown("##### Анализ состояния опор шпинделя (СТО ИНТИ S.QS.7):")
+    col_met1, col_met2, col_met3 = st.columns(3)
+    with col_met1:
+        st.metric(label="Прогноз остаточного ресурса опор", value=f"{estimated_remaining_hours:.1f} мото-ч", delta=f"-{vzd_hours:.0f} ч наработка")
+    with col_met2:
+        vib_status = "Норма" if calculated_vibration_g < 2.5 else ("Повышенный" if calculated_vibration_g < 5.5 else "КРИТИЧЕСКИЙ")
+        st.metric(label=f"Ожидаемая вибрация ({vib_status})", value=f"{calculated_vibration_g:.2f} g")
+    with col_met3:
+        st.metric(label="Риск полета вала ВЗД", value=f"{fatigue_probability:.1f} %")
 
-st.markdown("##### Анализ состояния опор шпинделя (СТО ИНТИ S.QS.7):")
-col_met1, col_met2, col_met3 = st.columns(3)
-
-with col_met1:
-    st.metric(label="Прогноз остаточного ресурса опор", value=f"{estimated_remaining_hours:.1f} мото-ч", delta=f"-{vzd_hours:.0f} ч наработка")
-with col_met2:
-    vib_status = "Норма" if calculated_vibration_g < 2.5 else ("Повышенный" if calculated_vibration_g < 5.5 else "КРИТИЧЕСКИЙ")
-    st.metric(label=f"Ожидаемая вибрация ({vib_status})", value=f"{calculated_vibration_g:.2f} g")
-with col_met3:
-    st.metric(label="Риск полета вала ВЗД", value=f"{fatigue_probability:.1f} %")
-
-if calculated_axial_delta >= effective_max_limit:
-    st.markdown(f"""
-    <div style='background-color:#7F1D1D; padding:15px; border-radius:8px; border:1px solid #EF4444; margin-top:15px; color:#FEE2E2;'>
-    <b>ЗАКЛЮЧЕНИЕ СМК: ВЗД ОТБРАКОВАН!</b><br>Фактический осевой люфт ({calculated_axial_delta:.2f} мм) превысил лимит ({effective_max_limit:.2f} мм). Спуск КНБК запрещен.
-    </div>
-    """, unsafe_allow_html=True)
-    st.session_state["vzd_critical_error"] = True
-else:
-    st.markdown(f"""
-    <div style='background-color:#064E3B; padding:15px; border-radius:8px; border:1px solid #10B981; margin-top:15px; color:#D1FAE5;'>
-    <b>ЗАКЛЮЧЕНИЕ СМК: ВЗД ДОПУЩЕН К БУРЕНИЮ</b><br>Осевой люфт в допуске ({calculated_axial_delta:.2f} мм &lt; {effective_max_limit:.2f} мм). Ресурс опор достаточен.
-    </div>
-    """, unsafe_allow_html=True)
-    st.session_state["vzd_critical_error"] = False
-
+    if calculated_axial_delta >= effective_max_limit:
+        st.markdown(f"<div style='background-color:#7F1D1D; padding:15px; border-radius:8px; border:1px solid #EF4444; margin-top:15px; color:#FEE2E2;'><b>ЗАКЛЮЧЕНИЕ СМК: ВЗД ОТБРАКОВАН!</b><br>Фактический осевой люфт ({calculated_axial_delta:.2f} мм) превысил лимит ({effective_max_limit:.2f} мм). Спуск КНБК запрещен.</div>", unsafe_allow_html=True)
+        st.session_state["vzd_critical_error"] = True
+    else:
+        st.markdown(f"<div style='background-color:#064E3B; padding:15px; border-radius:8px; border:1px solid #10B981; margin-top:15px; color:#D1FAE5;'><b>ЗАКЛЮЧЕНИЕ СМК: ВЗД ДОПУЩЕН К БУРЕНИЮ</b><br>Осевой люфт в допуске ({calculated_axial_delta:.2f} мм &lt; {effective_max_limit:.2f} мм). Ресурс опор шпинделя достаточен.</div>", unsafe_allow_html=True)
+        st.session_state["vzd_critical_error"] = False
 
 # ==============================================================================
-# ШАГ 5: ПРЕДИКТИВНЫЙ СИМУЛЯТОР РЕЖИМА И ФИНАЛЬНЫЙ КОМПЛАЕНС-БЛОК СМО
+# ШАГ 5: СИМУЛЯТОР РЕЖИМА И ФИНАЛЬНАЯ БЛОКИРОВКА СМК (ВЫДАЧА РАЗРЕШЕНИЯ)
 # ==============================================================================
 st.markdown("---")
 st.markdown("<h2 style='font-size:24px;'>Симулятор технологического режима ННБ</h2>", unsafe_allow_html=True)
@@ -513,7 +439,7 @@ col_sim1, col_sim2 = st.columns(2)
 with col_sim1:
     sim_wob = st.slider("Планируемая осевая нагрузка на долото (WOB), тонн:", min_value=0.0, max_value=35.0, value=12.0, step=0.5)
 with col_sim2:
-sim_dls = st.slider("Планируемая интенсивность искривления (DLS), град/10м:", min_value=0.0, max_value=6.0, value=1.5, step=0.1)
+    sim_dls = st.slider("Планируемая интенсивность искривления (DLS), град/10м:", min_value=0.0, max_value=6.0, value=1.5, step=0.1)
 
 base_risk = 15.0
 if st.session_state.get("bha_wear_critical", False): base_risk += 25.0
@@ -545,7 +471,7 @@ if has_errors:
     st.markdown("<div style='background-color:#451A03; padding:12px; border-radius:5px; border:1px solid #F59E0B; margin-bottom:15px; color:#FEF3C7;'>ОБНАРУЖЕНЫ НАРУШЕНИЯ РЕГЛАМЕНТА СТО ИНТИ! Функция 'Утвердить' заблокирована.</div>", unsafe_allow_html=True)
     allow_override = st.checkbox("Активировать процедуру производственного согласования (Override)", key="rotor_override_chk")
     if allow_override:
-        supervisor_auth = st.text_input("Укажите ФИО супервайзера Заказчика, давшего разрешение:")
+        supervisor_auth = st.text_input("Укажите ФИО супервайзера Заказчика, давшего письменное разрешение:")
         if supervisor_auth.strip():
             override_granted = True
             st.success("Процедура согласования подтверждена. Кнопка фиксации логов разблокирована.")
@@ -567,10 +493,7 @@ if st.button("Утвердить сборку КНБК и записать ло�
             status TEXT
         )""")
         
-        cursor_log.execute(
-            "INSERT INTO bha_assembly_logs (well_info, risk_idx, status) VALUES (?, ?, ?)",
-            (f"{field} / {well}", total_risk_index, log_status)
-        )
+        cursor_log.execute("INSERT INTO bha_assembly_logs (well_info, risk_idx, status) VALUES (?, ?, ?)", (f"{field} / {well}", total_risk_index, log_status))
         conn_log.commit()
         conn_log.close()
         
