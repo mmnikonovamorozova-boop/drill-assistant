@@ -554,9 +554,13 @@ else:
     effective_max_limit = passport_limit
     st.info(f"🎯 **Минимально допустимый порог зазора:** {effective_max_limit:.2f} мм (По заводскому паспорту)")
     
+# --- ДОБАВИТЬ ЭТИ СТРОКИ СТРОГО ПЕРЕД РАСЧЕТОМ РЕСУРСА ---
+base_life = 200.0  # Номинальный паспортный ресурс подшипников ВЗД в часах
+term_a = (calculated_axial_delta / effective_max_limit) * 60.0 if effective_max_limit > 0 else 0.0
 st.session_state["effective_max_limit_live"] = effective_max_limit
 # Расчет остаточного ресурса и прогнозирования радиальной вибрации
-estimated_remaining_hours = max(0.0, (base_life - vzd_hours) / (wear_factor_axial * mud_factor))
+# Ваша текущая расчетная строка (теперь она отработает штатно):
+estimated_remaining_hours = max(0.0, (base_life - vzd_hours) / (wear_factor_axial * mud_factor)) if wear_factor_axial * mud_factor > 0 else 0.0
 fatigue_probability = min(100.0, term_a + (radial_ich / 1.80) * 40.0)
 # Базовый расчетный ресурс нового шпинделя в мото-часах
 base_life = 200.0
