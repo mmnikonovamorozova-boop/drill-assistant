@@ -363,13 +363,12 @@ with col_panel2:
         conn_audit = sqlite3.connect("knbk_core.db")
         cursor_audit = conn_audit.cursor()
         
-        # Запускаем попарный обход элементов гирлянды КНБК (полный код обновления доступен в репозитории)
+        # Запускаем попарный обход элементов гирлянды КНБК с поиском по 1-й колонке и отключением Regex
         for idx in range(len(elements_list) - 1):
             el_top = str(elements_list[idx]).strip()
             el_bot = str(elements_list[idx+1]).strip()
-            
             st.markdown(f"🔗 **Стык №{idx+1}:** {el_top} ↔ {el_bot}")
-            
+                        
             # --- ИСПРАВЛЕНИЕ: ОТКЛЮЧЕНИЕ REGEX С ФЛАГОМ regex=False ---
             try:
                 row_top_data = df_bha[df_bha.iloc[:, 0].astype(str).str.contains(el_top, case=False, na=False, regex=False)]
@@ -540,7 +539,6 @@ client_limits_db = {
     "ПАО Лукойл": {"малый": 3.5, "средний": 5.0, "большой": 6.0}
 }
 
-# Автоматическое определение группы габарита ВЗД на основе считанной КНБК (индекс колонки 1)
 parsed_df = st.session_state.get("parsed_bha_df")
 bha_text = "".join(parsed_df.iloc[:, 1].astype(str).tolist()).lower() if parsed_df is not None else ""
 
