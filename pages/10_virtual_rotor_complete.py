@@ -465,49 +465,49 @@ with col_panel3:
     yield_strength = yield_db[pipe_steel]
             
     # --- ОЖИВЛЯЕМ РАСЧЕТ МОМЕНТОВ И СТАЛЕЙ УМК ---
-            base_m_req = 38.5  
-            k_grease = st.session_state.get("k_grease_live", 1.0)
-            
-            # Динамический расчет целевого момента с учетом выбранной смазки
-            m_required = base_m_req * k_grease
-            st.session_state["m_required_live"] = m_required
-            
-            # Автоматический перерасчет предела текучести для всех сталей (фикс размерности)
-            max_allowed_moment = (yield_strength * 0.01) * 6.5  
-            
-            # Реактивный расчет усилия в зависимости от типа контроля (ИВЭ-50 или манометр)
-            if f_length > 0:
-                if "Электронный" in control_type:
-                    force_kn = m_required / f_length
-                    force_display = force_kn / 9.81
-                    unit_label = "тонн"
-                    metric_title = "🎯 ЦЕЛЕВОЕ УСИЛИЕ НА ИВЭ-50:"
-                else:
-                    force_kn = m_required / f_length
-                    force_display = (force_kn / 0.005) / 100.0  # перевод в МПа для гидравлики
-                    unit_label = "МПа"
-                    metric_title = "💧 ЦЕЛЕВОЕ ДАВЛЕНИЕ НА МАНОМЕТРЕ:"
-            else:
-                force_display = 0.0
-                unit_label = "-"
-                metric_title = "Ошибка плеча рычага"
-            
-            # Динамический вывод результата на экран на желтом табло
-            st.markdown(
-                f"<div style='background-color:#111827; padding:15px; border-radius:8px; text-align:center; border:2px solid #F59E0B; margin-top:15px;'>"
-                f"<span style='color:#9CA3AF; font-size:14px;'>{metric_title}</span><br>"
-                f"<span style='color:#FBBF24; font-size:32px; font-weight:bold;'>{force_display:.2f} {unit_label}</span>"
-                f"</div>",
-                unsafe_allow_html=True
-            )
-            
-            # Комплаенс-контроль на смятие и пластику для любой выбранной стали
-            if m_required > max_allowed_moment:
-                st.error(f"❌ ПРЕДЕЛ ТЕКУЧЕСТИ: Момент свинчивания ({m_required:.1f} кН·м) превышает предел ({max_allowed_moment:.1f} кН·м) для стали {pipe_steel}!")
-                st.session_state["umk_critical_error"] = True
-            else:
-                st.success(f"🟢 Безопасно для стали {pipe_steel} (Лимит: {max_allowed_moment:.1f} кН·м)")
-                st.session_state["umk_critical_error"] = False
+base_m_req = 38.5  
+k_grease = st.session_state.get("k_grease_live", 1.0)
+
+# Динамический расчет целевого момента с учетом выбранной смазки
+m_required = base_m_req * k_grease
+st.session_state["m_required_live"] = m_required
+
+# Автоматический перерасчет предела текучести для всех сталей (фикс размерности)
+max_allowed_moment = (yield_strength * 0.01) * 6.5  
+
+# Реактивный расчет усилия в зависимости от типа контроля (ИВЭ-50 или манометр)
+if f_length > 0:
+    if "Электронный" in control_type:
+        force_kn = m_required / f_length
+        force_display = force_kn / 9.81
+        unit_label = "тонн"
+        metric_title = "🎯 ЦЕЛЕВОЕ УСИЛИЕ НА ИВЭ-50:"
+    else:
+        force_kn = m_required / f_length
+        force_display = (force_kn / 0.005) / 100.0  # перевод в МПа для гидравлики
+        unit_label = "МПа"
+        metric_title = "💧 ЦЕЛЕВОЕ ДАВЛЕНИЕ НА МАНОМЕТРЕ:"
+else:
+    force_display = 0.0
+    unit_label = "-"
+    metric_title = "Ошибка плеча рычага"
+
+# Динамический вывод результата на экран на желтом табло
+st.markdown(
+    f"<div style='background-color:#111827; padding:15px; border-radius:8px; text-align:center; border:2px solid #F59E0B; margin-top:15px;'>"
+    f"<span style='color:#9CA3AF; font-size:14px;'>{metric_title}</span><br>"
+    f"<span style='color:#FBBF24; font-size:32px; font-weight:bold;'>{force_display:.2f} {unit_label}</span>"
+    f"</div>",
+    unsafe_allow_html=True
+)
+
+# Комплаенс-контроль на смятие и пластику для любой выбранной стали
+if m_required > max_allowed_moment:
+    st.error(f"❌ ПРЕДЕЛ ТЕКУЧЕСТИ: Момент свинчивания ({m_required:.1f} кН·м) превышает предел ({max_allowed_moment:.1f} кН·м) для стали {pipe_steel}!")
+    st.session_state["umk_critical_error"] = True
+else:
+    st.success(f"🟢 Безопасно для стали {pipe_steel} (Лимит: {max_allowed_moment:.1f} кН·м)")
+    st.session_state["umk_critical_error"] = False
 
 st.markdown("---")
 st.markdown("<h2 style='font-size:26px;'>📏 Шаг 4: Контроль износа опор шпиндельной секции ВЗД</h2>", unsafe_allow_html=True)
