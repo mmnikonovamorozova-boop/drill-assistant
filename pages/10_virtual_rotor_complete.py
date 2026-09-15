@@ -463,17 +463,18 @@ with col_panel3:
     # Предел текучести сталей (в МПа) по СТО ИНТИ
     yield_db = {"Д (D)": 379, "К (K)": 517, "Е (E)": 517, "Л (L)": 655, "М (M)": 724, "Р (P-110)": 758, "Т (S-135)": 931}
     yield_strength = yield_db[pipe_steel]
-            # --- ОЖИВЛЯЕМ РАСЧЕТ МОМЕНТОВ И СТАЛЕЙ УМК ---
+            
+    # --- ОЖИВЛЯЕМ РАСЧЕТ МОМЕНТОВ И СТАЛЕЙ УМК ---
             base_m_req = 38.5  
             k_grease = st.session_state.get("k_grease_live", 1.0)
             
             # Динамический расчет целевого момента с учетом выбранной смазки
             m_required = base_m_req * k_grease
             st.session_state["m_required_live"] = m_required
-
+            
             # Автоматический перерасчет предела текучести для всех сталей (фикс размерности)
             max_allowed_moment = (yield_strength * 0.01) * 6.5  
-
+            
             # Реактивный расчет усилия в зависимости от типа контроля (ИВЭ-50 или манометр)
             if f_length > 0:
                 if "Электронный" in control_type:
@@ -490,7 +491,7 @@ with col_panel3:
                 force_display = 0.0
                 unit_label = "-"
                 metric_title = "Ошибка плеча рычага"
-
+            
             # Динамический вывод результата на экран на желтом табло
             st.markdown(
                 f"<div style='background-color:#111827; padding:15px; border-radius:8px; text-align:center; border:2px solid #F59E0B; margin-top:15px;'>"
@@ -499,7 +500,7 @@ with col_panel3:
                 f"</div>",
                 unsafe_allow_html=True
             )
-
+            
             # Комплаенс-контроль на смятие и пластику для любой выбранной стали
             if m_required > max_allowed_moment:
                 st.error(f"❌ ПРЕДЕЛ ТЕКУЧЕСТИ: Момент свинчивания ({m_required:.1f} кН·м) превышает предел ({max_allowed_moment:.1f} кН·м) для стали {pipe_steel}!")
@@ -508,28 +509,6 @@ with col_panel3:
                 st.success(f"🟢 Безопасно для стали {pipe_steel} (Лимит: {max_allowed_moment:.1f} кН·м)")
                 st.session_state["umk_critical_error"] = False
 
-    # Расчет усилия натяжения каната на электронном датчике ИВЭ-50 (в тоннах)
-    if f_length > 0:
-        force_kn = m_required / f_length
-        force_tonnes = force_kn / 9.81
-    else:
-        force_tonnes = 0.0
-    # Вывод целевого усилия затяжки для буровой бригады
-    st.markdown(
-        f"<div style='background-color:#111827; padding:15px; border-radius:8px; text-align:center; border:2px solid #F59E0B; margin-top:15px;'>"
-        f"<span style='color:#9CA3AF; font-size:14px;'>🎯 ЦЕЛЕВОЕ УСИЛИЕ НАТЯЖЕНИЯ НА ИВЭ-50:</span><br>"
-        f"<span style='color:#FBBF24; font-size:32px; font-weight:bold;'>{force_tonnes:.2f} тонн</span>"
-        f"</div>",
-        unsafe_allow_html=True
-    )
-
-    # Верификация на смятие и пластическую деформацию резьбы
-    if m_required > max_allowed_moment:
-        st.error(f"❌ ПРЕДЕЛ ТЕКУЧЕСТИ: Момент свинчивания ({m_required:.1f} кН·м) превышает предел ({max_allowed_moment:.1f} кН·м) для стали {pipe_steel}!")
-        st.session_state["umk_critical_error"] = True
-    else:
-        st.success("🟢 Расчетный момент безопасен для целостности замковой резьбы.")
-        st.session_state["umk_critical_error"] = False
 st.markdown("---")
 st.markdown("<h2 style='font-size:26px;'>📏 Шаг 4: Контроль износа опор шпиндельной секции ВЗД</h2>", unsafe_allow_html=True)
 st.caption("Математический аудит радиального и осевого зазора опор шпинделя по методикам заводов-изготовителей и СТО ИНТИ")
