@@ -389,12 +389,12 @@ if "240" in bha_text or "8''" in bha_text: size_group = "большой"
 elif "172" in bha_text or "178" in bha_text or "6.75" in bha_text or "дру3" in bha_text: size_group = "средний"
 else: size_group = "малый"
 
-    if selected_client != "Без учета ограничений Заказчика":
-        client_rule = client_limits_db[selected_client][size_group]
-        effective_max_limit = min(passport_limit, client_rule)
-    else:
-        effective_max_limit = passport_limit
-    st.session_state["effective_max_limit_live"] = effective_max_limit
+if selected_client != "Без учета ограничений Заказчика":
+    client_rule = client_limits_db[selected_client][size_group]
+    effective_max_limit = min(passport_limit, client_rule)
+else:
+    effective_max_limit = passport_limit
+st.session_state["effective_max_limit_live"] = effective_max_limit
 
     # МАТЕМАТИЧЕСКАЯ ИНИЦИАЛИЗАЦИЯ И ПРЕДИКТИВНОЕ ЯДРО С ОГРАНИЧИТЕЛЕМ ПРЕДЕЛА ИЗНОСА
     base_life = 200.0
