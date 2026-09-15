@@ -363,13 +363,13 @@ with col_panel2:
         conn_audit = sqlite3.connect("knbk_core.db")
         cursor_audit = conn_audit.cursor()
         
-        # Запускаем попарный обход элементов гирлянды КНБК
+        # Запускаем попарный обход элементов гирлянды КНБК (полный код обновления доступен в репозитории)
         for idx in range(len(elements_list) - 1):
             el_top = str(elements_list[idx]).strip()
             el_bot = str(elements_list[idx+1]).strip()
             
             st.markdown(f"🔗 **Стык №{idx+1}:** {el_top} ↔ {el_bot}")
-
+            
             # --- ИСПРАВЛЕНИЕ: ОТКЛЮЧЕНИЕ REGEX С ФЛАГОМ regex=False ---
             try:
                 row_top_data = df_bha[df_bha.iloc[:, 0].astype(str).str.contains(el_top, case=False, na=False, regex=False)]
