@@ -396,38 +396,38 @@ else:
     effective_max_limit = passport_limit
 st.session_state["effective_max_limit_live"] = effective_max_limit
 
-    # МАТЕМАТИЧЕСКАЯ ИНИЦИАЛИЗАЦИЯ И ПРЕДИКТИВНОЕ ЯДРО С ОГРАНИЧИТЕЛЕМ ПРЕДЕЛА ИЗНОСА
-    base_life = 200.0
-    mud_factor = (mud_density / 1.0) ** 1.5
-    wear_factor_axial = (calculated_axial_delta / effective_max_limit) ** 2.5 if effective_max_limit > 0 else 1.0
-    term_a = (calculated_axial_delta / effective_max_limit) * 60.0 if effective_max_limit > 0 else 0.0
+# МАТЕМАТИЧЕСКАЯ ИНИЦИАЛИЗАЦИЯ И ПРЕДИКТИВНОЕ ЯДРО С ОГРАНИЧИТЕЛЕМ ПРЕДЕЛА ИЗНОСА
+base_life = 200.0
+mud_factor = (mud_density / 1.0) ** 1.5
+wear_factor_axial = (calculated_axial_delta / effective_max_limit) ** 2.5 if effective_max_limit > 0 else 1.0
+term_a = (calculated_axial_delta / effective_max_limit) * 60.0 if effective_max_limit > 0 else 0.0
 
-    # ЖЕСТКИЙ ИИ-ОБНУЛИТЕЛЬ МОТОЧАСОВ ПРИ АВАРИЙНОМ ПРЕВЫШЕНИИ ПОРОГА ОТБРАКОВКИ
-    if calculated_axial_delta >= effective_max_limit or radial_ich > 1.80:
-        estimated_remaining_hours = 0.0
-        fatigue_probability = 100.0
-    else:
-        estimated_remaining_hours = max(0.0, (base_life - vzd_hours) / (wear_factor_axial * mud_factor)) if wear_factor_axial * mud_factor > 0 else 0.0
-        fatigue_probability = min(100.0, term_a + (radial_ich / 1.80) * 40.0)
+# ЖЕСТКИЙ ИИ-ОБНУЛИТЕЛЬ МОТОЧАСОВ ПРИ АВАРИЙНОМ ПРЕВЫШЕНИИ ПОРОГА ОТБРАКОВКИ
+if calculated_axial_delta >= effective_max_limit or radial_ich > 1.80:
+    estimated_remaining_hours = 0.0
+    fatigue_probability = 100.0
+else:
+    estimated_remaining_hours = max(0.0, (base_life - vzd_hours) / (wear_factor_axial * mud_factor)) if wear_factor_axial * mud_factor > 0 else 0.0
+    fatigue_probability = min(100.0, term_a + (radial_ich / 1.80) * 40.0)
 
-    calculated_vibration_g = (radial_ich ** 2) * 4.5 * (mud_density / 1.15)
+calculated_vibration_g = (radial_ich ** 2) * 4.5 * (mud_density / 1.15)
 
-    st.markdown("##### Анализ состояния опор шпинделя (СТО ИНТИ S.QS.7):")
-    col_met1, col_met2, col_met3 = st.columns(3)
-    with col_met1:
-        st.metric(label="Прогноз остаточного ресурса опор", value=f"{estimated_remaining_hours:.1f} мото-ч", delta=f"-{vzd_hours:.0f} ч наработка")
-    with col_met2:
-        vib_status = "Норма" if calculated_vibration_g < 2.5 else ("Повышенный" if calculated_vibration_g < 5.5 else "КРИТИЧЕСКИЙ")
-        st.metric(label=f"Ожидаемая вибрация ({vib_status})", value=f"{calculated_vibration_g:.2f} g")
-    with col_met3:
-        st.metric(label="Риск полета вала ВЗД", value=f"{fatigue_probability:.1f} %")
+st.markdown("##### Анализ состояния опор шпинделя (СТО ИНТИ S.QS.7):")
+col_met1, col_met2, col_met3 = st.columns(3)
+with col_met1:
+    st.metric(label="Прогноз остаточного ресурса опор", value=f"{estimated_remaining_hours:.1f} мото-ч", delta=f"-{vzd_hours:.0f} ч наработка")
+with col_met2:
+    vib_status = "Норма" if calculated_vibration_g < 2.5 else ("Повышенный" if calculated_vibration_g < 5.5 else "КРИТИЧЕСКИЙ")
+    st.metric(label=f"Ожидаемая вибрация ({vib_status})", value=f"{calculated_vibration_g:.2f} g")
+with col_met3:
+    st.metric(label="Риск полета вала ВЗД", value=f"{fatigue_probability:.1f} %")
 
-    if calculated_axial_delta >= effective_max_limit:
-        st.markdown(f"<div style='background-color:#7F1D1D; padding:15px; border-radius:8px; border:1px solid #EF4444; margin-top:15px; color:#FEE2E2;'><b>ЗАКЛЮЧЕНИЕ СМК: ВЗД ОТБРАКОВАН!</b><br>Фактический осевой люфт ({calculated_axial_delta:.2f} мм) превысил лимит ({effective_max_limit:.2f} мм). Спуск КНБК запрещен.</div>", unsafe_allow_html=True)
-        st.session_state["vzd_critical_error"] = True
-    else:
-        st.markdown(f"<div style='background-color:#064E3B; padding:15px; border-radius:8px; border:1px solid #10B981; margin-top:15px; color:#D1FAE5;'><b>ЗАКЛЮЧЕНИЕ СМК: ВЗД ДОПУЩЕН К БУРЕНИЮ</b><br>Осевой люфт в допуске ({calculated_axial_delta:.2f} мм &lt; {effective_max_limit:.2f} мм). Ресурс опор шпинделя достаточен.</div>", unsafe_allow_html=True)
-        st.session_state["vzd_critical_error"] = False
+if calculated_axial_delta >= effective_max_limit:
+    st.markdown(f"<div style='background-color:#7F1D1D; padding:15px; border-radius:8px; border:1px solid #EF4444; margin-top:15px; color:#FEE2E2;'><b>ЗАКЛЮЧЕНИЕ СМК: ВЗД ОТБРАКОВАН!</b><br>Фактический осевой люфт ({calculated_axial_delta:.2f} мм) превысил лимит ({effective_max_limit:.2f} мм). Спуск КНБК запрещен.</div>", unsafe_allow_html=True)
+    st.session_state["vzd_critical_error"] = True
+else:
+    st.markdown(f"<div style='background-color:#064E3B; padding:15px; border-radius:8px; border:1px solid #10B981; margin-top:15px; color:#D1FAE5;'><b>ЗАКЛЮЧЕНИЕ СМК: ВЗД ДОПУЩЕН К БУРЕНИЮ</b><br>Осевой люфт в допуске ({calculated_axial_delta:.2f} мм &lt; {effective_max_limit:.2f} мм). Ресурс опор шпинделя достаточен.</div>", unsafe_allow_html=True)
+    st.session_state["vzd_critical_error"] = False
 
 # ==============================================================================
 # ШАГ 5: СИМУЛЯТОР РЕЖИМА И ФИНАЛЬНАЯ БЛОКИРОВКА СМК (ВЫДАЧА РАЗРЕШЕНИЯ)
